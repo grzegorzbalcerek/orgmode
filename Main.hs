@@ -17,6 +17,9 @@ main = do
   input <- hGetContents hinput
   let content = parseInput input
   putStrLn $ "Content parsed. Length: " ++ show (length content) ++ "."
+  if head args == "showparsed"
+    then putStrLn (show content)
+    else return ()
   if head args == "latexslides"
     then makeOutputLatex outputFile content
     else return ()

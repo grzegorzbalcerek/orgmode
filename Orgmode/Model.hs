@@ -1,25 +1,20 @@
 module Orgmode.Model where
 
 data Part =
-    EmptyPart
-  | Paragraph String
-  | RegularSlide String [RegularSlidePart]
-  | TitleSlide String [TitleSlidePart]
-  deriving Show
-
-data TitleSlidePart =
-    Author String
-  | Subtitle String
-  | Institute String
+    Chapter String [Part]
+  | RegularSlide String [Part]
+  | TitleSlide String [Part]
+  | Author String
   | Date String
-  deriving Show
-
-data RegularSlidePart =
-    Title String
-  | SrcBlock [Option] String
+  | EmptyPart
+  | Institute String
   | Item String
+  | Paragraph String
   | Pause
   | Skipped
+  | SrcBlock [Option] String
+  | Subtitle String
+  | Title String
   deriving Show
 
 data Option =

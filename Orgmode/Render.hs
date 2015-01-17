@@ -54,7 +54,7 @@ renderPart (TitleSlide title parts) =
 
 
 
-renderTitleSlidePart :: TitleSlidePart -> String
+renderTitleSlidePart :: Part -> String
 
 renderTitleSlidePart (Author author) =
   "\\author{" ++ author ++ "}\n"
@@ -68,8 +68,9 @@ renderTitleSlidePart (Institute institute) =
 renderTitleSlidePart (Date date) =
   "\\date{" ++ date ++ "}\n"
 
+renderTitleSlidePart _ = ""
 
-renderRegularSlidePart :: RegularSlidePart -> String
+renderRegularSlidePart :: Part -> String
 
 renderRegularSlidePart (Item item) =
   "\\begin{itemize}\n" ++
@@ -123,5 +124,7 @@ renderRegularSlidePart (Title title) =
 renderRegularSlidePart Pause = "\\pause\n"
 
 renderRegularSlidePart Skipped = ""
+
+renderRegularSlidePart _ = ""
 
 

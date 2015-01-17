@@ -10,59 +10,57 @@ type P = Parsec String ()
 
 parseInput :: String -> [Part]
 parseInput input =
-    case (parse parts "error" input) of
+    case (parse toplevelParts "error" input) of
       Right result -> result
       Left err -> error (show err)
 
-parts :: P [Part]
-parts = do
+
+--------------------------------------------------------
+
+toplevelParts :: P [Part]
+toplevelParts = do
   header
-  slides <- many part
+  slides <- many toplevel
   try (stop >> return ()) <|> eof
   return $ slides
 
-stop = asteriskLine "STOP"
-
-asteriskLine tag = do
-  many1 (char '*')
-  space
-  string tag
-  optional space
-  content <- many (noneOf "¬\n\r")
-  many (noneOf "\n\r")
-  eol
-  return content
-
-part :: P Part
-part =
+toplevel :: P Part
+toplevel =
   try regularSlide <|>
   try titleSlide <|>
   try paragraph <|>
-  try comment
+  try comment <|>
+  try chapter
 
-title = try $ Title <$> (char '⒯' >> restOfLine)
+----------------------------------------------------
 
-paragraph = do
-  asteriskLine "PARA"
-  content <- many regularLineWithEol
-  return $ Paragraph (concat content)
+chapter :: P Part
+chapter = do
+  title <- asteriskLine "CHAPTER"
+  content <- many chapterElement
+  return $ Chapter title content
 
-comment = do
-  asteriskLine "COMMENT"
-  content <- regularSlideContent
-  return $ EmptyPart
+chapterElement =
+  (try paragraph) <?> "chapterElement"
+
+----------------------------------------------------
+
+titleSlide :: P Part
+titleSlide = do
+  title <- asteriskLine "TITLESLIDE"
+  content <- many titleSlideElement
+  return $ TitleSlide title content
+
+titleSlideElement =
+  (author <|>
+   subtitle) <?> "titleSlideElement"
+
+----------------------------------------------------
 
 regularSlide = do
   title <- asteriskLine "SLIDE"
-  content <- regularSlideContent
+  content <- many slideElement
   return $ RegularSlide title content
-
-restOfLine = do
-  content <- many (noneOf "\n\r")
-  eol
-  return content
-
-regularSlideContent = many slideElement
 
 slideElement =
   try item <|>
@@ -71,12 +69,28 @@ slideElement =
   try pause <|>
   skipLine
 
-skipLine = (eol <|> do
-  noneOf ['*']
-  many (noneOf "\r\n")
-  eol) >> return Skipped
+----------------------------------------------------
 
---  return $ "\\begin{itemize}\n" ++ concat items ++ "\\end{itemize}\n"
+comment = do
+  asteriskLine "COMMENT"
+  content <- many slideElement
+  return $ EmptyPart
+
+----------------------------------------------------
+
+asteriskLine tag = do
+  many1 (char '*')
+  space
+  string tag
+  content <- many (noneOf "¬\n\r")
+  many (noneOf "\n\r")
+  eol
+  return $ dropWhile (\c -> c == ' ') content
+
+paragraph = do
+  asteriskLine "PARA"
+  content <- many regularLineWithEol
+  return $ Paragraph (concat content)
 
 item = try $ Item <$> (char '•' >> restOfLine)
 
@@ -85,17 +99,40 @@ pause = do
   eol
   return Pause
 
---"\\item{" ++ content ++ "}\n"
+subtitle = try $ Subtitle <$> asteriskLine "SUBTITLE"
 
-eol = try (string "\r\n") <|> string "\n"
+stop = asteriskLine "STOP"
 
-header = string "# -*-" >> many (noneOf "\n\r") >> eol
+----------------------------------------------------
+
+author = try $ Author <$> (char '⒜' >> restOfLine)
+
+title = try $ Title <$> (char '⒯' >> restOfLine)
+
+----------------------------------------------------
 
 srcBlock = do
   options <- srcBegin
   content <- many1 emptyOrRegularLineWithEol
   srcEnd
   return $ SrcBlock options (concat content)
+
+srcBegin = do
+  string "#+begin_src"
+  optional $ (many $ noneOf ":\n\r")
+  options <- colonOption `sepBy` (many (noneOf "¬:\n\r"))
+  restOfLine
+  return options
+
+srcEnd = string "#+end_src" >> eol
+
+colonOption =
+  try colonOptionIgnore <|>
+  try colonOptionBlock <|>
+  try colonOptionExampleBlock <|>
+  try colonOptionMinWidth <|>
+  try colonOptionTangle <|>
+  try colonOptionUnrecognized
 
 colonOptionIgnore = do
   string ":ignore"
@@ -126,27 +163,26 @@ colonOptionUnrecognized = do
   many (noneOf "¬:\n\r")
   return $ Unrecognized
 
-colonOption =
-  try colonOptionIgnore <|>
-  try colonOptionBlock <|>
-  try colonOptionExampleBlock <|>
-  try colonOptionMinWidth <|>
-  try colonOptionTangle <|>
-  try colonOptionUnrecognized
-
-srcBegin = do
-  string "#+begin_src"
-  optional $ (many $ noneOf ":\n\r")
-  options <- colonOption `sepBy` (many (noneOf "¬:\n\r"))
-  restOfLine
-  return options
-
-srcEnd = string "#+end_src" >> eol
-
 srcLine = do
   content <- noneOf "\n\r"
   eol
   return content
+
+----------------------------------------------
+
+header = string "# -*-" >> many (noneOf "\n\r") >> eol
+
+restOfLine = do
+  content <- many (noneOf "\n\r")
+  eol
+  return content
+
+skipLine = (eol <|> do
+  noneOf ['*']
+  many (noneOf "\r\n")
+  eol) >> return Skipped
+
+eol = try (string "\r\n") <|> string "\n"
 
 emptyOrRegularLineWithEol =
   eol <|> commentLineWithEol <|> regularLineWithEol
@@ -162,17 +198,4 @@ regularLineWithEol = do
   many (noneOf "\n\r")
   eol
   return (h:content ++ "\n")
-
-titleSlide :: P Part
-titleSlide = do
-  title <- asteriskLine "TITLESLIDE"
-  content <- many titleSlideElement
-  return $ TitleSlide title content
-
-titleSlideElement =
-  (titleSlideAuthor <|>
-  titleSlideSubtitle) <?> "titleSlideElement"
-
-titleSlideAuthor = try $ Author <$> (char '⒜' >> restOfLine)
-titleSlideSubtitle = try $ Subtitle <$> asteriskLine "SUBTITLE"
 
