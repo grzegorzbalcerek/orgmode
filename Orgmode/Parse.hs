@@ -14,8 +14,7 @@ parseInput input =
       Right result -> result
       Left err -> error (show err)
 
-
---------------------------------------------------------
+----------------------------------------------------
 
 toplevelParts :: P [Part]
 toplevelParts = do
@@ -41,7 +40,19 @@ chapter = do
   return $ Chapter title content
 
 chapterElement =
-  (try paragraph) <?> "chapterElement"
+  (try paragraph <|>
+   try section) <?> "chapterElement"
+
+----------------------------------------------------
+
+section :: P Part
+section = do
+  title <- asteriskLine "SECTION"
+  content <- many sectionElement
+  return $ Section title content
+
+sectionElement =
+  (try paragraph) <?> "sectionElement"
 
 ----------------------------------------------------
 

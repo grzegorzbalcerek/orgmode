@@ -3,6 +3,7 @@ module Orgmode.Model where
 data Part =
     Chapter String [Part]
   | RegularSlide String [Part]
+  | Section String [Part]
   | TitleSlide String [Part]
   | Author String
   | Date String
