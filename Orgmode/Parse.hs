@@ -28,7 +28,8 @@ asteriskLine tag = do
   space
   string tag
   optional space
-  content <- many (noneOf "\n\r")
+  content <- many (noneOf "¬\n\r")
+  many (noneOf "\n\r")
   eol
   return content
 
@@ -42,8 +43,8 @@ part =
 title = try $ Title <$> (char '⒯' >> restOfLine)
 
 paragraph = do
-  asteriskLine "P"
-  content <- many1 regularLineWithEol
+  asteriskLine "PARA"
+  content <- many regularLineWithEol
   return $ Paragraph (concat content)
 
 comment = do
@@ -67,6 +68,7 @@ slideElement =
   try item <|>
   try title <|>
   try srcBlock <|>
+  try pause <|>
   skipLine
 
 skipLine = (eol <|> do
@@ -77,6 +79,11 @@ skipLine = (eol <|> do
 --  return $ "\\begin{itemize}\n" ++ concat items ++ "\\end{itemize}\n"
 
 item = try $ Item <$> (char '•' >> restOfLine)
+
+pause = do
+  char '‖'
+  eol
+  return Pause
 
 --"\\item{" ++ content ++ "}\n"
 
@@ -90,27 +97,47 @@ srcBlock = do
   srcEnd
   return $ SrcBlock options (concat content)
 
-blockOptionIgnore = string ":ignore" >> return Ignore
+colonOptionIgnore = do
+  string ":ignore"
+  return Ignore
 
-blockOptionTangle = do
+colonOptionTangle = do
   string ":tangle "
   fileName <- many1 (char '.' <|> char '/' <|> alphaNum)
   return $ Tangle fileName
 
-blockOptionMinWidth = do --Tangle <$> string ":minwidth " *> 
+colonOptionBlock = do
+  string ":block"
+  value <- many (noneOf "¬:\n\r")
+  return $ Block value
+
+colonOptionExampleBlock = do
+  string ":exampleblock"
+  value <- many (noneOf "¬:\n\r")
+  return $ ExampleBlock value
+
+colonOptionMinWidth = do
   string ":minwidth "
   value <- many1 digit
   return $ MinWidth (read value :: Int)
 
-blockOption =
-  try blockOptionIgnore <|>
-  try blockOptionMinWidth <|>
-  try blockOptionTangle
+colonOptionUnrecognized = do
+  string ":"
+  many (noneOf "¬:\n\r")
+  return $ Unrecognized
+
+colonOption =
+  try colonOptionIgnore <|>
+  try colonOptionBlock <|>
+  try colonOptionExampleBlock <|>
+  try colonOptionMinWidth <|>
+  try colonOptionTangle <|>
+  try colonOptionUnrecognized
 
 srcBegin = do
   string "#+begin_src"
   optional $ (many $ noneOf ":\n\r")
-  options <- blockOption `sepBy` (many1 $ noneOf ":\n\r")
+  options <- colonOption `sepBy` (many (noneOf "¬:\n\r"))
   restOfLine
   return options
 
@@ -122,11 +149,17 @@ srcLine = do
   return content
 
 emptyOrRegularLineWithEol =
-  eol <|> regularLineWithEol
+  eol <|> commentLineWithEol <|> regularLineWithEol
+
+commentLineWithEol = do
+  char '¬'
+  many (noneOf "\n\r")
+  eol
 
 regularLineWithEol = do
   h <- noneOf "*#\n\r"
-  content <- many (noneOf "\n\r")
+  content <- many (noneOf "¬\n\r")
+  many (noneOf "\n\r")
   eol
   return (h:content ++ "\n")
 

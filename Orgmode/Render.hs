@@ -3,6 +3,7 @@ module Orgmode.Render where
 import Orgmode.Model
 import Control.Monad.Trans.State
 import Control.Monad
+import Data.List
 
 type LatexOutput = State [Option] String
 
@@ -88,25 +89,38 @@ renderRegularSlidePart (SrcBlock options content) =
         width = foldl (\w o -> case o of
                               MinWidth v -> v `max` w
                               _ -> w) textwidth options
+        block = find (\o -> case o of
+                              Block t -> True
+                              ExampleBlock t -> True
+                              _ -> False) options 
         textsize =
-          if width <= 27 && height <= 8 then "Huge"
-          else if width <= 32 && height <= 10 then "huge"
-          else if width <= 39 && height <= 11 then "LARGE"
-          else if width <= 46 && height <= 15 then "Large"
+          --if width <= 27 && height <= 8 then "Huge"
+          --else if width <= 32 && height <= 10 then "huge"
+          --else if width <= 39 && height <= 11 then "LARGE"
+          --else 
+          if width <= 46 && height <= 14 then "Large"
           else if width <= 55 && height <= 18 then "large"
           else if width <= 65 && height <= 21 then "normalsize"
           else if width <= 72 && height <= 23 then "small"
           else if width <= 82 && height <= 27 then "footnotesize"
           else if width <= 90 && height <= 33 then "scriptsize"
           else "tiny"
+        verbatimContent content =
+          "\\begin{verbatim}\n" ++
+          content ++
+          "\\end{verbatim}\n"
     in
-        "\\" ++ textsize ++
-        "\\begin{verbatim}\n" ++
-        content ++
-        "\\end{verbatim}\n"
+        "\\" ++ textsize ++ "\n" ++
+        (case block of
+           Just (Block t) -> "\\begin{block}{" ++ t ++ "}\n" ++ verbatimContent content ++ "\\end{block}\n"
+           Just (ExampleBlock t) -> "\\begin{exampleblock}{" ++ t ++ "}\n" ++ verbatimContent content ++ "\\end{exampleblock}\n"
+           _ -> verbatimContent content)
+
 
 renderRegularSlidePart (Title title) =
   "\\centerline{\\tikz{\\node[scale=4]{" ++ title ++ "};}}\n"
+
+renderRegularSlidePart Pause = "\\pause\n"
 
 renderRegularSlidePart Skipped = ""
 

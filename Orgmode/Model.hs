@@ -18,11 +18,15 @@ data RegularSlidePart =
     Title String
   | SrcBlock [Option] String
   | Item String
+  | Pause
   | Skipped
   deriving Show
 
 data Option =
     Ignore
+  | Unrecognized
+  | Block String
+  | ExampleBlock String
   | MinWidth Int
   | Tangle String
   deriving (Eq,Show)
