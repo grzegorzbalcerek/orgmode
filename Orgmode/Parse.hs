@@ -41,6 +41,7 @@ chapter = do
 
 chapterElement =
   (try paragraph <|>
+   try srcBlock <|>
    try section) <?> "chapterElement"
 
 ----------------------------------------------------
@@ -52,7 +53,8 @@ section = do
   return $ Section title content
 
 sectionElement =
-  (try paragraph) <?> "sectionElement"
+  (try paragraph <|>
+   try srcBlock) <?> "sectionElement"
 
 ----------------------------------------------------
 

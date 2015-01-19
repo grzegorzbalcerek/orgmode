@@ -1,26 +1,20 @@
-module Orgmode.Render where
+-- -*- coding: utf-8; -*-
+module Orgmode.RenderLatex where
 
 import Orgmode.Model
 import Control.Monad.Trans.State
 import Control.Monad
 import Data.List
 
-type LatexOutput = State [Option] String
+----------------------------------------------------
 
-renderLatexM :: [Part] -> LatexOutput
-renderLatexM parts =
- liftM2 mplus (
-   liftM2 mplus (return latexStart)
-                (return (concat $ renderPart `fmap` parts) )
-  ) (return latexEnd)
+renderLatex :: RenderType -> [Part] -> String
+renderLatex Slides parts = latexStartSlides ++ (concat $ renderPart `fmap` parts) ++ latexEnd
+renderLatex Book parts = latexStartBook ++ (concat $ renderPart `fmap` parts) ++ latexEnd
 
-renderLatex :: [Part] -> String
-renderLatex parts =
-  latexStart ++
-  (concat $ renderPart `fmap` parts) ++
-  latexEnd
+----------------------------------------------------
 
-latexStart = "%% -*- coding: utf-8 -*-\n\
+latexStartSlides = "%% -*- coding: utf-8 -*-\n\
   \\\documentclass[smaller]{beamer}\n\
   \\\usetheme{Madrid}\n\
   \\\setbeamertemplate{footline}[default]\n\
@@ -34,52 +28,56 @@ latexStart = "%% -*- coding: utf-8 -*-\n\
   \\\begin{document}\n\
   \\\Large\n"
 
+latexStartBook = "%% -*- coding: utf-8 -*-\n\
+  \\\documentclass[11pt]{book}\n\
+  \\\usepackage[utf8]{inputenc}\n\
+  \\\usepackage{graphicx}\n\
+  \\\usepackage{lmodern}\n\
+  \\\usepackage{verbatim}\n\
+  \\\usepackage[OT4]{polski}\n\
+  \\\begin{document}\n"
+
 latexEnd = "\\end{document}\n"
 
+----------------------------------------------------
+
 renderPart :: Part -> String
-
 renderPart EmptyPart = ""
-
-renderPart (Paragraph para) = ""
-
+renderPart (Paragraph txt) = "\n\n" ++ renderText txt ++ "\n\n"
 renderPart (RegularSlide title parts) =
   "\\begin{frame}[fragile]\n" ++
   (if title == "" then "" else "\\frametitle{" ++ title ++ "}\n") ++
   concat (renderRegularSlidePart `fmap` parts) ++
   "\\end{frame}\n"
-
 renderPart (TitleSlide title parts) =
   "\\title{" ++ title ++ "}\n" ++
   concat (renderTitleSlidePart `fmap` parts) ++ "\\maketitle\n"
+renderPart (Chapter title parts) =
+  "\n\\chapter{" ++ title ++ "}\n" ++ concat (map renderPart parts) ++ "\n"
+renderPart (Section title parts) =
+  "\n\\section{" ++ title ++ "}\n" ++ concat (map renderPart parts) ++ "\n"
+renderPart _ = ""
 
-
+----------------------------------------------------
 
 renderTitleSlidePart :: Part -> String
-
 renderTitleSlidePart (Author author) =
   "\\author{" ++ author ++ "}\n"
-
 renderTitleSlidePart (Subtitle subtitle) =
   "\\subtitle{" ++ subtitle ++ "}\n"
-
 renderTitleSlidePart (Institute institute) =
   "\\institute{" ++ institute ++ "}\n"
-
 renderTitleSlidePart (Date date) =
   "\\date{" ++ date ++ "}\n"
-
 renderTitleSlidePart _ = ""
 
-renderRegularSlidePart :: Part -> String
+----------------------------------------------------
 
+renderRegularSlidePart :: Part -> String
 renderRegularSlidePart (Item item) =
   "\\begin{itemize}\n" ++
   "\\item{" ++ item ++ "}\n" ++
   "\\end{itemize}\n"
-
--- "\\begin{block}{}\n"
--- "\\end{block}\n"
-
 renderRegularSlidePart (SrcBlock options content) =
   if elem Ignore options
   then ""
@@ -116,15 +114,29 @@ renderRegularSlidePart (SrcBlock options content) =
            Just (Block t) -> "\\begin{block}{" ++ t ++ "}\n" ++ verbatimContent content ++ "\\end{block}\n"
            Just (ExampleBlock t) -> "\\begin{exampleblock}{" ++ t ++ "}\n" ++ verbatimContent content ++ "\\end{exampleblock}\n"
            _ -> verbatimContent content)
-
-
 renderRegularSlidePart (Title title) =
   "\\centerline{\\tikz{\\node[scale=4]{" ++ title ++ "};}}\n"
-
 renderRegularSlidePart Pause = "\\pause\n"
-
 renderRegularSlidePart Skipped = ""
-
 renderRegularSlidePart _ = ""
 
+----------------------------------------------------
 
+renderText :: String -> String
+renderText txt = snd $ foldl' f (' ',"") txt
+  where f :: (Char,String) -> Char -> (Char,String)
+        f (flag,result) c =
+          case (flag,c) of
+            (_,'①') -> (flag,result ++ "(1)") -- TODO
+            (' ','⒡') -> ('⒡',result ++ "\\textit{")
+            ('⒡','⒡') -> (' ',result ++ "}")
+            (' ','⒞') -> ('⒞',result ++ "\\texttt{")
+            ('⒞','⒞') -> (' ',result ++ "}")
+            (' ','⒰') -> ('⒰',result ++ "\\textit{")
+            ('⒰','⒰') -> (' ',result ++ "}")
+            (_,'\\') -> (flag,result ++ "\\textbackslash{}")
+            _ -> (flag,result ++ [c])
+
+-- ⒰ url
+-- ⒞ code
+-- ⒡ file
