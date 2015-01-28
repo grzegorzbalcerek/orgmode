@@ -29,6 +29,7 @@ data Prop =
   | MinWidth Int
   | Tangle String
   | Id String
+  | Label String
   deriving (Eq,Show)
 
 data RenderType =
@@ -73,3 +74,8 @@ idProp str =
   foldl (\acc p -> case p of
                      Id ident -> ident
                      _ -> acc) (filter (\c -> c `elem` " ") str)
+
+labelProp =
+  foldl (\acc p -> case p of
+                     Label label -> label
+                     _ -> acc) ""

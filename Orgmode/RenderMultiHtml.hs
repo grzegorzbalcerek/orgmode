@@ -8,6 +8,7 @@ import Data.List
 import Control.Monad (forM_)
 import System.IO
 import GHC.IO.Encoding
+import Data.Char
 
 writeMultiHtml :: String -> [Part] -> IO ()
 writeMultiHtml outputPath chapters = do
@@ -20,15 +21,23 @@ writeToc outputPath chapters = do
   let path = outputPath ++ "/toc.html"
   houtput <- openFile path WriteMode
   hSetEncoding houtput utf8
-  let content = "<ul>\n" ++ concat (map renderChapterLink chapters) ++ "</ul>\n"
-  let firstChapter:_ = chapters
-  -- let right = headPartId chId $ (sectionsOnly chapterParts) ++ nextChapters
-  let output = page "Spis treści" content "index" "index" "" -- right
+  let content =
+        "<h1>Spis treści</h1>\n<ul class='toc'>\n" ++
+        concat (map renderChapterLink chapters) ++
+        "</ul>\n"
+  let (Chapter title props _):_ = chapters
+  let right = idProp title props
+  let output = page "Spis treści" content "index" "index" right
   putStrLn $ "Generating " ++ path
   hPutStr houtput output
   hClose houtput
 
-renderChapterLink (Chapter title props _) = "<li><a href='" ++ (idProp title props) ++ ".html'>" ++ title ++ "</a>\n"
+renderChapterLink (Chapter title props _) =
+  let id = idProp title props
+  in
+    "<li><a href='" ++ (idProp title props) ++ ".html'>" ++
+    chapterTitle title props ++
+    "</a>\n"
 renderChapterLink _ = ""
 
 writeChapters :: String -> [Part] -> [Part] -> IO ()
@@ -43,17 +52,18 @@ writeChapters outputPath prevChapters chapters =
 writeChapter :: String -> String -> [Prop] -> [Part] -> [Part] -> [Part] -> IO ()
 writeChapter outputPath title props chapterParts prevChapters nextChapters = do
   let chId = idProp title props
+  let chLabel = labelProp props
   let path = outputPath ++ "/" ++ chId ++ ".html"
   houtput <- openFile path WriteMode
   hSetEncoding houtput utf8
-  let content = renderChapterContent chId title chapterParts
+  let content = renderChapterContent title props chapterParts
   let left = headPartId chId $ prevChapters
   let right = headPartId chId $ (sectionsOnly chapterParts) ++ nextChapters
   let output = page title content left "toc" right
   putStrLn $ "Generating " ++ path
   hPutStr houtput output
   hClose houtput
-  writeSections outputPath chId [] chapterParts nextChapters
+  writeSections outputPath chId chLabel [] chapterParts nextChapters
 
 headPartId chId parts =
   case parts of
@@ -62,22 +72,22 @@ headPartId chId parts =
     _:next -> headPartId chId next
     [] -> ""
 
-writeSections :: String -> String -> [Part] -> [Part] -> [Part] -> IO ()
-writeSections outputPath chId prevSections sections nextChapters = do
+writeSections :: String -> String -> String -> [Part] -> [Part] -> [Part] -> IO ()
+writeSections outputPath chId chLabel prevSections sections nextChapters = do
   case sections of
     sec@(Section title props parts):nextSections -> do
-      writeSection outputPath chId title props parts prevSections nextSections nextChapters
-      writeSections outputPath chId (sec:prevSections) nextSections nextChapters
+      writeSection outputPath chId chLabel title props parts prevSections nextSections nextChapters
+      writeSections outputPath chId chLabel (sec:prevSections) nextSections nextChapters
     (_:nextSections) ->
-      writeSections outputPath chId prevSections nextSections nextSections
+      writeSections outputPath chId chLabel prevSections nextSections nextSections
     [] -> return ()
 
-writeSection :: String -> String -> String -> [Prop] -> [Part] -> [Part] -> [Part] -> [Part] -> IO ()
-writeSection outputPath chId title props parts prevSections nextSections nextChapters = do
+writeSection :: String -> String -> String -> String -> [Prop] -> [Part] -> [Part] -> [Part] -> [Part] -> IO ()
+writeSection outputPath chId chLabel title props parts prevSections nextSections nextChapters = do
   let path = outputPath ++ "/" ++ chId ++ "_" ++ (idProp title props) ++ ".html"
   houtput <- openFile path WriteMode
   hSetEncoding houtput utf8
-  let content = renderPart (Section title props parts)
+  let content = renderPart (Section (sectionTitle chLabel title props) props parts)
   let left = listOrElse (headPartId chId prevSections) chId
   let right = headPartId chId $ nextSections++nextChapters
   let output = page title content left chId right
@@ -122,16 +132,37 @@ containerPart _ = False
 
 nonContainerPart = not . containerPart
 
-renderChapterContent :: String -> String -> [Part] -> String
-renderChapterContent chId title parts =
-  "<h1>" ++ title ++ "</h1>\n" ++
-  renderParts (filter nonContainerPart parts) ++
-  "<ul class='toc'>\n" ++
-  concat (fmap (renderSectionLink chId) parts) ++
-  "</ul>\n"
+chapterTitle title props =
+  let label = labelProp props
+      prefix =
+        if label == "" then ""
+        else if isDigit (head label) then "Rozdział " ++ label ++ ". "
+        else "Dodatek " ++ label ++ ". "
+  in
+    prefix ++ title
 
-renderSectionLink chId (Section title props _) = "<li><a href='" ++ chId ++ "_" ++ (idProp title props) ++ ".html'>" ++ title ++ "</a>\n"
-renderSectionLink _ _ = ""
+sectionTitle chapterLabel title props =
+  let label = labelProp props
+      prefix =
+        if label == "" || chapterLabel == "" then ""
+        else chapterLabel ++ "." ++ label ++ ". "
+  in
+    prefix ++ title
+
+renderChapterContent :: String -> [Prop] -> [Part] -> String
+renderChapterContent title props parts =
+  let chId = idProp title props
+      chLabel = labelProp props
+  in
+    "<h1>" ++ chapterTitle title props ++ "</h1>\n" ++
+    renderParts (filter nonContainerPart parts) ++
+    "<ul class='toc'>\n" ++
+    concat (fmap (renderSectionLink chId chLabel) parts) ++
+    "</ul>\n"
+
+renderSectionLink chId chLabel (Section title props _) =
+  "<li><a href='" ++ chId ++ "_" ++ (idProp title props) ++ ".html'>" ++ sectionTitle chLabel title props ++ "</a>\n"
+renderSectionLink _ _ _ = ""
 
 renderParts :: [Part] -> String
 renderParts parts = concat (fmap renderPart parts)

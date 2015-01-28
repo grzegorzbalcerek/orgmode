@@ -168,6 +168,7 @@ colonProp =
   try colonPropBlock <|>
   try colonPropExampleBlock <|>
   try colonPropId <|>
+  try colonPropLabel <|>
   try colonPropMinWidth <|>
   try colonPropTangle <|>
   try colonPropUnrecognized
@@ -195,6 +196,11 @@ colonPropId = do
   string ":id"
   value <- many (noneOf "¬:\n\r")
   return $ Id (trim value)
+
+colonPropLabel = do
+  string ":label"
+  value <- many (noneOf "¬:\n\r")
+  return $ Label (trim value)
 
 colonPropMinWidth = do
   string ":minwidth "
