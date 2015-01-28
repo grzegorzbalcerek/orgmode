@@ -9,12 +9,15 @@ import Data.List
 ----------------------------------------------------
 
 renderLatex :: RenderType -> [Part] -> String
-renderLatex Slides parts = latexStartSlides ++ (concat $ renderPart `fmap` parts) ++ latexEnd
-renderLatex Book parts = latexStartBook ++ (concat $ renderPart `fmap` parts) ++ latexEnd
+renderLatex rt parts =
+  latexStart rt ++
+  (concat $ renderPart rt `fmap` parts) ++
+  latexEnd
 
 ----------------------------------------------------
 
-latexStartSlides = "%% -*- coding: utf-8 -*-\n\
+latexStart Slides =
+  "%% -*- coding: utf-8 -*-\n\
   \\\documentclass[smaller]{beamer}\n\
   \\\usetheme{Madrid}\n\
   \\\setbeamertemplate{footline}[default]\n\
@@ -28,8 +31,21 @@ latexStartSlides = "%% -*- coding: utf-8 -*-\n\
   \\\begin{document}\n\
   \\\Large\n"
 
-latexStartBook = "%% -*- coding: utf-8 -*-\n\
+latexStart Book =
+  "%% -*- coding: utf-8 -*-\n\
   \\\documentclass[11pt]{book}\n\
+  \\\usepackage[utf8]{inputenc}\n\
+  \\\usepackage{graphicx}\n\
+  \\\usepackage{lmodern}\n\
+  \\\usepackage{verbatim}\n\
+  \\\usepackage[OT4]{polski}\n\
+  \\\begin{document}\n"
+
+latexStart Article =
+  "%% -*- coding: utf-8 -*-\n\
+  \\\documentclass[11pt]{article}\n\
+  \\\usepackage[paperwidth=210mm,paperheight=296mm,left=20mm,top=20mm,right=20mm,bottom=20mm]{geometry}\n\
+  \\\usepackage{beamerarticle}\n\
   \\\usepackage[utf8]{inputenc}\n\
   \\\usepackage{graphicx}\n\
   \\\usepackage{lmodern}\n\
@@ -41,22 +57,24 @@ latexEnd = "\\end{document}\n"
 
 ----------------------------------------------------
 
-renderPart :: Part -> String
-renderPart EmptyPart = ""
-renderPart (Paragraph txt) = "\n\n" ++ renderText txt ++ "\n\n"
-renderPart (RegularSlide title parts) =
+renderPart :: RenderType -> Part -> String
+renderPart _ EmptyPart = ""
+renderPart Article (Paragraph txt) = "\n\n" ++ renderText txt ++ "\n\n"
+renderPart Book (Paragraph txt) = "\n\n" ++ renderText txt ++ "\n\n"
+renderPart _ (RegularSlide title parts) =
   "\\begin{frame}[fragile]\n" ++
   (if title == "" then "" else "\\frametitle{" ++ title ++ "}\n") ++
   concat (renderRegularSlidePart `fmap` parts) ++
   "\\end{frame}\n"
-renderPart (TitleSlide title parts) =
+  -- renderPart _ (RegularSlide title parts) =
+renderPart _ (TitleSlide title parts) =
   "\\title{" ++ title ++ "}\n" ++
   concat (renderTitleSlidePart `fmap` parts) ++ "\\maketitle\n"
-renderPart (Chapter title parts) =
-  "\n\\chapter{" ++ title ++ "}\n" ++ concat (map renderPart parts) ++ "\n"
-renderPart (Section title parts) =
-  "\n\\section{" ++ title ++ "}\n" ++ concat (map renderPart parts) ++ "\n"
-renderPart _ = ""
+renderPart rt (Chapter title props parts) =
+  "\n\\chapter{" ++ title ++ "}\n" ++ concat (map (renderPart rt) parts) ++ "\n"
+renderPart rt (Section title props parts) =
+  "\n\\section{" ++ title ++ "}\n" ++ concat (map (renderPart rt) parts) ++ "\n"
+renderPart _ _ = ""
 
 ----------------------------------------------------
 
@@ -78,8 +96,8 @@ renderRegularSlidePart (Item item) =
   "\\begin{itemize}\n" ++
   "\\item{" ++ item ++ "}\n" ++
   "\\end{itemize}\n"
-renderRegularSlidePart (SrcBlock options content) =
-  if elem Ignore options
+renderRegularSlidePart (SrcBlock srcType props content) =
+  if elem Ignore props
   then ""
   else
     let lns = lines content
@@ -87,11 +105,11 @@ renderRegularSlidePart (SrcBlock options content) =
         textwidth = maximum $ map length lns
         width = foldl (\w o -> case o of
                               MinWidth v -> v `max` w
-                              _ -> w) textwidth options
+                              _ -> w) textwidth props
         block = find (\o -> case o of
                               Block t -> True
                               ExampleBlock t -> True
-                              _ -> False) options 
+                              _ -> False) props 
         textsize =
           --if width <= 27 && height <= 8 then "Huge"
           --else if width <= 32 && height <= 10 then "huge"

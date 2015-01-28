@@ -13,13 +13,13 @@ extractSrcFromParts :: [Part] -> IO ()
 extractSrcFromParts parts = 
   forM_ parts $ \part ->
     case part of
-      Chapter _ parts -> extractSrcFromParts parts
-      Section _ parts -> extractSrcFromParts parts
-      SrcBlock options str -> extractSrc options str
+      Chapter _ _ parts -> extractSrcFromParts parts
+      Section _ _ parts -> extractSrcFromParts parts
+      SrcBlock srcType props str -> extractSrc props str
       _ -> return ()
 
-extractSrc options src =
-  case options of
+extractSrc props src =
+  case props of
     (Tangle file : _) -> do
       houtput <- openFile file WriteMode
       hSetEncoding houtput utf8

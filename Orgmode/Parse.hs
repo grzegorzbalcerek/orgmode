@@ -27,51 +27,54 @@ toplevel :: P Part
 toplevel =
   try regularSlide <|>
   try titleSlide <|>
-  try paragraph <|>
-  try comment <|>
+  try (paragraph 1) <|>
+  try (comment 1) <|>
   try chapter
 
 ----------------------------------------------------
 
 chapter :: P Part
 chapter = do
-  title <- asteriskLine "CHAPTER"
-  content <- many chapterElement
-  return $ Chapter title content
+  (title,props) <- asteriskLineWithProps 1 "CHAPTER"
+  content <- many (chapterElement 2)
+  return $ Chapter title props content
 
-chapterElement =
-  (try paragraph <|>
+chapterElement level =
+  (try (paragraph level) <|>
    try srcBlock <|>
-   try section) <?> "chapterElement"
+   try (section level) <|>
+   try implicitParagraph) <?> "chapterElement"
 
 ----------------------------------------------------
 
-section :: P Part
-section = do
-  title <- asteriskLine "SECTION"
-  content <- many sectionElement
-  return $ Section title content
+section :: Int -> P Part
+section level = do
+  (title,props) <- asteriskLineWithProps level "SECTION"
+  content <- many (sectionElement (level+1))
+  return $ Section title props content
 
-sectionElement =
-  (try paragraph <|>
-   try srcBlock) <?> "sectionElement"
+sectionElement level =
+  (try (paragraph level) <|>
+   try srcBlock <|>
+   try (note level) <|>
+   try implicitParagraph) <?> "sectionElement"
 
 ----------------------------------------------------
 
 titleSlide :: P Part
 titleSlide = do
-  title <- asteriskLine "TITLESLIDE"
-  content <- many titleSlideElement
+  title <- asteriskLine 1 "TITLESLIDE"
+  content <- many (titleSlideElement 2)
   return $ TitleSlide title content
 
-titleSlideElement =
+titleSlideElement level =
   (author <|>
-   subtitle) <?> "titleSlideElement"
+   (subtitle level)) <?> "titleSlideElement"
 
 ----------------------------------------------------
 
 regularSlide = do
-  title <- asteriskLine "SLIDE"
+  title <- asteriskLine 1 "SLIDE"
   content <- many slideElement
   return $ RegularSlide title content
 
@@ -84,26 +87,46 @@ slideElement =
 
 ----------------------------------------------------
 
-comment = do
-  asteriskLine "COMMENT"
+comment level = do
+  asteriskLine level "COMMENT"
   content <- many slideElement
   return $ EmptyPart
 
 ----------------------------------------------------
 
-asteriskLine tag = do
-  many1 (char '*')
+asteriskLine :: Int -> String -> P String
+asteriskLine n tag = do
+  try $ string $ take n $ repeat '*'
   space
   string tag
   content <- many (noneOf "¬\n\r")
   many (noneOf "\n\r")
   eol
-  return $ dropWhile (\c -> c == ' ') content
+  return $ trim content
 
-paragraph = do
-  asteriskLine "PARA"
+asteriskLineWithProps :: Int -> String -> P (String,[Prop])
+asteriskLineWithProps n tag = do
+  try $ string $ take n $ repeat '*'
+  space
+  string tag
+  content <- many (noneOf "¬:\n\r")
+  props <- colonProp `sepBy` (many (noneOf "¬:\n\r"))
+  restOfLine
+  return $ (trim content,props)
+
+implicitParagraph = do
+  content <- many1 regularLineWithEol
+  return $ Paragraph (concat content)
+
+paragraph level = do
+  asteriskLine level "PARA"
   content <- many regularLineWithEol
   return $ Paragraph (concat content)
+
+note level = do
+  noteType <- asteriskLine level "NOTE"
+  content <- many (sectionElement $ level + 1)
+  return $ Note noteType content
 
 item = try $ Item <$> (char '•' >> restOfLine)
 
@@ -112,9 +135,9 @@ pause = do
   eol
   return Pause
 
-subtitle = try $ Subtitle <$> asteriskLine "SUBTITLE"
+subtitle level = try $ Subtitle <$> asteriskLine level "SUBTITLE"
 
-stop = asteriskLine "STOP"
+stop = asteriskLine 1 "STOP"
 
 ----------------------------------------------------
 
@@ -125,53 +148,60 @@ title = try $ Title <$> (char '⒯' >> restOfLine)
 ----------------------------------------------------
 
 srcBlock = do
-  options <- srcBegin
+  (srcType,props) <- srcBegin
   content <- many1 emptyOrRegularLineWithEol
   srcEnd
-  return $ SrcBlock options (concat content)
+  return $ SrcBlock srcType props (concat content)
 
 srcBegin = do
-  string "#+begin_src"
-  optional $ (many $ noneOf ":\n\r")
-  options <- colonOption `sepBy` (many (noneOf "¬:\n\r"))
+  string "#+begin_src "
+  srcType <- many1 alphaNum
+  many $ noneOf ":\n\r"
+  props <- colonProp `sepBy` (many (noneOf "¬:\n\r"))
   restOfLine
-  return options
+  return (srcType,props)
 
 srcEnd = string "#+end_src" >> eol
 
-colonOption =
-  try colonOptionIgnore <|>
-  try colonOptionBlock <|>
-  try colonOptionExampleBlock <|>
-  try colonOptionMinWidth <|>
-  try colonOptionTangle <|>
-  try colonOptionUnrecognized
+colonProp =
+  try colonPropIgnore <|>
+  try colonPropBlock <|>
+  try colonPropExampleBlock <|>
+  try colonPropId <|>
+  try colonPropMinWidth <|>
+  try colonPropTangle <|>
+  try colonPropUnrecognized
 
-colonOptionIgnore = do
+colonPropIgnore = do
   string ":ignore"
   return Ignore
 
-colonOptionTangle = do
+colonPropTangle = do
   string ":tangle "
-  fileName <- many1 (char '.' <|> char '/' <|> alphaNum)
+  fileName <- many1 (char '.' <|> char '_' <|> char '-' <|> char '/' <|> alphaNum)
   return $ Tangle fileName
 
-colonOptionBlock = do
+colonPropBlock = do
   string ":block"
   value <- many (noneOf "¬:\n\r")
   return $ Block value
 
-colonOptionExampleBlock = do
+colonPropExampleBlock = do
   string ":exampleblock"
   value <- many (noneOf "¬:\n\r")
   return $ ExampleBlock value
 
-colonOptionMinWidth = do
+colonPropId = do
+  string ":id"
+  value <- many (noneOf "¬:\n\r")
+  return $ Id (trim value)
+
+colonPropMinWidth = do
   string ":minwidth "
   value <- many1 digit
   return $ MinWidth (read value :: Int)
 
-colonOptionUnrecognized = do
+colonPropUnrecognized = do
   string ":"
   many (noneOf "¬:\n\r")
   return $ Unrecognized
@@ -212,3 +242,4 @@ regularLineWithEol = do
   eol
   return (h:content ++ "\n")
 
+trim = dropWhile (\c -> c == ' ') . dropWhileEnd (\c -> c == ' ')
