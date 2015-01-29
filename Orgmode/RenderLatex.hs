@@ -27,6 +27,7 @@ latexStart Slides =
   \\\usepackage{lmodern}\n\
   \\\usepackage{verbatim}\n\
   \\\usepackage[OT4]{polski}\n\
+  \\\usepackage{color}\n\
   \\\newcommand{\\sectiontitle}[2]{\\centerline{\\tikz{\\node[scale=#1]{#2};}}}\n\
   \\\begin{document}\n\
   \\\Large\n"
@@ -51,6 +52,7 @@ latexStart Article =
   \\\usepackage{lmodern}\n\
   \\\usepackage{verbatim}\n\
   \\\usepackage[OT4]{polski}\n\
+  \\\usepackage{color}\n\
   \\\begin{document}\n"
 
 latexEnd = "\\end{document}\n"
@@ -123,9 +125,9 @@ renderRegularSlidePart (SrcBlock srcType props content) =
           else if width <= 90 && height <= 33 then "scriptsize"
           else "tiny"
         verbatimContent content =
-          "\\begin{verbatim}\n" ++
-          content ++
-          "\\end{verbatim}\n"
+          "\\begin{semiverbatim}\n" ++
+          renderSource srcType content ++
+          "\\end{semiverbatim}\n"
     in
         "\\" ++ textsize ++ "\n" ++
         (case block of
@@ -158,3 +160,14 @@ renderText txt = snd $ foldl' f (' ',"") txt
 -- ⒰ url
 -- ⒞ code
 -- ⒡ file
+
+----------------------------------------------------
+
+renderSource :: String -> String -> String
+renderSource sourceType src = "\\textbf{" ++ foldr f "" src ++ "}"
+  where f :: Char -> String -> String
+        f c acc =
+          if c == '}' then '\\':'}':acc
+          else if c == '{' then '\\':'{':acc
+          else if isPrefixOf "val" (c:acc) then "{\\color{blue}val}" ++ drop 2 acc
+          else c:acc

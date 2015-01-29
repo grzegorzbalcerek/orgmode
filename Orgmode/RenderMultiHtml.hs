@@ -14,7 +14,7 @@ writeMultiHtml :: String -> [Part] -> IO ()
 writeMultiHtml outputPath chapters = do
   outputCss outputPath
   writeToc outputPath chapters
-  writeChapters outputPath [] chapters
+  writeChapters outputPath chapters [] chapters
 
 writeToc :: String -> [Part] -> IO ()
 writeToc outputPath chapters = do
@@ -40,30 +40,30 @@ renderChapterLink (Chapter title props _) =
     "</a>\n"
 renderChapterLink _ = ""
 
-writeChapters :: String -> [Part] -> [Part] -> IO ()
-writeChapters outputPath prevChapters chapters =
+writeChapters :: String -> [Part] -> [Part] -> [Part] -> IO ()
+writeChapters outputPath allParts prevChapters chapters =
   case chapters of
     [] -> return ()
     ch@(Chapter title props sections):nextChapters -> do
-      writeChapter outputPath title props sections prevChapters nextChapters
-      writeChapters outputPath (ch:prevChapters) nextChapters
+      writeChapter outputPath allParts title props sections prevChapters nextChapters
+      writeChapters outputPath allParts (ch:prevChapters) nextChapters
     _ -> return ()
 
-writeChapter :: String -> String -> [Prop] -> [Part] -> [Part] -> [Part] -> IO ()
-writeChapter outputPath title props chapterParts prevChapters nextChapters = do
+writeChapter :: String -> [Part] -> String -> [Prop] -> [Part] -> [Part] -> [Part] -> IO ()
+writeChapter outputPath allParts title props chapterParts prevChapters nextChapters = do
   let chId = idProp title props
   let chLabel = labelProp props
   let path = outputPath ++ "/" ++ chId ++ ".html"
   houtput <- openFile path WriteMode
   hSetEncoding houtput utf8
-  let content = renderChapterContent title props chapterParts
+  let content = renderChapterContent allParts title props chapterParts
   let left = headPartId chId $ prevChapters
   let right = headPartId chId $ (sectionsOnly chapterParts) ++ nextChapters
   let output = page title content left "toc" right
   putStrLn $ "Generating " ++ path
   hPutStr houtput output
   hClose houtput
-  writeSections outputPath chId chLabel [] chapterParts nextChapters
+  writeSections outputPath allParts chId chLabel [] chapterParts nextChapters
 
 headPartId chId parts =
   case parts of
@@ -72,22 +72,22 @@ headPartId chId parts =
     _:next -> headPartId chId next
     [] -> ""
 
-writeSections :: String -> String -> String -> [Part] -> [Part] -> [Part] -> IO ()
-writeSections outputPath chId chLabel prevSections sections nextChapters = do
+writeSections :: String -> [Part] -> String -> String -> [Part] -> [Part] -> [Part] -> IO ()
+writeSections outputPath allParts chId chLabel prevSections sections nextChapters = do
   case sections of
     sec@(Section title props parts):nextSections -> do
-      writeSection outputPath chId chLabel title props parts prevSections nextSections nextChapters
-      writeSections outputPath chId chLabel (sec:prevSections) nextSections nextChapters
+      writeSection outputPath allParts chId chLabel title props parts prevSections nextSections nextChapters
+      writeSections outputPath allParts chId chLabel (sec:prevSections) nextSections nextChapters
     (_:nextSections) ->
-      writeSections outputPath chId chLabel prevSections nextSections nextSections
+      writeSections outputPath allParts chId chLabel prevSections nextSections nextSections
     [] -> return ()
 
-writeSection :: String -> String -> String -> String -> [Prop] -> [Part] -> [Part] -> [Part] -> [Part] -> IO ()
-writeSection outputPath chId chLabel title props parts prevSections nextSections nextChapters = do
+writeSection :: String -> [Part] -> String -> String -> String -> [Prop] -> [Part] -> [Part] -> [Part] -> [Part] -> IO ()
+writeSection outputPath allParts chId chLabel title props parts prevSections nextSections nextChapters = do
   let path = outputPath ++ "/" ++ chId ++ "_" ++ (idProp title props) ++ ".html"
   houtput <- openFile path WriteMode
   hSetEncoding houtput utf8
-  let content = renderPart (Section (sectionTitle chLabel title props) props parts)
+  let content = renderPart allParts (Section (sectionTitle chLabel title props) props parts)
   let left = listOrElse (headPartId chId prevSections) chId
   let right = headPartId chId $ nextSections++nextChapters
   let output = page title content left chId right
@@ -149,13 +149,13 @@ sectionTitle chapterLabel title props =
   in
     prefix ++ title
 
-renderChapterContent :: String -> [Prop] -> [Part] -> String
-renderChapterContent title props parts =
+renderChapterContent :: [Part] -> String -> [Prop] -> [Part] -> String
+renderChapterContent allParts title props parts =
   let chId = idProp title props
       chLabel = labelProp props
   in
     "<h1>" ++ chapterTitle title props ++ "</h1>\n" ++
-    renderParts (filter nonContainerPart parts) ++
+    renderParts allParts (filter nonContainerPart parts) ++
     "<ul class='toc'>\n" ++
     concat (fmap (renderSectionLink chId chLabel) parts) ++
     "</ul>\n"
@@ -164,23 +164,23 @@ renderSectionLink chId chLabel (Section title props _) =
   "<li><a href='" ++ chId ++ "_" ++ (idProp title props) ++ ".html'>" ++ sectionTitle chLabel title props ++ "</a>\n"
 renderSectionLink _ _ _ = ""
 
-renderParts :: [Part] -> String
-renderParts parts = concat (fmap renderPart parts)
+renderParts :: [Part] -> [Part] -> String
+renderParts allParts parts = concat (fmap (renderPart allParts) parts)
 
-renderPart :: Part -> String
-renderPart (Chapter title props parts) = ""
-renderPart (Section title props parts) =
+renderPart :: [Part] -> Part -> String
+renderPart _ (Chapter title props parts) = ""
+renderPart allParts (Section title props parts) =
   "<h2>" ++ title ++ "</h2>\n" ++
-  renderParts parts
-renderPart (Note noteType parts) =
+  renderParts allParts parts
+renderPart allParts (Note noteType parts) =
   "<table class='remark'><tr><td class='remarksymbol'><img src='" ++
     (head noteType : "sign.png") ++
   "'/></td><td class='remarkcontent'>" ++
-  renderParts parts ++
+  renderParts allParts parts ++
   "</td></tr></table>\n"
-renderPart (Paragraph text) = "<p>" ++ renderText text ++ "</p>\n"
-renderPart (SrcBlock "cmd" props src) = ""
-renderPart (SrcBlock "console" props src) =
+renderPart allParts (Paragraph text) = "<p>" ++ renderText allParts text ++ "</p>\n"
+renderPart _ (SrcBlock "cmd" props src) = ""
+renderPart _ (SrcBlock "console" props src) =
   let boldCommand line =
         if (take 2 line == "$ ") then "$ <b>" ++ drop 2 line ++ "</b>"
         else if (take 7 line == "scala> ") then "scala> <b>" ++ drop 7 line ++ "</b>"
@@ -190,7 +190,7 @@ renderPart (SrcBlock "console" props src) =
       boldCommands = unlines . map boldCommand . lines
   in 
   "<pre>" ++ boldCommands src ++ "</pre>\n"
-renderPart (SrcBlock srcType props src) =
+renderPart _ (SrcBlock srcType props src) =
   let fileName = tangleFileName props
   in 
       "<pre>" ++
@@ -199,21 +199,59 @@ renderPart (SrcBlock srcType props src) =
          else "<img class='filesign' src='filesign.png'/><b>Plik " ++ fileName ++
            (if srcType=="fragment" then " (fragment)" else "") ++ ":</b>\n") ++
        src ++ "</pre>\n"
-renderPart _ = ""
+renderPart _ _ = ""
 
-renderText :: String -> String
-renderText txt = snd $ foldl' f (' ',"") txt
-  where f :: (Char,String) -> Char -> (Char,String)
-        f (flag,result) c =
-          case (flag,c) of
---            (_,'①') -> (flag,result ++ "(1)") -- TODO
-            (' ','⒡') -> ('⒡',result ++ "<span class='f'>")
-            ('⒡','⒡') -> (' ',result ++ "</span>")
-            (' ','⒞') -> ('⒞',result ++ "<kbd>")
-            ('⒞','⒞') -> (' ',result ++ "</kbd>")
-            (' ','⒰') -> ('⒰',result ++ "<span class='url'>")
-            ('⒰','⒰') -> (' ',result ++ "</span>")
-            _ -> (flag,result ++ [c])
+renderText :: [Part] -> String -> String
+renderText allParts txt =
+  foldr f "" txt
+  where f :: Char -> String -> String
+        f c acc =
+          case (c, break (c ==) acc) of
+            ('⒡',(file,_:acc')) -> "<span class='f'>" ++ file ++ "</span>" ++ acc'
+            ('⒰',(url,_:acc')) -> "<span class='url'>" ++ url ++ "</span>" ++ acc'
+            ('⒞',(code,_:acc')) -> "<kdb>" ++ code ++ "</kdb>" ++ acc'
+            ('⒭',(ref,_:acc')) -> --"XXXX"++ref++"YYYY"++acc'
+              case break (','==) ref of
+                (chId,[]) -> chapterReference allParts chId ++ acc'
+                (chId,_:secId) -> sectionReference allParts chId secId ++ acc'
+            _ -> c:acc
+
+chapterReference :: [Part] -> String -> (String)
+chapterReference parts chapterId =
+  case parts of
+    (Chapter title props _):tailParts ->
+      let chId = idProp title props
+          chLabel = labelProp props
+      in
+          if chId == chapterId
+          then "<a href='" ++ chId ++".html'>" ++ chLabel ++ "</a>"
+          else chapterReference tailParts chapterId
+    _ -> error $ "Unable to find chapter reference for chapter id: " ++ chapterId
+
+sectionReference :: [Part] -> String -> String -> (String)
+sectionReference parts chapterId sectionId = --"xxxx"++chapterId++"cccc"++sectionId++"vvvv"
+  case parts of
+    (Chapter title props chapterParts):tailParts ->
+      let chId = idProp title props
+          chLabel = labelProp props
+      in
+          if chId == chapterId
+          then sectionReference' chapterParts chId chLabel sectionId
+          else sectionReference tailParts chapterId sectionId
+    _ -> error $ "Unable to find chapter/section reference for chapter/section: " ++ chapterId ++ "," ++ sectionId
+
+sectionReference' :: [Part] -> String -> String -> String -> (String)
+sectionReference' parts chapterId chapterLabel sectionId =
+  case parts of
+    (Section title props _):tailParts ->
+      let secId = idProp title props
+          secLabel = labelProp props
+      in
+          if secId == sectionId
+          then "<a href='" ++ chapterId ++ "_" ++ secId ++".html'>" ++ chapterLabel ++ "." ++ secLabel ++ "</a>"
+          else sectionReference' tailParts chapterId chapterLabel sectionId
+    _:tailParts -> sectionReference' tailParts chapterId chapterLabel sectionId
+    _ -> error $ "Unable to find section reference within chapter " ++ chapterId ++ " for section id: " ++ sectionId
 
 cssContent = 
   "html { background-color: white; }\n\
