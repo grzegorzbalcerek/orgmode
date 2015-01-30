@@ -12,6 +12,7 @@ data Part =
   | Date String
   | EmptyPart
   | Institute String
+  | Items [Part]
   | Item String
   | Paragraph String
   | Pause

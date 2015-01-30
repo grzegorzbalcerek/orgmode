@@ -94,10 +94,8 @@ renderTitleSlidePart _ = ""
 ----------------------------------------------------
 
 renderRegularSlidePart :: Part -> String
-renderRegularSlidePart (Item item) =
-  "\\begin{itemize}\n" ++
-  "\\item{" ++ item ++ "}\n" ++
-  "\\end{itemize}\n"
+renderRegularSlidePart (Items items) =
+  "\\begin{itemize}\n" ++ concat (map renderItem items) ++  "\\end{itemize}\n"
 renderRegularSlidePart (SrcBlock srcType props content) =
   if elem Ignore props
   then ""
@@ -139,6 +137,11 @@ renderRegularSlidePart (Title title) =
 renderRegularSlidePart Pause = "\\pause\n"
 renderRegularSlidePart Skipped = ""
 renderRegularSlidePart _ = ""
+
+----------------------------------------------------
+
+renderItem (Item item) =
+  "\\item{" ++ item ++ "}\n"
 
 ----------------------------------------------------
 

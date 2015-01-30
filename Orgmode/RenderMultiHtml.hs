@@ -154,7 +154,7 @@ renderChapterContent allParts title props parts =
   let chId = idProp title props
       chLabel = labelProp props
   in
-    "<h1>" ++ chapterTitle title props ++ "</h1>\n" ++
+    "<h1 class='chapter'>" ++ chapterTitle title props ++ "</h1>\n" ++
     renderParts allParts (filter nonContainerPart parts) ++
     "<ul class='toc'>\n" ++
     concat (fmap (renderSectionLink chId chLabel) parts) ++
@@ -170,7 +170,7 @@ renderParts allParts parts = concat (fmap (renderPart allParts) parts)
 renderPart :: [Part] -> Part -> String
 renderPart _ (Chapter title props parts) = ""
 renderPart allParts (Section title props parts) =
-  "<h2>" ++ title ++ "</h2>\n" ++
+  "<h2 class='section'>" ++ title ++ "</h2>\n" ++
   renderParts allParts parts
 renderPart allParts (Note noteType parts) =
   "<table class='remark'><tr><td class='remarksymbol'><img src='" ++
@@ -186,6 +186,7 @@ renderPart _ (SrcBlock "console" props src) =
         else if (take 7 line == "scala> ") then "scala> <b>" ++ drop 7 line ++ "</b>"
         else if (take 7 line == "     | ") then "     | <b>" ++ drop 7 line ++ "</b>"
         else if line == "…" then "<span><i>(fragment pominięty)</i></span>"
+        else if line == "at…" then "<span><i>(pozostałe wiersze zrzutu stosu wyjątku zostały pominięte)</i></span>"
         else line
       boldCommands = unlines . map boldCommand . lines
   in 
@@ -199,7 +200,12 @@ renderPart _ (SrcBlock srcType props src) =
          else "<img class='filesign' src='filesign.png'/><b>Plik " ++ fileName ++
            (if srcType=="fragment" then " (fragment)" else "") ++ ":</b>\n") ++
        src ++ "</pre>\n"
+renderPart allParts (Items items) =
+  "<ul class='list'>\n" ++ concat (map (renderItem allParts) items) ++  "</ul>\n"
 renderPart _ _ = ""
+
+renderItem allParts (Item item) =
+  "<li>" ++ renderText allParts item ++ "</li>\n"
 
 renderText :: [Part] -> String -> String
 renderText allParts txt =
@@ -209,8 +215,8 @@ renderText allParts txt =
           case (c, break (c ==) acc) of
             ('⒡',(file,_:acc')) -> "<span class='f'>" ++ file ++ "</span>" ++ acc'
             ('⒰',(url,_:acc')) -> "<span class='url'>" ++ url ++ "</span>" ++ acc'
-            ('⒞',(code,_:acc')) -> "<kdb>" ++ code ++ "</kdb>" ++ acc'
-            ('⒭',(ref,_:acc')) -> --"XXXX"++ref++"YYYY"++acc'
+            ('⒞',(code,_:acc')) -> "<kbd>" ++ code ++ "</kbd>" ++ acc'
+            ('⒭',(ref,_:acc')) ->
               case break (','==) ref of
                 (chId,[]) -> chapterReference allParts chId ++ acc'
                 (chId,_:secId) -> sectionReference allParts chId secId ++ acc'

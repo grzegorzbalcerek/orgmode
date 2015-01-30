@@ -28,6 +28,7 @@ toplevel =
   try regularSlide <|>
   try titleSlide <|>
   try (paragraph 1) <|>
+  try (items 1) <|>
   try (comment 1) <|>
   try chapter
 
@@ -41,6 +42,7 @@ chapter = do
 
 chapterElement level =
   (try (paragraph level) <|>
+   try (items level) <|>
    try srcBlock <|>
    try (section level) <|>
    try implicitParagraph) <?> "chapterElement"
@@ -55,6 +57,7 @@ section level = do
 
 sectionElement level =
   (try (paragraph level) <|>
+   try (items level) <|>
    try srcBlock <|>
    try (note level) <|>
    try implicitParagraph) <?> "sectionElement"
@@ -75,11 +78,11 @@ titleSlideElement level =
 
 regularSlide = do
   title <- asteriskLine 1 "SLIDE"
-  content <- many slideElement
+  content <- many (slideElement 2)
   return $ RegularSlide title content
 
-slideElement =
-  try item <|>
+slideElement level =
+  try (items level) <|>
   try title <|>
   try srcBlock <|>
   try pause <|>
@@ -89,7 +92,7 @@ slideElement =
 
 comment level = do
   asteriskLine level "COMMENT"
-  content <- many slideElement
+  content <- many (slideElement $ level + 1)
   return $ EmptyPart
 
 ----------------------------------------------------
@@ -127,6 +130,11 @@ note level = do
   noteType <- asteriskLine level "NOTE"
   content <- many (sectionElement $ level + 1)
   return $ Note noteType content
+
+items level = do
+  noteType <- asteriskLine level "ITEMS"
+  content <- many1 item
+  return $ Items content
 
 item = try $ Item <$> (char '•' >> restOfLine)
 
