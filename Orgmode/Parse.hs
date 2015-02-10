@@ -2,42 +2,57 @@
 module Orgmode.Parse where
 
 import Text.Parsec
-import Data.List
+import Data.List (dropWhileEnd)
 import Control.Applicative ((<$>))
 import Orgmode.Model
+import Data.String (words)
 
 type P = Parsec String ()
 
 parseInput :: String -> [Part]
 parseInput input =
-    case (parse toplevelParts "error" input) of
+    case (parse topLevelParts "error" input) of
       Right result -> result
       Left err -> error (show err)
 
 ----------------------------------------------------
 
-toplevelParts :: P [Part]
-toplevelParts = do
+topLevelParts :: P [Part]
+topLevelParts = do
   header
-  slides <- many toplevel
+  slides <- (groups 1) <|> (many (topLevel 1))
   try (stop >> return ()) <|> eof
   return $ slides
 
-toplevel :: P Part
-toplevel =
-  try regularSlide <|>
-  try titleSlide <|>
-  try (paragraph 1) <|>
-  try (items 1) <|>
-  try (comment 1) <|>
-  try chapter
+topLevel :: Int -> P Part
+topLevel level =
+  try (regularSlide level)<|>
+  try (titleSlide level) <|>
+  try (paragraph level) <|>
+  try (items level) <|>
+  try (comment level) <|>
+  try (chapter level) <|>
+  try srcBlock
 
 ----------------------------------------------------
 
-chapter :: P Part
-chapter = do
-  (title,props) <- asteriskLineWithProps 1 "CHAPTER"
-  content <- many (chapterElement 2)
+groups :: Int -> P [Part]
+groups level = do
+  gs <- many (try (group level))
+  return $ concat gs
+
+group :: Int -> P [Part]
+group level = do
+  asteriskLine level "GROUP"
+  content <- many (topLevel $ level + 1)
+  return $ content
+
+----------------------------------------------------
+
+chapter :: Int -> P Part
+chapter level = do
+  (title,props) <- asteriskLineWithProps level "CHAPTER"
+  content <- many (chapterElement $ level + 1)
   return $ Chapter title props content
 
 chapterElement level =
@@ -64,21 +79,22 @@ sectionElement level =
 
 ----------------------------------------------------
 
-titleSlide :: P Part
-titleSlide = do
-  title <- asteriskLine 1 "TITLESLIDE"
-  content <- many (titleSlideElement 2)
+titleSlide :: Int -> P Part
+titleSlide level = do
+  title <- asteriskLine level "TITLESLIDE"
+  content <- many (titleSlideElement $ level + 1)
   return $ TitleSlide title content
 
 titleSlideElement level =
   (author <|>
+   date <|>
    (subtitle level)) <?> "titleSlideElement"
 
 ----------------------------------------------------
 
-regularSlide = do
-  title <- asteriskLine 1 "SLIDE"
-  content <- many (slideElement 2)
+regularSlide level = do
+  title <- asteriskLine level "SLIDE"
+  content <- many (slideElement $ level + 1)
   return $ RegularSlide title content
 
 slideElement level =
@@ -153,6 +169,8 @@ author = try $ Author <$> (char '⒜' >> restOfLine)
 
 title = try $ Title <$> (char '⒯' >> restOfLine)
 
+date = try $ Date <$> (char '⒟' >> restOfLine)
+
 ----------------------------------------------------
 
 srcBlock = do
@@ -177,6 +195,11 @@ colonProp =
   try colonPropExampleBlock <|>
   try colonPropId <|>
   try colonPropLabel <|>
+  try colonPropKeywordLike <|>
+  try colonPropTypeLike <|>
+  try colonPropIdentifierLike <|>
+  try colonPropSymbolLike <|>
+  try colonPropConstantLike <|>
   try colonPropMinWidth <|>
   try colonPropTangle <|>
   try colonPropUnrecognized
@@ -209,6 +232,31 @@ colonPropLabel = do
   string ":label"
   value <- many (noneOf "¬:\n\r")
   return $ Label (trim value)
+
+colonPropKeywordLike = do
+  string ":keywordlike"
+  value <- many (noneOf "¬:\n\r")
+  return $ KeywordLike (words value)
+
+colonPropTypeLike = do
+  string ":typelike"
+  value <- many (noneOf "¬:\n\r")
+  return $ TypeLike (words value)
+
+colonPropIdentifierLike = do
+  string ":identifierlike"
+  value <- many (noneOf "¬:\n\r")
+  return $ IdentifierLike (words value)
+
+colonPropSymbolLike = do
+  string ":symbollike"
+  value <- many (noneOf "¬:\n\r")
+  return $ SymbolLike (words value)
+
+colonPropConstantLike = do
+  string ":constantlike"
+  value <- many (noneOf "¬:\n\r")
+  return $ ConstantLike (words value)
 
 colonPropMinWidth = do
   string ":minwidth "

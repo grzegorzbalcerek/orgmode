@@ -31,6 +31,11 @@ data Prop =
   | Tangle String
   | Id String
   | Label String
+  | KeywordLike [String]
+  | TypeLike [String]
+  | IdentifierLike [String]
+  | SymbolLike [String]
+  | ConstantLike [String]
   deriving (Eq,Show)
 
 data RenderType =
@@ -50,6 +55,7 @@ inspectPart part = case part of
   Date str -> "Date ..."
   EmptyPart -> "EmptyPart"
   Institute str -> "Institute ..."
+  Items parts -> "Items " ++ inspectParts parts
   Item str -> "Item ..."
   Paragraph str -> "Paragraph ..."
   Pause -> "Pause"
@@ -63,6 +69,11 @@ takeWhileEnd f = reverse . takeWhile f . reverse
 tangleFileName =
   foldl (\acc p -> case p of
                      Tangle path -> takeWhileEnd (/= '/') path
+                     _ -> acc) ""
+
+tangleProp =
+  foldl (\acc p -> case p of
+                     Tangle path -> path
                      _ -> acc) ""
 
 sectionsOnly :: [Part] -> [Part]
@@ -80,3 +91,28 @@ labelProp =
   foldl (\acc p -> case p of
                      Label label -> label
                      _ -> acc) ""
+
+keywordLikeProp =
+  foldl (\acc p -> case p of
+                     KeywordLike ks -> ks
+                     _ -> acc) []
+
+typeLikeProp =
+  foldl (\acc p -> case p of
+                     TypeLike ks -> ks
+                     _ -> acc) []
+
+identifierLikeProp =
+  foldl (\acc p -> case p of
+                     IdentifierLike ks -> ks
+                     _ -> acc) []
+
+symbolLikeProp =
+  foldl (\acc p -> case p of
+                     SymbolLike ks -> ks
+                     _ -> acc) []
+
+constantLikeProp =
+  foldl (\acc p -> case p of
+                     ConstantLike ks -> ks
+                     _ -> acc) []
