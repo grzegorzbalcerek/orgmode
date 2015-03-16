@@ -12,14 +12,16 @@ data Part =
   | Date String
   | EmptyPart
   | Institute String
-  | Items [Part]
+  | Items [Prop] [Part]
   | Item String
+  | Img [Prop] String
   | Paragraph String
   | Pause
   | Skipped
   | SrcBlock String [Prop] String
   | Subtitle String
   | Title String
+  | Header Double String
   deriving Show
 
 data Prop =
@@ -28,6 +30,7 @@ data Prop =
   | Block String
   | ExampleBlock String
   | MinWidth Int
+  | Style String
   | Tangle String
   | Id String
   | Label String
@@ -55,7 +58,7 @@ inspectPart part = case part of
   Date str -> "Date ..."
   EmptyPart -> "EmptyPart"
   Institute str -> "Institute ..."
-  Items parts -> "Items " ++ inspectParts parts
+  Items props parts -> "Items ... " ++ inspectParts parts
   Item str -> "Item ..."
   Paragraph str -> "Paragraph ..."
   Pause -> "Pause"
@@ -63,6 +66,7 @@ inspectPart part = case part of
   SrcBlock srcType props str -> "SrcBlock " ++ srcType ++ " ... ..."
   Subtitle str -> "Subtitle ..."
   Title str -> "Title ..."
+  Header scale str -> "Header " ++ show scale ++ " ..."
 
 takeWhileEnd f = reverse . takeWhile f . reverse
 
@@ -86,6 +90,16 @@ idProp str =
   foldl (\acc p -> case p of
                      Id ident -> ident
                      _ -> acc) (filter (\c -> c `elem` " ") str)
+
+minWidthProp mw =
+  foldl (\acc p -> case p of
+                     MinWidth m -> m
+                     _ -> acc) mw
+
+styleProp =
+  foldl (\acc p -> case p of
+                     Style s -> Just s
+                     _ -> acc) Nothing
 
 labelProp =
   foldl (\acc p -> case p of

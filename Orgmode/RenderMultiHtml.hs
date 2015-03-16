@@ -9,12 +9,13 @@ import Control.Monad (forM_)
 import System.IO
 import GHC.IO.Encoding
 import Data.Char
+import Debug.Trace
 
 writeMultiHtml :: String -> [Part] -> IO ()
 writeMultiHtml outputPath chapters = do
   outputCss outputPath
   writeToc outputPath chapters
-  writeChapters outputPath chapters [] chapters
+  writeChapters outputPath chapters "" chapters
 
 writeToc :: String -> [Part] -> IO ()
 writeToc outputPath chapters = do
@@ -33,37 +34,38 @@ writeToc outputPath chapters = do
   hClose houtput
 
 renderChapterLink (Chapter title props _) =
-  let id = idProp title props
-  in
-    "<li><a href='" ++ (idProp title props) ++ ".html'>" ++
-    chapterTitle title props ++
-    "</a>\n"
+  "<li><a href='" ++ (idProp title props) ++ ".html'>" ++
+  chapterTitle title props ++
+  "</a>\n"
 renderChapterLink _ = ""
 
-writeChapters :: String -> [Part] -> [Part] -> [Part] -> IO ()
-writeChapters outputPath allParts prevChapters chapters =
+writeChapters :: String -> [Part] -> String -> [Part] -> IO ()
+writeChapters outputPath allParts previousId chapters =
   case chapters of
-    [] -> return ()
     ch@(Chapter title props sections):nextChapters -> do
-      writeChapter outputPath allParts title props sections prevChapters nextChapters
-      writeChapters outputPath allParts (ch:prevChapters) nextChapters
+      writeChapter outputPath allParts title props sections previousId nextChapters
+      writeChapters outputPath allParts (getLastId ch sections) nextChapters
     _ -> return ()
 
-writeChapter :: String -> [Part] -> String -> [Prop] -> [Part] -> [Part] -> [Part] -> IO ()
-writeChapter outputPath allParts title props chapterParts prevChapters nextChapters = do
+getLastId (Chapter title props _) [] = idProp title props
+getLastId (Chapter title props _) ((Section sTitle sProps _):[]) = (idProp title props) ++ "_" ++ (idProp sTitle sProps)
+getLastId ch (_:sections) = getLastId ch sections
+
+writeChapter :: String -> [Part] -> String -> [Prop] -> [Part] -> String -> [Part] -> IO ()
+writeChapter outputPath allParts title props chapterParts previousId nextChapters = do
   let chId = idProp title props
   let chLabel = labelProp props
   let path = outputPath ++ "/" ++ chId ++ ".html"
   houtput <- openFile path WriteMode
   hSetEncoding houtput utf8
   let content = renderChapterContent allParts title props chapterParts
-  let left = headPartId chId $ prevChapters
+  let left = previousId
   let right = headPartId chId $ (sectionsOnly chapterParts) ++ nextChapters
   let output = page title content left "toc" right
-  putStrLn $ "Generating " ++ path
+  putStrLn $ "Generating chapter " ++ path ++ " left: " ++ left ++ " right: " ++ right
   hPutStr houtput output
   hClose houtput
-  writeSections outputPath allParts chId chLabel [] chapterParts nextChapters
+  writeSections outputPath allParts chId chLabel chId chapterParts nextChapters
 
 headPartId chId parts =
   case parts of
@@ -72,30 +74,28 @@ headPartId chId parts =
     _:next -> headPartId chId next
     [] -> ""
 
-writeSections :: String -> [Part] -> String -> String -> [Part] -> [Part] -> [Part] -> IO ()
-writeSections outputPath allParts chId chLabel prevSections sections nextChapters = do
+writeSections :: String -> [Part] -> String -> String -> String -> [Part] -> [Part] -> IO ()
+writeSections outputPath allParts chId chLabel previousId sections nextChapters = do
   case sections of
     sec@(Section title props parts):nextSections -> do
-      writeSection outputPath allParts chId chLabel title props parts prevSections nextSections nextChapters
-      writeSections outputPath allParts chId chLabel (sec:prevSections) nextSections nextChapters
+      writeSection outputPath allParts chId chLabel title props parts previousId nextSections nextChapters
+      writeSections outputPath allParts chId chLabel (chId ++ "_" ++ idProp title props) nextSections nextChapters
     (_:nextSections) ->
-      writeSections outputPath allParts chId chLabel prevSections nextSections nextSections
+      writeSections outputPath allParts chId chLabel previousId nextSections nextChapters
     [] -> return ()
 
-writeSection :: String -> [Part] -> String -> String -> String -> [Prop] -> [Part] -> [Part] -> [Part] -> [Part] -> IO ()
-writeSection outputPath allParts chId chLabel title props parts prevSections nextSections nextChapters = do
+writeSection :: String -> [Part] -> String -> String -> String -> [Prop] -> [Part] -> String -> [Part] -> [Part] -> IO ()
+writeSection outputPath allParts chId chLabel title props parts previousId nextSections nextChapters = do
   let path = outputPath ++ "/" ++ chId ++ "_" ++ (idProp title props) ++ ".html"
   houtput <- openFile path WriteMode
   hSetEncoding houtput utf8
   let content = renderPart allParts (Section (sectionTitle chLabel title props) props parts)
-  let left = listOrElse (headPartId chId prevSections) chId
+  let left = previousId
   let right = headPartId chId $ nextSections++nextChapters
   let output = page title content left chId right
-  putStrLn $ "Generating " ++ path
+  putStrLn $ "Generating section " ++ path ++ " left: " ++ left ++ " right: " ++ right
   hPutStr houtput output
   hClose houtput
-
-listOrElse lst fallback = if null lst then fallback else lst
 
 page :: String -> String -> String -> String -> String -> String
 page title content prev up next =
@@ -183,14 +183,14 @@ renderPart _ (SrcBlock "cmd" props src) = ""
 renderPart _ (SrcBlock "console" props src) =
   let boldCommand line =
         if (take 2 line == "$ ") then "$ <b>" ++ drop 2 line ++ "</b>"
-        else if (take 7 line == "scala> ") then "scala> <b>" ++ drop 7 line ++ "</b>"
+        else if (take 10 line == "scala&gt; ") then "scala&gt; <b>" ++ drop 10 line ++ "</b>"
         else if (take 7 line == "     | ") then "     | <b>" ++ drop 7 line ++ "</b>"
         else if line == "…" then "<span><i>(fragment pominięty)</i></span>"
         else if line == "at…" then "<span><i>(pozostałe wiersze zrzutu stosu wyjątku zostały pominięte)</i></span>"
         else line
       boldCommands = unlines . map boldCommand . lines
   in 
-  "<pre>" ++ boldCommands src ++ "</pre>\n"
+  "<pre>" ++ boldCommands (renderSource "console" props src) ++ "</pre>\n"
 renderPart _ (SrcBlock srcType props src) =
   let fileName = tangleFileName props
   in 
@@ -199,9 +199,12 @@ renderPart _ (SrcBlock srcType props src) =
          then ""
          else "<img class='filesign' src='filesign.png'/><b>Plik " ++ fileName ++
            (if srcType=="fragment" then " (fragment)" else "") ++ ":</b>\n") ++
-       src ++ "</pre>\n"
-renderPart allParts (Items items) =
-  "<ul class='list'>\n" ++ concat (map (renderItem allParts) items) ++  "</ul>\n"
+       renderSource srcType props src ++ "</pre>\n"
+renderPart allParts (Items props items) =
+  let style = maybe "list" id $ styleProp props
+  in  "<ul class='" ++ style ++ "'>\n" ++ concat (map (renderItem allParts) items) ++  "</ul>\n"
+renderPart _ (Img props file) =
+  "<div><img src='" ++ file ++ "'></img><div class='caption'>" ++ labelProp props ++ "</div></div>\n"
 renderPart _ _ = ""
 
 renderItem allParts (Item item) =
@@ -221,6 +224,19 @@ renderText allParts txt =
                 (chId,[]) -> chapterReference allParts chId ++ acc'
                 (chId,_:secId) -> sectionReference allParts chId secId ++ acc'
             _ -> c:acc
+
+----------------------------------------------------
+
+renderSource :: String -> [Prop] -> String -> String
+renderSource sourceType props src =
+  let f :: Char -> String -> String
+      f c acc =
+        case (c, break (c ==) acc) of
+          ('<',_) -> "&lt;" ++ acc
+          ('>',_) -> "&gt;" ++ acc
+          _ -> c:acc
+  in
+    foldr f "" src
 
 chapterReference :: [Part] -> String -> (String)
 chapterReference parts chapterId =
@@ -279,7 +295,7 @@ cssContent =
   \ul { margin:0.5em 0 0.5em 0.5cm; }\n\
   \ul.list { list-style-type:square; }\n\
   \html, body { margin:0; padding:0; }\n\
-  \ul.items { list-style-type:none; }\n\
+  \ul.none { list-style-type:none; }\n\
   \h1 { margin:2cm 0 1cm 0; }\n\
   \h2 { margin:0.5cm 0; }\n\
   \p { clear: left; }\n\

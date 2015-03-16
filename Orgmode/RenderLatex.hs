@@ -5,6 +5,7 @@ import Orgmode.Model
 import Control.Monad.Trans.State
 import Control.Monad
 import Data.List
+import Data.Char
 
 ----------------------------------------------------
 
@@ -23,6 +24,7 @@ latexStart Slides =
   \\\setbeamertemplate{footline}[default]\n\
   \\\usepackage[utf8]{inputenc}\n\
   \\\usepackage{graphicx}\n\
+  \\\usepackage{epstopdf}\n\
   \\\usepackage{tikz}\n\
   \\\usepackage{lmodern}\n\
   \\\usepackage{verbatim}\n\
@@ -50,6 +52,7 @@ latexStart Article =
   \\\usepackage{beamerarticle}\n\
   \\\usepackage[utf8]{inputenc}\n\
   \\\usepackage{graphicx}\n\
+  \\\usepackage{tikz}\n\
   \\\usepackage{lmodern}\n\
   \\\usepackage{verbatim}\n\
   \\\usepackage[OT4]{polski}\n\
@@ -95,7 +98,7 @@ renderTitleSlidePart _ = ""
 ----------------------------------------------------
 
 renderRegularSlidePart :: Part -> String
-renderRegularSlidePart (Items items) =
+renderRegularSlidePart (Items props items) =
   "\\begin{itemize}\n" ++ concat (map renderItem items) ++  "\\end{itemize}\n"
 renderRegularSlidePart (SrcBlock srcType props content) =
   if elem Ignore props
@@ -103,7 +106,7 @@ renderRegularSlidePart (SrcBlock srcType props content) =
   else
     let lns = lines content
         height = floor $ 1.1 * fromIntegral (length lns)
-        textwidth = maximum $ map length lns
+        textwidth = maximum $ map (length . filter (\c -> ord c < 256)) lns
         width = foldl (\w o -> case o of
                               MinWidth v -> v `max` w
                               _ -> w) textwidth props
@@ -135,7 +138,11 @@ renderRegularSlidePart (SrcBlock srcType props content) =
            _ -> verbatimContent content)
 renderRegularSlidePart (Title title) =
   "\\centerline{\\tikz{\\node[scale=4]{" ++ title ++ "};}}\n"
+renderRegularSlidePart (Header scale content) =
+  "\\centerline{\\tikz{\\node[scale=" ++ show scale ++ "]{" ++ content ++ "};}}\n"
 renderRegularSlidePart Pause = "\\pause\n"
+renderRegularSlidePart (Img props img) =
+  "\\begin{center}\n\\includegraphics{" ++ img ++ "}\n\\end{center}\n"
 renderRegularSlidePart Skipped = ""
 renderRegularSlidePart _ = ""
 
@@ -143,6 +150,7 @@ renderRegularSlidePart _ = ""
 
 renderItem (Item item) =
   "\\item{" ++ item ++ "}\n"
+renderItem Pause = "\\pause\n"
 
 ----------------------------------------------------
 
@@ -176,12 +184,12 @@ renderSource sourceType props src =
       identifierlike =
         identifierLikeProp props ++
         if sourceType == "scala" then ["implicitly"]
-        else if sourceType == "elm" then ["main"]
+        else if sourceType == "elm" then []
         else []
       symbollike =
         symbolLikeProp props ++
-        if sourceType == "scala" then ["\\{", "\\}", "(", ")", "[", "]", ".", ";", "|", "&", ":", ",", "\"", "++", "==", "=>", "+", "-", ">", "<", "*", "/", "="]
-        else if sourceType == "elm" then ["\\{", "\\}", "(", ")", "[", "]", ".", ";", "|", "&", ":", ",", "\"", "++", "==", "=>", "+", "-", ">", "<", "*", "/", "=", "~"]
+        if sourceType == "scala" then ["{\\raise-3pt\\hbox{~}}","{\\char92}", "\\{", "\\}", "(", ")", "[", "]", ".", ";", "|", "&", ":", ",", "\"", "++", "==", "=>", "+", "-", ">", "<", "*", "/", "=", "%"]
+        else if sourceType == "elm" then ["{\\raise-3pt\\hbox{~}}","{\\char92}", "\\{", "\\}", "(", ")", "[", "]", ".", ";", "|", "&", ":", ",", "\"", "++", "==", "=>", "+", "-", ">", "<", "*", "/", "=", "%"]
         else []
       constantlike =
         constantLikeProp props
@@ -192,10 +200,13 @@ renderSource sourceType props src =
       f :: Char -> String -> String
       f c acc =
         case (c, break (c ==) acc) of
+          ('⒢',(w,_:acc')) -> "{\\color{green}" ++ w ++ "}" ++ prefixes acc'
           ('⒭',(w,_:acc')) -> "{\\color{red}" ++ w ++ "}" ++ prefixes acc'
           ('}',_) -> prefixes $ '\\':'}':acc
           ('{',_) -> prefixes $ '\\':'{':acc
-          ('\\',_) -> prefixes $ '/':acc
+          ('\\',_) -> prefixes $ "{\\char92}" ++ acc
+          ('~',_) -> prefixes $ "{\\raise-3pt\\hbox{~}}" ++ acc
+          ('‖',_) -> "{\\pause}" ++ acc
           _ -> prefixes $ c:acc
   in
     "\\textbf{" ++ foldr f "" src ++ "}"

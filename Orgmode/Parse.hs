@@ -11,18 +11,24 @@ type P = Parsec String ()
 
 parseInput :: String -> [Part]
 parseInput input =
-    case (parse topLevelParts "error" input) of
+    case (parse entry "error" input) of
       Right result -> result
       Left err -> error (show err)
 
 ----------------------------------------------------
 
-topLevelParts :: P [Part]
-topLevelParts = do
-  header
-  slides <- (groups 1) <|> (many (topLevel 1))
+entry :: P [Part]
+entry = do
+  propLine
+  (try groups) <|> (try topLevels)
+
+----------------------------------------------------
+
+topLevels :: P [Part]
+topLevels = do
+  results <- many1 (try $ topLevel 1)
   try (stop >> return ()) <|> eof
-  return $ slides
+  return results
 
 topLevel :: Int -> P Part
 topLevel level =
@@ -36,9 +42,10 @@ topLevel level =
 
 ----------------------------------------------------
 
-groups :: Int -> P [Part]
-groups level = do
-  gs <- many (try (group level))
+groups :: P [Part]
+groups = do
+  gs <- many1 (try $ group 1)
+  try (stop >> return ()) <|> eof
   return $ concat gs
 
 group :: Int -> P [Part]
@@ -75,6 +82,7 @@ sectionElement level =
    try (items level) <|>
    try srcBlock <|>
    try (note level) <|>
+   try (asteriskImg level) <|>
    try implicitParagraph) <?> "sectionElement"
 
 ----------------------------------------------------
@@ -100,7 +108,9 @@ regularSlide level = do
 slideElement level =
   try (items level) <|>
   try title <|>
+  try header <|>
   try srcBlock <|>
+  try img <|>
   try pause <|>
   skipLine
 
@@ -147,10 +157,14 @@ note level = do
   content <- many (sectionElement $ level + 1)
   return $ Note noteType content
 
+asteriskImg level = do
+  (file,props) <- asteriskLineWithProps level "IMG"
+  return $ Img props file
+
 items level = do
-  noteType <- asteriskLine level "ITEMS"
-  content <- many1 item
-  return $ Items content
+  (noteType,props) <- asteriskLineWithProps level "ITEMS"
+  content <- many1 (item <|> pause)
+  return $ Items props content
 
 item = try $ Item <$> (char '•' >> restOfLine)
 
@@ -169,7 +183,22 @@ author = try $ Author <$> (char '⒜' >> restOfLine)
 
 title = try $ Title <$> (char '⒯' >> restOfLine)
 
+header = do
+  char '⒣'
+  scaleStr <- many1 $ oneOf "0123456789."
+  let scale = read scaleStr :: Double
+  char ':'
+  content <- restOfLine
+  return $ Header scale content
+
 date = try $ Date <$> (char '⒟' >> restOfLine)
+
+img = do
+  char '⒤'
+  file <- many $ noneOf " :\n\r"
+  props <- colonProp `sepBy` (many (noneOf "¬:\n\r"))
+  restOfLine
+  return $ Img props file
 
 ----------------------------------------------------
 
@@ -193,6 +222,7 @@ colonProp =
   try colonPropIgnore <|>
   try colonPropBlock <|>
   try colonPropExampleBlock <|>
+  try colonPropStyle <|>
   try colonPropId <|>
   try colonPropLabel <|>
   try colonPropKeywordLike <|>
@@ -227,6 +257,11 @@ colonPropId = do
   string ":id"
   value <- many (noneOf "¬:\n\r")
   return $ Id (trim value)
+
+colonPropStyle = do
+  string ":style"
+  value <- many (noneOf "¬:\n\r")
+  return $ Style (trim value)
 
 colonPropLabel = do
   string ":label"
@@ -275,7 +310,7 @@ srcLine = do
 
 ----------------------------------------------
 
-header = string "# -*-" >> many (noneOf "\n\r") >> eol
+propLine = string "# -*-" >> many (noneOf "\n\r") >> eol
 
 restOfLine = do
   content <- many (noneOf "\n\r")
