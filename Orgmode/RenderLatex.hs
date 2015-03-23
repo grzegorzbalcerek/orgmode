@@ -202,6 +202,10 @@ renderSource sourceType props src =
         case (c, break (c ==) acc) of
           ('⒢',(w,_:acc')) -> "{\\color{green}" ++ w ++ "}" ++ prefixes acc'
           ('⒭',(w,_:acc')) -> "{\\color{red}" ++ w ++ "}" ++ prefixes acc'
+          ('⒝',(w,_:acc')) -> "{\\color{blue}" ++ w ++ "}" ++ prefixes acc'
+          ('⒞',(w,_:acc')) -> "{\\color{cyan}" ++ w ++ "}" ++ prefixes acc'
+          ('⒨',(w,_:acc')) -> "{\\color{magenta}" ++ w ++ "}" ++ prefixes acc'
+          ('⒩',(w,_:acc')) -> "{\\color{brown}" ++ w ++ "}" ++ prefixes acc'
           ('}',_) -> prefixes $ '\\':'}':acc
           ('{',_) -> prefixes $ '\\':'{':acc
           ('\\',_) -> prefixes $ "{\\char92}" ++ acc

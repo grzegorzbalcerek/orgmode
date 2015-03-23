@@ -83,6 +83,7 @@ sectionElement level =
    try srcBlock <|>
    try (note level) <|>
    try (asteriskImg level) <|>
+   try (comment level) <|>
    try implicitParagraph) <?> "sectionElement"
 
 ----------------------------------------------------
