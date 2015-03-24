@@ -65,8 +65,8 @@ latexEnd = "\\end{document}\n"
 
 renderPart :: RenderType -> Part -> String
 renderPart _ EmptyPart = ""
-renderPart Article (Paragraph txt) = "\n\n" ++ renderText txt ++ "\n\n"
-renderPart Book (Paragraph txt) = "\n\n" ++ renderText txt ++ "\n\n"
+renderPart Article (Paragraph _ txt) = "\n\n" ++ renderText txt ++ "\n\n"
+renderPart Book (Paragraph _ txt) = "\n\n" ++ renderText txt ++ "\n\n"
 renderPart _ (RegularSlide title parts) =
   "\\begin{frame}[fragile]\n" ++
   (if title == "" then "" else "\\frametitle{" ++ title ++ "}\n") ++

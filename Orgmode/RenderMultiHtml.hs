@@ -178,7 +178,7 @@ renderPart allParts (Note noteType parts) =
   "'/></td><td class='remarkcontent'>" ++
   renderParts allParts parts ++
   "</td></tr></table>\n"
-renderPart allParts (Paragraph text) = "<p>" ++ renderText allParts text ++ "</p>\n"
+renderPart allParts (Paragraph _ text) = "<p>" ++ renderText allParts text ++ "</p>\n"
 renderPart _ (SrcBlock "cmd" props src) = ""
 renderPart _ (SrcBlock "console" props src) =
   let boldCommand line =
@@ -205,10 +205,24 @@ renderPart allParts (Items props items) =
   in  "<ul class='" ++ style ++ "'>\n" ++ concat (map (renderItem allParts) items) ++  "</ul>\n"
 renderPart allParts (Img props file) =
   "<div><img src='" ++ file ++ "'></img><div class='caption'>" ++ (renderText allParts $ labelProp props) ++ "</div></div>\n"
+renderPart allParts (Table props rows) =
+  "<table>" ++ concat (map renderTableRow rows) ++ "</table>\n"
+renderPart allParts Index = renderIndex allParts
 renderPart _ _ = ""
+
+renderTableRow row =
+  "<tr>" ++ concat (map renderTableCell row) ++ "</tr>\n"
+
+renderTableCell cell =
+  "<td>" ++ cell ++ "</td>"
 
 renderItem allParts (Item item) =
   "<li>" ++ renderText allParts item ++ "</li>\n"
+
+renderIndex allParts =
+  let indexEntries = allParts >>= extractIndexEntries
+  in
+    "<pre>" ++ show indexEntries ++ "</pre>"
 
 renderText :: [Part] -> String -> String
 renderText allParts txt =

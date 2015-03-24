@@ -67,6 +67,8 @@ chapterElement level =
    try (items level) <|>
    try srcBlock <|>
    try (section level) <|>
+   try (table level) <|>
+   try (index level) <|>
    try implicitParagraph) <?> "chapterElement"
 
 ----------------------------------------------------
@@ -84,6 +86,7 @@ sectionElement level =
    try (note level) <|>
    try (asteriskImg level) <|>
    try (comment level) <|>
+   try (table level) <|>
    try implicitParagraph) <?> "sectionElement"
 
 ----------------------------------------------------
@@ -146,12 +149,12 @@ asteriskLineWithProps n tag = do
 
 implicitParagraph = do
   content <- many1 regularLineWithEol
-  return $ Paragraph (concat content)
+  return $ Paragraph [] (concat content)
 
 paragraph level = do
-  asteriskLine level "PARA"
+  (_,props) <- asteriskLineWithProps level "PARA"
   content <- many regularLineWithEol
-  return $ Paragraph (concat content)
+  return $ Paragraph props (concat content)
 
 note level = do
   noteType <- asteriskLine level "NOTE"
@@ -169,6 +172,22 @@ items level = do
 
 item = try $ Item <$> (char '•' >> restOfLine)
 
+table level = do
+  (noteType,props) <- asteriskLineWithProps level "TABLE"
+  rows <- many (try tableRow)
+  return $ Table props rows
+
+tableRow = do
+  char '|'
+  cells <- many (try tableCell)
+  eol
+  return $ cells
+
+tableCell = do
+  content <- many (noneOf "|\n\r")
+  char '|'
+  return (trim content)
+
 pause = do
   char '‖'
   eol
@@ -177,6 +196,10 @@ pause = do
 subtitle level = try $ Subtitle <$> asteriskLine level "SUBTITLE"
 
 stop = asteriskLine 1 "STOP"
+
+index level = do
+  asteriskLine level "INDEX"
+  return Index
 
 ----------------------------------------------------
 
@@ -226,6 +249,7 @@ colonProp =
   try colonPropStyle <|>
   try colonPropId <|>
   try colonPropLabel <|>
+  try colonPropIdx <|>
   try colonPropKeywordLike <|>
   try colonPropTypeLike <|>
   try colonPropIdentifierLike <|>
@@ -268,6 +292,11 @@ colonPropLabel = do
   string ":label"
   value <- many (noneOf "¬:\n\r")
   return $ Label (trim value)
+
+colonPropIdx = do
+  string ":ie1"
+  value <- many (noneOf "¬:\n\r")
+  return $ Idx (IndexEntry1 (trim value))
 
 colonPropKeywordLike = do
   string ":keywordlike"

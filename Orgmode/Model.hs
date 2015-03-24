@@ -11,16 +11,18 @@ data Part =
   | Author String
   | Date String
   | EmptyPart
+  | Index
   | Institute String
   | Items [Prop] [Part]
   | Item String
   | Img [Prop] String
-  | Paragraph String
+  | Paragraph [Prop] String
   | Pause
   | Skipped
   | SrcBlock String [Prop] String
   | Subtitle String
   | Title String
+  | Table [Prop] [[String]]
   | Header Double String
   deriving Show
 
@@ -33,12 +35,16 @@ data Prop =
   | Style String
   | Tangle String
   | Id String
+  | Idx IndexEntry
   | Label String
   | KeywordLike [String]
   | TypeLike [String]
   | IdentifierLike [String]
   | SymbolLike [String]
   | ConstantLike [String]
+  deriving (Eq,Show)
+
+data IndexEntry = IndexEntry1 String
   deriving (Eq,Show)
 
 data RenderType =
@@ -57,10 +63,11 @@ inspectPart part = case part of
   Author str -> "Author ..."
   Date str -> "Date ..."
   EmptyPart -> "EmptyPart"
+  Index -> "Index"
   Institute str -> "Institute ..."
   Items props parts -> "Items ... " ++ inspectParts parts
   Item str -> "Item ..."
-  Paragraph str -> "Paragraph ..."
+  Paragraph props str -> "Paragraph ..."
   Pause -> "Pause"
   Skipped -> "Skipped"
   SrcBlock srcType props str -> "SrcBlock " ++ srcType ++ " ... ..."
@@ -106,6 +113,12 @@ labelProp =
                      Label label -> label
                      _ -> acc) ""
 
+indexEntriesFromProps =
+  foldl (\acc p -> case p of
+                     Idx ie -> ie:acc
+                     _ -> acc) []
+
+
 keywordLikeProp =
   foldl (\acc p -> case p of
                      KeywordLike ks -> ks
@@ -130,3 +143,14 @@ constantLikeProp =
   foldl (\acc p -> case p of
                      ConstantLike ks -> ks
                      _ -> acc) []
+
+extractIndexEntries :: Part -> [IndexEntry]
+extractIndexEntries (Chapter title props parts) = indexEntriesFromProps props ++ (parts >>= extractIndexEntries)
+extractIndexEntries (Section title props parts) = indexEntriesFromProps props ++ (parts >>= extractIndexEntries)
+extractIndexEntries (Paragraph props _) = indexEntriesFromProps props
+extractIndexEntries (Items props _) = indexEntriesFromProps props
+extractIndexEntries (Img props _) = indexEntriesFromProps props
+extractIndexEntries (SrcBlock _ props _) = indexEntriesFromProps props
+extractIndexEntries (Table props _) = indexEntriesFromProps props
+extractIndexEntries _ = []
+
