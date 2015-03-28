@@ -35,7 +35,8 @@ data Prop =
   | Style String
   | Tangle String
   | Id String
-  | Idx IndexEntry
+  | Ie1 String
+  | Ie2 String String
   | Label String
   | KeywordLike [String]
   | TypeLike [String]
@@ -44,8 +45,18 @@ data Prop =
   | ConstantLike [String]
   deriving (Eq,Show)
 
-data IndexEntry = IndexEntry1 String
+data IndexEntry = IndexEntry1 String String String  -- entry, link, label
+                | IndexEntry2 String String String String  -- entry, subentry, link, label
+                | IndexParentEntry String  -- entry
   deriving (Eq,Show)
+
+getEntry (IndexEntry1 e _ _) = e
+getEntry (IndexEntry2 e _ _ _) = e
+getEntry (IndexParentEntry e) = e
+
+getSubEntry (IndexEntry1 _ _ _) = ""
+getSubEntry (IndexEntry2 _ s _ _) = s
+getSubEntry (IndexParentEntry _) = ""
 
 data RenderType =
     Slides
@@ -113,9 +124,10 @@ labelProp =
                      Label label -> label
                      _ -> acc) ""
 
-indexEntriesFromProps =
+indexEntriesFromProps ident label =
   foldl (\acc p -> case p of
-                     Idx ie -> ie:acc
+                     Ie1 entry -> (IndexEntry1 entry ident label):acc
+                     Ie2 entry subentry -> (IndexEntry2 entry subentry ident label):acc
                      _ -> acc) []
 
 
@@ -144,13 +156,23 @@ constantLikeProp =
                      ConstantLike ks -> ks
                      _ -> acc) []
 
-extractIndexEntries :: Part -> [IndexEntry]
-extractIndexEntries (Chapter title props parts) = indexEntriesFromProps props ++ (parts >>= extractIndexEntries)
-extractIndexEntries (Section title props parts) = indexEntriesFromProps props ++ (parts >>= extractIndexEntries)
-extractIndexEntries (Paragraph props _) = indexEntriesFromProps props
-extractIndexEntries (Items props _) = indexEntriesFromProps props
-extractIndexEntries (Img props _) = indexEntriesFromProps props
-extractIndexEntries (SrcBlock _ props _) = indexEntriesFromProps props
-extractIndexEntries (Table props _) = indexEntriesFromProps props
-extractIndexEntries _ = []
+extractIndexEntries :: String -> String -> Part -> [IndexEntry]
+extractIndexEntries _ _ (Chapter title props parts) =
+  let chId = idProp title props
+      chLabel = labelProp props
+  in
+      indexEntriesFromProps chId chLabel props ++ (parts >>= extractIndexEntries chId chLabel)
+extractIndexEntries chId chLabel (Section title props parts) =
+  let secId = idProp title props
+      secLabel = labelProp props
+      partId = chId ++ "_" ++ secId
+      partLabel = chLabel ++ "." ++ secLabel
+  in
+      indexEntriesFromProps partId partLabel props ++ (parts >>= extractIndexEntries partId partLabel)
+extractIndexEntries partId partLabel (Paragraph props _) = indexEntriesFromProps partId partLabel props
+extractIndexEntries partId partLabel (Items props _) = indexEntriesFromProps partId partLabel props
+extractIndexEntries partId partLabel (Img props _) = indexEntriesFromProps partId partLabel props
+extractIndexEntries partId partLabel (SrcBlock _ props _) = indexEntriesFromProps partId partLabel props
+extractIndexEntries partId partLabel (Table props _) = indexEntriesFromProps partId partLabel props
+extractIndexEntries partId partLabel _ = []
 

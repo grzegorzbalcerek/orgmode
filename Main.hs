@@ -7,6 +7,7 @@ import Orgmode.Parse
 import Orgmode.RenderLatex
 import Orgmode.ExtractSrc
 import Orgmode.RenderMultiHtml
+import Orgmode.VerifyOutput
 import System.IO
 import GHC.IO.Encoding
 import Control.Monad.Trans.State
@@ -14,20 +15,22 @@ import Control.Monad.Trans.State
 main = do
   args <- System.Environment.getArgs
   let sourceFile = args !! 1
-  let outputPath = args !! 2
+  let path = args !! 2
+  let chapterId = args !! 3
   hinput <- openFile sourceFile ReadMode
   hSetEncoding hinput utf8
   input <- hGetContents hinput
   let content = parseInput input
   putStrLn $ "Content parsed. Length: " ++ show (length content) ++ "."
   case head args of
-    "extractsrc"   -> extractSrcFromParts content
-    "inspect"      -> putStrLn (inspectParts content)
-    "latexarticle" -> makeOutputLatex Article outputPath content
-    "latexbook"    -> makeOutputLatex Book outputPath content
-    "latexslides"  -> makeOutputLatex Slides outputPath content
-    "multihtml"    -> writeMultiHtml outputPath content
-    "parse"        -> putStrLn (show content)
+    "extractsrc"    -> extractSrcFromParts content
+    "inspect"       -> putStrLn (inspectParts content)
+    "latexarticle"  -> makeOutputLatex Article path content
+    "latexbook"     -> makeOutputLatex Book path content
+    "latexslides"   -> makeOutputLatex Slides path content
+    "multihtml"     -> writeMultiHtml path content
+    "verifyoutput"  -> verifyOutput content path chapterId
+    "parse"         -> putStrLn (show content)
     _ -> return()
   hClose hinput
 

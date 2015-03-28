@@ -249,7 +249,8 @@ colonProp =
   try colonPropStyle <|>
   try colonPropId <|>
   try colonPropLabel <|>
-  try colonPropIdx <|>
+  try colonPropIe1 <|>
+  try colonPropIe2 <|>
   try colonPropKeywordLike <|>
   try colonPropTypeLike <|>
   try colonPropIdentifierLike <|>
@@ -293,10 +294,18 @@ colonPropLabel = do
   value <- many (noneOf "¬:\n\r")
   return $ Label (trim value)
 
-colonPropIdx = do
+colonPropIe1 = do
   string ":ie1"
   value <- many (noneOf "¬:\n\r")
-  return $ Idx (IndexEntry1 (trim value))
+  return $ if (trim value == "") then Unrecognized else Ie1 (trim value)
+
+colonPropIe2 = do
+  string ":ie2"
+  value <- many (noneOf "¬:\n\r")
+  return $ if (trim value == "")
+           then Unrecognized
+           else let (entry,subentry) = break (=='¡') (trim value)
+                in if length subentry > 1 then Ie2 entry (tail subentry) else Unrecognized
 
 colonPropKeywordLike = do
   string ":keywordlike"

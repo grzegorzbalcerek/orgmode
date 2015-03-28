@@ -220,9 +220,43 @@ renderItem allParts (Item item) =
   "<li>" ++ renderText allParts item ++ "</li>\n"
 
 renderIndex allParts =
-  let indexEntries = allParts >>= extractIndexEntries
+  let indexEntries = allParts >>= extractIndexEntries "" ""
+      sortedEntries :: [IndexEntry]
+      sortedEntries = sortBy (\e1 e2 -> let res = compare (map toLower.getEntry $ e1) (map toLower.getEntry $ e2)
+                                        in if res == EQ then compare (map toLower.getSubEntry $ e1) (map toLower.getSubEntry $ e2)
+                                                        else res ) indexEntries
+      groupedByEntries :: [[IndexEntry]]
+      groupedByEntries = groupBy (\e1 e2 -> (map toLower.getEntry $ e1) == (map toLower.getEntry $ e2) &&
+                                            (map toLower.getSubEntry $ e1) == (map toLower.getSubEntry $ e2) ) sortedEntries
+      groupedByEntriesWithParents =
+          groupedByEntries >>=
+            (\(firstEntry:rest) ->
+               case firstEntry of
+                 (IndexEntry1 _ _ _) -> [firstEntry:rest]
+                 (IndexEntry2 entry _ _ _) -> [[IndexParentEntry entry],firstEntry:rest])
+      groupedByLetter = groupBy (\(a:_) (b:_) -> (toLower.head.getEntry $ a) == (toLower.head.getEntry $ b) ) groupedByEntriesWithParents
   in
-    "<pre>" ++ show indexEntries ++ "</pre>"
+    "<div class='index'>\n" ++ (groupedByLetter >>= renderIndexLetter) ++ "</div>\n"
+
+renderIndexLetter :: [[IndexEntry]] -> String
+renderIndexLetter (x:xs) =
+  let letter = toUpper.head.getEntry $ head x
+  in
+      "<h3>" ++ [letter] ++ "</h3>\n" ++ ( (x:xs) >>= renderIndexEntry )
+
+renderIndexEntry list@((IndexParentEntry entry):rest) =
+  "<p>" ++ entry ++ "</p>\n"
+renderIndexEntry list@((IndexEntry1 entry partId partLabel):rest) =
+  "<p>" ++ entry ++ "<span>" ++ (list >>= renderIndexEntryLocation) ++ "</span></p>\n"
+renderIndexEntry list@((IndexEntry2 entry subentry partId partLabel):rest) =
+  "<p class='subitem'>" ++ subentry ++ "<span>" ++ (list >>= renderIndexEntryLocation) ++ "</span></p>\n"
+
+renderIndexEntryLocation (IndexEntry1 _   partId partLabel) = ", <a href='" ++ partId ++ ".html'>" ++ partLabel ++ "</a>"
+renderIndexEntryLocation (IndexEntry2 _ _ partId partLabel) = ", <a href='" ++ partId ++ ".html'>" ++ partLabel ++ "</a>"
+
+
+--renderIndexEntries ((IndexEntry1 entry partId partLabel):entries) =
+--  "<p>" ++ entry 
 
 renderText :: [Part] -> String -> String
 renderText allParts txt =
