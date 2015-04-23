@@ -38,6 +38,7 @@ topLevel level =
   try (items level) <|>
   try (comment level) <|>
   try (chapter level) <|>
+  try (srcBlock2 level) <|>
   try srcBlock
 
 ----------------------------------------------------
@@ -66,6 +67,7 @@ chapterElement level =
   (try (paragraph level) <|>
    try (items level) <|>
    try srcBlock <|>
+   try (srcBlock2 level) <|>
    try (section level) <|>
    try (table level) <|>
    try (index level) <|>
@@ -87,6 +89,7 @@ sectionElement level =
    try (asteriskImg level) <|>
    try (comment level) <|>
    try (table level) <|>
+   try (srcBlock2 level) <|>
    try implicitParagraph) <?> "sectionElement"
 
 ----------------------------------------------------
@@ -110,11 +113,14 @@ regularSlide level = do
   return $ RegularSlide title content
 
 slideElement level =
+  try (paragraph level) <|>
   try (items level) <|>
   try title <|>
   try header <|>
+  try (srcBlock2 level) <|>
   try srcBlock <|>
   try img <|>
+  try (pause2 level) <|>
   try pause <|>
   skipLine
 
@@ -188,6 +194,10 @@ tableCell = do
   char '|'
   return (trim content)
 
+pause2 level = do
+  asteriskLine level "PAUSE"
+  return $ Pause
+
 pause = do
   char '‖'
   eol
@@ -232,6 +242,11 @@ srcBlock = do
   srcEnd
   return $ SrcBlock srcType props (concat content)
 
+srcBlock2 level = do
+  (srcType,props) <- asteriskLineWithProps level "SRC"
+  content <- many1 emptyOrRegularLineWithEol
+  return $ SrcBlock srcType props (concat content)
+
 srcBegin = do
   string "#+begin_src "
   srcType <- many1 alphaNum
@@ -244,6 +259,9 @@ srcEnd = string "#+end_src" >> eol
 
 colonProp =
   try colonPropIgnore <|>
+  try colonPropPauseBefore <|>
+  try colonPropRepl <|>
+  try colonPropOutput <|>
   try colonPropBlock <|>
   try colonPropExampleBlock <|>
   try colonPropStyle <|>
@@ -263,6 +281,18 @@ colonProp =
 colonPropIgnore = do
   string ":ignore"
   return Ignore
+
+colonPropPauseBefore = do
+  string ":pause"
+  return PauseBefore
+
+colonPropRepl = do
+  string ":repl"
+  return Repl
+
+colonPropOutput = do
+  string ":output"
+  return Output
 
 colonPropTangle = do
   string ":tangle "
@@ -341,11 +371,6 @@ colonPropUnrecognized = do
   string ":"
   many (noneOf "¬:\n\r")
   return $ Unrecognized
-
-srcLine = do
-  content <- noneOf "\n\r"
-  eol
-  return content
 
 ----------------------------------------------
 

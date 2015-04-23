@@ -47,7 +47,7 @@ getSrcFromParts =
   where getSrc part acc =
           case part of
             SrcBlock srcType props src
-              | srcType == "output" && not (elem Ignore props) -> src : acc
+              | isReplProp props && not (elem Ignore props) -> src : acc
             _ -> acc
 
 

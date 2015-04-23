@@ -18,6 +18,7 @@ truncateFiles parts =
       Chapter _ _ parts -> truncateFiles parts
       Section _ _ parts -> truncateFiles parts
       RegularSlide _ parts -> truncateFiles parts
+      Note _ parts -> truncateFiles parts
       SrcBlock srcType props _ ->
         let file = tangleProp props
         in if file == ""
@@ -25,36 +26,59 @@ truncateFiles parts =
            else truncateFile file
       _ -> return ()
 
+truncateFile :: String -> IO ()
 truncateFile file = do
   let dir = dropWhileEnd (/= '/') file
   if dir /= "" then createDirectoryIfMissing True dir else return ()
   houtput <- openFile file WriteMode
   hClose houtput
 
-extractSrcFromParts :: [Part] -> IO ()
-extractSrcFromParts parts = do
+extractSrcFromParts :: [Part] -> Maybe String -> Maybe String -> IO ()
+extractSrcFromParts parts defaultfile separator = do
+  maybe (return ()) (\d -> truncateFile d) defaultfile
   truncateFiles parts
-  extractSrcFromParts' parts
+  extractSrcFromParts' parts defaultfile separator
 
-extractSrcFromParts' :: [Part] -> IO ()
-extractSrcFromParts' parts = do
+extractSrcFromParts' :: [Part] -> Maybe String -> Maybe String -> IO ()
+extractSrcFromParts' parts defaultfile separator = do
   forM_ parts $ \part ->
     case part of
-      Chapter _ _ parts -> extractSrcFromParts' parts
-      Section _ _ parts -> extractSrcFromParts' parts
-      RegularSlide _ parts -> extractSrcFromParts' parts
+      Chapter title props parts ->
+        extractSrcFromParts' parts defaultfile separator
+      Section title props parts ->
+        do
+          let secId = idProp title props
+          ignoreThis <-
+             case (defaultfile,separator) of
+               (Just df, Just sep) -> writeToFile df (map (\x -> if x == '|' then '\n' else x) sep)
+               _ -> return ()
+          extractSrcFromParts' parts defaultfile separator
+      RegularSlide _ parts -> extractSrcFromParts' parts defaultfile separator
+      Note _ parts -> extractSrcFromParts' parts defaultfile separator
       SrcBlock srcType props str ->
         let file = tangleProp props
-        in if file == ""
-           then return ()
-           else extractSrc file str
+        in case (file,defaultfile) of
+             ("",Nothing) -> return ()
+             ("",Just d) -> extractSrc srcType props d str
+             _ -> extractSrc srcType props file str
       _ -> return ()
 
-extractSrc file src = do
+extractSrc srcType props file src = 
+  writeToFile file $ getSrcContent srcType props src
+
+writeToFile file content = do
   putStrLn $ "Writing " ++ file
   houtput <- openFile file AppendMode
   hSetEncoding houtput utf8
-  hPutStr houtput $ filter (\c -> ord c < 256) src
-  hPutStr houtput "\n"
+  hPutStr houtput content
   hClose houtput
+
+getSrcContent srcType props src =
+  let filteredHighUnicodes = filter (\c -> ord c < 9216) src
+      filterScalaPrompts xs = filter (\x -> take 7 x == "scala> " || take 7 x == "     | ") xs
+      filteredSrc =
+        case (srcType, isReplProp props) of
+         ("scala", True) -> unlines . filter (/="") . map (drop 7) . filterScalaPrompts . lines $ filteredHighUnicodes
+         _ -> filteredHighUnicodes
+  in filteredSrc ++ "\n"
 

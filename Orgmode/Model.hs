@@ -37,6 +37,9 @@ data Prop =
   | Id String
   | Ie1 String
   | Ie2 String String
+  | Output
+  | Repl
+  | PauseBefore
   | Label String
   | KeywordLike [String]
   | TypeLike [String]
@@ -118,6 +121,21 @@ styleProp =
   foldl (\acc p -> case p of
                      Style s -> Just s
                      _ -> acc) Nothing
+
+isReplProp =
+  foldl (\acc p -> case p of
+                     Repl -> True
+                     _ -> acc) False
+
+isOutputProp =
+  foldl (\acc p -> case p of
+                     Output -> True
+                     _ -> acc) False
+
+isPauseBeforeProp =
+  foldl (\acc p -> case p of
+                     PauseBefore -> True
+                     _ -> acc) False
 
 labelProp =
   foldl (\acc p -> case p of

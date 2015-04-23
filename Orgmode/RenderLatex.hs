@@ -130,8 +130,9 @@ renderRegularSlidePart (SrcBlock srcType props content) =
           "\\begin{semiverbatim}\n" ++
           renderSource srcType props content ++
           "\\end{semiverbatim}\n"
+        pauseBeforeCmd = if isPauseBeforeProp props then "\\pause\n" else ""
     in
-        "\\" ++ textsize ++ "\n" ++
+        pauseBeforeCmd ++ "\\" ++ textsize ++ "\n" ++
         (case block of
            Just (Block t) -> "\\begin{block}{" ++ t ++ "}\n" ++ verbatimContent content ++ "\\end{block}\n"
            Just (ExampleBlock t) -> "\\begin{exampleblock}{" ++ t ++ "}\n" ++ verbatimContent content ++ "\\end{exampleblock}\n"
