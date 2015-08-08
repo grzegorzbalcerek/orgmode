@@ -7,19 +7,22 @@ import System.Directory
 import System.IO
 import GHC.IO.Encoding
 import Data.List
+import Data.Char
 
-verifyOutput :: [Part] -> String -> String -> IO ()
-verifyOutput parts dir chapterId = do
+verifyOutput :: [Part] -> String -> String -> String -> IO ()
+verifyOutput parts actualOutputFile chapterId sectionId = do
   forM_ parts $ \part ->
     case part of
       Chapter title props chapterParts ->
         let chId = idProp title props
         in if chId == chapterId
-           then verifyOutput chapterParts dir chapterId
+           then verifyOutput chapterParts actualOutputFile chapterId sectionId
            else return ()
       Section title props sectionParts ->
         let secId = idProp title props
-        in verifySection sectionParts (dir ++ "/" ++ chapterId ++ "_" ++ secId ++ ".out")
+        in if secId == sectionId
+           then verifySection sectionParts actualOutputFile
+           else return ()
       _ -> return ()
 
 verifySection :: [Part] -> String -> IO ()
@@ -47,7 +50,7 @@ getSrcFromParts =
   where getSrc part acc =
           case part of
             SrcBlock srcType props src
-              | isReplProp props && not (elem Ignore props) -> src : acc
+              | isReplProp props && not (hasNoVerifyProp props) -> (filter (\c -> ord c < 9216) src) : acc
             _ -> acc
 
 
@@ -57,4 +60,4 @@ verifyExpectedAndActualOutputs [] actual = "OK"
 verifyExpectedAndActualOutputs (expected:rest) actual =
   case find (\a -> isPrefixOf expected a) $ tails actual of
     Just found -> verifyExpectedAndActualOutputs rest $ drop (length expected) found
-    Nothing -> "\n======== not found:\n"++ expected ++ "\n========\n"
+    Nothing -> "\n======== the following expected fragment is not found in the actual results:\n"++ expected ++ "\n========\n"

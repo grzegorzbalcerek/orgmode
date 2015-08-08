@@ -39,6 +39,7 @@ topLevel level =
   try (comment level) <|>
   try (chapter level) <|>
   try (srcBlock2 level) <|>
+  try (latexBlock level) <|>
   try srcBlock
 
 ----------------------------------------------------
@@ -145,9 +146,9 @@ asteriskLine n tag = do
 
 asteriskLineWithProps :: Int -> String -> P (String,[Prop])
 asteriskLineWithProps n tag = do
-  try $ string $ take n $ repeat '*'
+  string $ take n $ repeat '*'
   space
-  string tag
+  try (string tag <|> string ("TODO "++tag))
   content <- many (noneOf "¬:\n\r")
   props <- colonProp `sepBy` (many (noneOf "¬:\n\r"))
   restOfLine
@@ -236,6 +237,11 @@ img = do
 
 ----------------------------------------------------
 
+latexBlock level = do
+  (blockType,props) <- asteriskLineWithProps level "LATEX"
+  content <- many1 emptyOrRegularLineWithEol
+  return $ LatexBlock blockType (concat content)
+
 srcBlock = do
   (srcType,props) <- srcBegin
   content <- many1 emptyOrRegularLineWithEol
@@ -261,6 +267,10 @@ colonProp =
   try colonPropIgnore <|>
   try colonPropPauseBefore <|>
   try colonPropRepl <|>
+  try colonPropFragment <|>
+  try colonPropNoTangle <|>
+  try colonPropNoRender <|>
+  try colonPropNoVerify <|>
   try colonPropOutput <|>
   try colonPropBlock <|>
   try colonPropExampleBlock <|>
@@ -289,6 +299,22 @@ colonPropPauseBefore = do
 colonPropRepl = do
   string ":repl"
   return Repl
+
+colonPropFragment = do
+  string ":fragment"
+  return Fragment
+
+colonPropNoTangle = do
+  string ":notangle"
+  return NoTangle
+
+colonPropNoRender = do
+  string ":norender"
+  return NoRender
+
+colonPropNoVerify = do
+  string ":noverify"
+  return NoVerify
 
 colonPropOutput = do
   string ":output"

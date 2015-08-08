@@ -20,6 +20,7 @@ data Part =
   | Pause
   | Skipped
   | SrcBlock String [Prop] String
+  | LatexBlock String String
   | Subtitle String
   | Title String
   | Table [Prop] [[String]]
@@ -33,6 +34,10 @@ data Prop =
   | ExampleBlock String
   | MinWidth Int
   | Style String
+  | Fragment
+  | NoTangle
+  | NoRender
+  | NoVerify
   | Tangle String
   | Id String
   | Ie1 String
@@ -87,6 +92,7 @@ inspectPart part = case part of
   SrcBlock srcType props str -> "SrcBlock " ++ srcType ++ " ... ..."
   Subtitle str -> "Subtitle ..."
   Title str -> "Title ..."
+  Table prop strs -> "Table ... ..." 
   Header scale str -> "Header " ++ show scale ++ " ..."
 
 takeWhileEnd f = reverse . takeWhile f . reverse
@@ -125,6 +131,26 @@ styleProp =
 isReplProp =
   foldl (\acc p -> case p of
                      Repl -> True
+                     _ -> acc) False
+
+hasFragmentProp =
+  foldl (\acc p -> case p of
+                     Fragment -> True
+                     _ -> acc) False
+
+hasNoTangleProp =
+  foldl (\acc p -> case p of
+                     NoTangle -> True
+                     _ -> acc) False
+
+hasNoRenderProp =
+  foldl (\acc p -> case p of
+                     NoRender -> True
+                     _ -> acc) False
+
+hasNoVerifyProp =
+  foldl (\acc p -> case p of
+                     NoVerify -> True
                      _ -> acc) False
 
 isOutputProp =
@@ -193,4 +219,3 @@ extractIndexEntries partId partLabel (Img props _) = indexEntriesFromProps partI
 extractIndexEntries partId partLabel (SrcBlock _ props _) = indexEntriesFromProps partId partLabel props
 extractIndexEntries partId partLabel (Table props _) = indexEntriesFromProps partId partLabel props
 extractIndexEntries partId partLabel _ = []
-

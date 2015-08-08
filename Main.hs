@@ -17,6 +17,7 @@ main = do
   let sourceFile = args !! 1
   let path = args !! 2
   let chapterId = args !! 3
+  let sectionId = args !! 4
   let separator = args !! 3
   hinput <- openFile sourceFile ReadMode
   hSetEncoding hinput utf8
@@ -32,7 +33,7 @@ main = do
     "latexbook"     -> makeOutputLatex Book path content
     "latexslides"   -> makeOutputLatex Slides path content
     "multihtml"     -> writeMultiHtml path content
-    "verifyoutput"  -> verifyOutput content path chapterId
+    "verifyoutput"  -> verifyOutput content path chapterId sectionId
     "parse"         -> putStrLn (show content)
     _ -> return()
   hClose hinput

@@ -57,9 +57,11 @@ extractSrcFromParts' parts defaultfile separator = do
       Note _ parts -> extractSrcFromParts' parts defaultfile separator
       SrcBlock srcType props str ->
         let file = tangleProp props
-        in case (file,defaultfile) of
-             ("",Nothing) -> return ()
-             ("",Just d) -> extractSrc srcType props d str
+        in case (hasNoTangleProp props,file,defaultfile) of
+             (True,_,_) -> return ()
+             (_,"",Nothing) -> return ()
+             (_,"",Just d) -> do extractSrc srcType props d str
+                                 writeToFile d "\n"
              _ -> extractSrc srcType props file str
       _ -> return ()
 
@@ -76,9 +78,11 @@ writeToFile file content = do
 getSrcContent srcType props src =
   let filteredHighUnicodes = filter (\c -> ord c < 9216) src
       filterScalaPrompts xs = filter (\x -> take 7 x == "scala> " || take 7 x == "     | ") xs
+      filterDollarPrompts xs = filter (\x -> take 2 x == "$ ") xs
       filteredSrc =
         case (srcType, isReplProp props) of
-         ("scala", True) -> unlines . filter (/="") . map (drop 7) . filterScalaPrompts . lines $ filteredHighUnicodes
+         ("scala", True) -> unlines . map (drop 7) . filterScalaPrompts . lines $ filteredHighUnicodes
+         ("cmd", _) -> unlines . map (drop 2) . filterDollarPrompts . lines $ filteredHighUnicodes
          _ -> filteredHighUnicodes
-  in filteredSrc ++ "\n"
+  in filteredSrc
 

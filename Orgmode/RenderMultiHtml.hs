@@ -179,8 +179,7 @@ renderPart allParts (Note noteType parts) =
   renderParts allParts parts ++
   "</td></tr></table>\n"
 renderPart allParts (Paragraph _ text) = "<p>" ++ renderText allParts text ++ "</p>\n"
-renderPart _ (SrcBlock "cmd" props src) = ""
-renderPart _ (SrcBlock "console" props src) =
+renderPart _ (SrcBlock srcType props src) =
   let boldCommand line =
         if (take 2 line == "$ ") then "$ <b>" ++ drop 2 line ++ "</b>"
         else if (take 10 line == "scala&gt; ") then "scala&gt; <b>" ++ drop 10 line ++ "</b>"
@@ -189,17 +188,19 @@ renderPart _ (SrcBlock "console" props src) =
         else if line == "at…" then "<span><i>(pozostałe wiersze zrzutu stosu wyjątku zostały pominięte)</i></span>"
         else line
       boldCommands = unlines . map boldCommand . lines
+      fileName = tangleFileName props
   in 
-  "<pre>" ++ boldCommands (renderSource "console" props src) ++ "</pre>\n"
-renderPart _ (SrcBlock srcType props src) =
-  let fileName = tangleFileName props
-  in 
-      "<pre>" ++
-      (if fileName == ""
-         then ""
-         else "<img class='filesign' src='filesign.png'/><b>Plik " ++ fileName ++
-           (if srcType=="fragment" then " (fragment)" else "") ++ ":</b>\n") ++
-       renderSource srcType props src ++ "</pre>\n"
+    if hasNoRenderProp props
+    then ""
+    else if isReplProp props || srcType == "cmd"
+         then "<pre>" ++ boldCommands (renderSource srcType props src) ++ "</pre>\n"
+         else
+           "<pre>" ++
+           (if fileName == ""
+              then ""
+              else "<img class='filesign' src='filesign.png'/><b>Plik " ++ fileName ++
+                (if srcType=="fragment" then " (fragment)" else "") ++ ":</b>\n") ++
+            renderSource srcType props src ++ "</pre>\n"
 renderPart allParts (Items props items) =
   let style = maybe "list" id $ styleProp props
   in  "<ul class='" ++ style ++ "'>\n" ++ concat (map (renderItem allParts) items) ++  "</ul>\n"
