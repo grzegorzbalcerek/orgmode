@@ -25,7 +25,8 @@ data Part =
   | Title String
   | Table [Prop] [[String]]
   | Header Double String
-  deriving Show
+  | Directive String String
+  deriving (Eq,Show)
 
 data Prop =
     Ignore
@@ -43,7 +44,7 @@ data Prop =
   | Ie1 String
   | Ie2 String String
   | Output
-  | Repl
+  | Console
   | PauseBefore
   | Label String
   | KeywordLike [String]
@@ -70,7 +71,8 @@ data RenderType =
     Slides
   | Article
   | Book
-
+  | InNote
+  deriving Eq
 inspectParts parts = "[" ++ concat (intersperse "," $ fmap inspectPart parts) ++ "]"
 
 inspectPart part = case part of
@@ -113,6 +115,19 @@ sectionsOnly = filter $ \p ->
     Section _ _ _ -> True
     _ -> False
 
+isChapter (Chapter _ _ _) = True
+isChapter _ = False
+
+directiveValue :: [Part] -> String -> String
+directiveValue allParts name =
+  let isRightDirective (Directive n c) = n == name
+      isRightDirective _ = False
+      filteredParts = filter isRightDirective allParts
+  in if null filteredParts then "" else let (Directive _ content) = head filteredParts in content
+
+
+directiveValueNoNewLines allParts name = filter (\c -> not (c == '\n')) $ directiveValue allParts name
+
 idProp str =
   foldl (\acc p -> case p of
                      Id ident -> ident
@@ -128,9 +143,9 @@ styleProp =
                      Style s -> Just s
                      _ -> acc) Nothing
 
-isReplProp =
+isConsoleProp =
   foldl (\acc p -> case p of
-                     Repl -> True
+                     Console -> True
                      _ -> acc) False
 
 hasFragmentProp =

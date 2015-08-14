@@ -38,9 +38,9 @@ topLevel level =
   try (items level) <|>
   try (comment level) <|>
   try (chapter level) <|>
-  try (srcBlock2 level) <|>
-  try (latexBlock level) <|>
-  try srcBlock
+  try (srcBlock level) <|>
+  try (latexBlock level)<|>
+  try (directive level)
 
 ----------------------------------------------------
 
@@ -67,11 +67,11 @@ chapter level = do
 chapterElement level =
   (try (paragraph level) <|>
    try (items level) <|>
-   try srcBlock <|>
-   try (srcBlock2 level) <|>
+   try (srcBlock level) <|>
    try (section level) <|>
    try (table level) <|>
    try (index level) <|>
+   try (note level) <|>
    try implicitParagraph) <?> "chapterElement"
 
 ----------------------------------------------------
@@ -85,12 +85,11 @@ section level = do
 sectionElement level =
   (try (paragraph level) <|>
    try (items level) <|>
-   try srcBlock <|>
    try (note level) <|>
    try (asteriskImg level) <|>
    try (comment level) <|>
    try (table level) <|>
-   try (srcBlock2 level) <|>
+   try (srcBlock level) <|>
    try implicitParagraph) <?> "sectionElement"
 
 ----------------------------------------------------
@@ -118,8 +117,7 @@ slideElement level =
   try (items level) <|>
   try title <|>
   try header <|>
-  try (srcBlock2 level) <|>
-  try srcBlock <|>
+  try (srcBlock level) <|>
   try img <|>
   try (pause2 level) <|>
   try pause <|>
@@ -242,31 +240,36 @@ latexBlock level = do
   content <- many1 emptyOrRegularLineWithEol
   return $ LatexBlock blockType (concat content)
 
-srcBlock = do
-  (srcType,props) <- srcBegin
+directive level = do
+  (name,props) <- asteriskLineWithProps level "DIRECTIVE"
   content <- many1 emptyOrRegularLineWithEol
-  srcEnd
-  return $ SrcBlock srcType props (concat content)
+  return $ Directive name (concat content)
 
-srcBlock2 level = do
+--srcBlock = do
+--  (srcType,props) <- srcBegin
+--  content <- many1 emptyOrRegularLineWithEol
+--  srcEnd
+--  return $ SrcBlock srcType props (concat content)
+
+srcBlock level = do
   (srcType,props) <- asteriskLineWithProps level "SRC"
   content <- many1 emptyOrRegularLineWithEol
   return $ SrcBlock srcType props (concat content)
 
-srcBegin = do
-  string "#+begin_src "
-  srcType <- many1 alphaNum
-  many $ noneOf ":\n\r"
-  props <- colonProp `sepBy` (many (noneOf "¬:\n\r"))
-  restOfLine
-  return (srcType,props)
+--srcBegin = do
+--  string "#+begin_src "
+--  srcType <- many1 alphaNum
+--  many $ noneOf ":\n\r"
+--  props <- colonProp `sepBy` (many (noneOf "¬:\n\r"))
+--  restOfLine
+--  return (srcType,props)
 
-srcEnd = string "#+end_src" >> eol
+--srcEnd = string "#+end_src" >> eol
 
 colonProp =
   try colonPropIgnore <|>
   try colonPropPauseBefore <|>
-  try colonPropRepl <|>
+  try colonPropConsole <|>
   try colonPropFragment <|>
   try colonPropNoTangle <|>
   try colonPropNoRender <|>
@@ -296,9 +299,9 @@ colonPropPauseBefore = do
   string ":pause"
   return PauseBefore
 
-colonPropRepl = do
-  string ":repl"
-  return Repl
+colonPropConsole = do
+  string ":console"
+  return Console
 
 colonPropFragment = do
   string ":fragment"
@@ -423,7 +426,7 @@ commentLineWithEol = do
   eol
 
 regularLineWithEol = do
-  h <- noneOf "*#\n\r"
+  h <- noneOf "*\n\r"
   content <- many (noneOf "¬\n\r")
   many (noneOf "\n\r")
   eol

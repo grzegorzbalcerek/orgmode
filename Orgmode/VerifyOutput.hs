@@ -50,7 +50,7 @@ getSrcFromParts =
   where getSrc part acc =
           case part of
             SrcBlock srcType props src
-              | isReplProp props && not (hasNoVerifyProp props) -> (filter (\c -> ord c < 9216) src) : acc
+              | isConsoleProp props && not (hasNoVerifyProp props) -> (filter (\c -> ord c < 9216) src) : acc
             _ -> acc
 
 

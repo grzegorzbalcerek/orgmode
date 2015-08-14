@@ -80,7 +80,7 @@ getSrcContent srcType props src =
       filterScalaPrompts xs = filter (\x -> take 7 x == "scala> " || take 7 x == "     | ") xs
       filterDollarPrompts xs = filter (\x -> take 2 x == "$ ") xs
       filteredSrc =
-        case (srcType, isReplProp props) of
+        case (srcType, isConsoleProp props) of
          ("scala", True) -> unlines . map (drop 7) . filterScalaPrompts . lines $ filteredHighUnicodes
          ("cmd", _) -> unlines . map (drop 2) . filterDollarPrompts . lines $ filteredHighUnicodes
          _ -> filteredHighUnicodes

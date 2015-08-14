@@ -12,32 +12,35 @@ import Data.Char
 import Debug.Trace
 
 writeMultiHtml :: String -> [Part] -> IO ()
-writeMultiHtml outputPath chapters = do
+writeMultiHtml outputPath allParts = do
+  let chapters = filter isChapter allParts
   outputCss outputPath
-  writeToc outputPath chapters
-  writeChapters outputPath chapters "" chapters
+  writeToc outputPath allParts chapters
+  writeChapters outputPath allParts "" chapters
 
-writeToc :: String -> [Part] -> IO ()
-writeToc outputPath chapters = do
+writeToc :: String -> [Part] -> [Part] -> IO ()
+writeToc outputPath allParts chapters = do
   let path = outputPath ++ "/toc.html"
   houtput <- openFile path WriteMode
   hSetEncoding houtput utf8
+  let tableOfContents = directiveValueNoNewLines allParts "TableOfContents"
   let content =
-        "<h1>Spis treści</h1>\n<ul class='toc'>\n" ++
-        concat (map renderChapterLink chapters) ++
+        "<h1>" ++ tableOfContents ++ "</h1>\n<ul class='toc'>\n" ++
+        concat (map (renderChapterLink allParts) chapters) ++
         "</ul>\n"
-  let (Chapter title props _):_ = chapters
+  let (Chapter title props _) = head chapters
   let right = idProp title props
-  let output = page "Spis treści" content "index" "index" right
+  let footer = directiveValue allParts "MultiHtmlFooter"
+  let output = page "Spis treści" content "index" "index" right footer
   putStrLn $ "Generating " ++ path
   hPutStr houtput output
   hClose houtput
 
-renderChapterLink (Chapter title props _) =
+renderChapterLink allParts (Chapter title props _) =
   "<li><a href='" ++ (idProp title props) ++ ".html'>" ++
-  chapterTitle title props ++
+  chapterTitle allParts title props ++
   "</a>\n"
-renderChapterLink _ = ""
+renderChapterLink _ _ = ""
 
 writeChapters :: String -> [Part] -> String -> [Part] -> IO ()
 writeChapters outputPath allParts previousId chapters =
@@ -61,7 +64,8 @@ writeChapter outputPath allParts title props chapterParts previousId nextChapter
   let content = renderChapterContent allParts title props chapterParts
   let left = previousId
   let right = headPartId chId $ (sectionsOnly chapterParts) ++ nextChapters
-  let output = page title content left "toc" right
+  let footer = directiveValue allParts "MultiHtmlFooter"
+  let output = page title content left "toc" right footer
   putStrLn $ "Generating chapter " ++ path ++ " left: " ++ left ++ " right: " ++ right
   hPutStr houtput output
   hClose houtput
@@ -92,13 +96,14 @@ writeSection outputPath allParts chId chLabel title props parts previousId nextS
   let content = renderPart allParts (Section (sectionTitle chLabel title props) props parts)
   let left = previousId
   let right = headPartId chId $ nextSections++nextChapters
-  let output = page title content left chId right
+  let footer = directiveValue allParts "MultiHtmlFooter"
+  let output = page title content left chId right footer
   putStrLn $ "Generating section " ++ path ++ " left: " ++ left ++ " right: " ++ right
   hPutStr houtput output
   hClose houtput
 
-page :: String -> String -> String -> String -> String -> String
-page title content prev up next =
+page :: String -> String -> String -> String -> String -> String -> String
+page title content prev up next footer =
   "<html>\n\
   \  <head>\n\
   \  <title>" ++ title ++ "</title>\n\
@@ -107,22 +112,11 @@ page title content prev up next =
   \  </head>\n\
   \  <body>\n\
   \    <div class='navig'>\n\
-  \      " ++ (if prev /= "" then "<a class='left' href='" ++ prev ++ ".html'><img src='left.png'/></a>" else "") ++ "\n\
-  \      " ++ (if next /= "" then "<a class='right' href='" ++ next ++ ".html'><img src='right.png'/></a>" else "") ++ "\n\
-  \      " ++ (if up /= "" then "<a href='" ++ up ++ ".html'><img src='up.png'/></a>" else "") ++ "\n\
+  \      " ++ (if prev /= "" then "<a class='left' href='" ++ prev ++ ".html'><svg width='50' height='50'><polygon points='0 25,20 10,20 20,50 20,50 30,20 30,20 40'/></svg></a>" else "") ++ "\n\
+  \      " ++ (if next /= "" then "<a class='right' href='" ++ next ++ ".html'><svg width='50' height='50'><polygon points='50 25,30 10,30 20,0 20,0 30,30 30,30 40'/></svg></a>" else "") ++ "\n\
+  \      " ++ (if up /= "" then "<a href='" ++ up ++ ".html'><svg width='50' height='50'><polygon points='25 0,10 20,20 20,20 50,30 50,30 20,40 20'/></a>" else "") ++ "\n\
   \    </div>\n\
-  \    <div class='content'>\n" ++ content ++ "\n</div>\n\
-  \    <div class='info'>\n\
-  \      <p>Język programowania Scala. Wydanie 2. Wersja robocza. 14 lutego 2014 r. W treści mogą pojawiać się zmiany bez ostrzeżenia.</p>\n\
-  \      <p>Copyright © Grzegorz Balcerek</p>\n\
-  \      <p>Treść tej strony jest dostępna na licencji <a href='http://creativecommons.org/licenses/by-sa/3.0/pl/' rel='license'>Creative Commons Uznanie autorstwa-Na tych samych warunkach 3.0 Polska</a>.</p>\n\
-  \      <a href='http://creativecommons.org/licenses/by-sa/3.0/pl/' rel='license'><img src='http://i.creativecommons.org/l/by-sa/3.0/pl/88x31.png' style='border-width:0' alt='Licencja Creative Commons'></img></a>\n\
-  \      <p>Autor nie wyklucza możliwości znalezienia się w treści strony błędów oraz nie bierze odpowiedzialności za wykorzystanie znajdujących się na stronie informacji (w tym wynikających z ewentualnych błędów), ani za związane z nim skutki.</p>\n\
-  \      <p>Zachęcam do przesyłania mi uwag dotyczących treści książki, informacji o znalezionych błędach itp. na adres <a href='mailto:scala@grzegorzbalcerek.net'>scala@grzegorzbalcerek.net</a>.</p>\n\
-  \      <p>Oracle and Java are registered trademarks of Oracle and/or its affiliates. Other names may be trademarks of their respective owners.</p>\n\
-  \      <p>Drukowaną wersję pierwszego wydania książki „Język programowania Scala” można kupić na przykład <a href='http://www.motyleksiazkowe.pl/product.php?id_product=13569'>tutaj</a>.</p>\n\
-  \    </div>\n\
-  \  </body>\n\
+  \    <div class='content'>\n" ++ content ++ "\n</div>\n" ++ footer ++ "\n  </body>\n\
   \</html>\n"
 
 containerPart :: Part -> Bool
@@ -132,12 +126,14 @@ containerPart _ = False
 
 nonContainerPart = not . containerPart
 
-chapterTitle title props =
+chapterTitle allParts title props =
   let label = labelProp props
+      chapterName = directiveValue allParts "Chapter"
+      appendixName = directiveValue allParts "Apendix"
       prefix =
         if label == "" then ""
-        else if isDigit (head label) then "Rozdział " ++ label ++ ". "
-        else "Dodatek " ++ label ++ ". "
+        else if isDigit (head label) then chapterName ++ " " ++ label ++ ". "
+        else appendixName ++" " ++ label ++ ". "
   in
     prefix ++ title
 
@@ -154,7 +150,7 @@ renderChapterContent allParts title props parts =
   let chId = idProp title props
       chLabel = labelProp props
   in
-    "<h1 class='chapter'>" ++ chapterTitle title props ++ "</h1>\n" ++
+    "<h1 class='chapter'>" ++ chapterTitle allParts title props ++ "</h1>\n" ++
     renderParts allParts (filter nonContainerPart parts) ++
     "<ul class='toc'>\n" ++
     concat (fmap (renderSectionLink chId chLabel) parts) ++
@@ -179,28 +175,27 @@ renderPart allParts (Note noteType parts) =
   renderParts allParts parts ++
   "</td></tr></table>\n"
 renderPart allParts (Paragraph _ text) = "<p>" ++ renderText allParts text ++ "</p>\n"
-renderPart _ (SrcBlock srcType props src) =
-  let boldCommand line =
-        if (take 2 line == "$ ") then "$ <b>" ++ drop 2 line ++ "</b>"
-        else if (take 10 line == "scala&gt; ") then "scala&gt; <b>" ++ drop 10 line ++ "</b>"
-        else if (take 7 line == "     | ") then "     | <b>" ++ drop 7 line ++ "</b>"
-        else if line == "…" then "<span><i>(fragment pominięty)</i></span>"
-        else if line == "at…" then "<span><i>(pozostałe wiersze zrzutu stosu wyjątku zostały pominięte)</i></span>"
+renderPart allParts (SrcBlock srcType props src) =
+  let boldCommand prefix line =
+        if (take (length prefix) line == prefix) then prefix ++ "<b>" ++ drop (length prefix) line ++ "</b>"
         else line
-      boldCommands = unlines . map boldCommand . lines
+      boldCommands prefix = unlines . map (boldCommand prefix) . lines
       fileName = tangleFileName props
+      fileLabel = directiveValueNoNewLines allParts "File"
   in 
     if hasNoRenderProp props
     then ""
-    else if isReplProp props || srcType == "cmd"
-         then "<pre>" ++ boldCommands (renderSource srcType props src) ++ "</pre>\n"
-         else
-           "<pre>" ++
-           (if fileName == ""
-              then ""
-              else "<img class='filesign' src='filesign.png'/><b>Plik " ++ fileName ++
-                (if srcType=="fragment" then " (fragment)" else "") ++ ":</b>\n") ++
-            renderSource srcType props src ++ "</pre>\n"
+    else case (isConsoleProp props, srcType) of
+           (True,"cmd") -> "<pre>" ++ boldCommands "$ " (renderSource srcType props src) ++ "</pre>\n"
+           (True,"elm") -> "<pre>" ++ boldCommands "&gt; " (renderSource srcType props src) ++ "</pre>\n"
+           (True,"scala") -> "<pre>" ++ boldCommands "scala&gt; " (renderSource srcType props src) ++ "</pre>\n"
+           _ ->
+             "<pre>" ++
+             (if fileName == ""
+                then ""
+                else "<img class='filesign' src='filesign.png'/><b>" ++ fileLabel ++ " " ++ fileName ++
+                  (if srcType=="fragment" then " (fragment)" else "") ++ ":</b>\n") ++
+              renderSource srcType props src ++ "</pre>\n"
 renderPart allParts (Items props items) =
   let style = maybe "list" id $ styleProp props
   in  "<ul class='" ++ style ++ "'>\n" ++ concat (map (renderItem allParts) items) ++  "</ul>\n"
@@ -273,8 +268,8 @@ renderText allParts txt =
             ('⒤',(text,_:acc')) -> "<em>" ++ text ++ "</em>" ++ acc'
             ('⒭',(ref,_:acc')) ->
               case break (','==) ref of
-                (chId,[]) -> chapterReference allParts chId ++ acc'
-                (chId,_:secId) -> sectionReference allParts chId secId ++ acc'
+                (chId,[]) -> chapterReference (filter isChapter allParts) chId ++ acc'
+                (chId,_:secId) -> sectionReference (filter isChapter allParts) chId secId ++ acc'
             ('①',_) -> "<img class='white' src='white1.svg'></img>" ++ acc
             ('②',_) -> "<img class='white' src='white2.svg'></img>" ++ acc
             ('③',_) -> "<img class='white' src='white3.svg'></img>" ++ acc
