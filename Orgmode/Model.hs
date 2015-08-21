@@ -45,6 +45,7 @@ data Prop =
   | Ie2 String String
   | Output
   | Console
+  | PrependNewLines Int
   | PauseBefore
   | Label String
   | KeywordLike [String]
@@ -125,13 +126,17 @@ directiveValue allParts name =
       filteredParts = filter isRightDirective allParts
   in if null filteredParts then "" else let (Directive _ content) = head filteredParts in content
 
-
 directiveValueNoNewLines allParts name = filter (\c -> not (c == '\n')) $ directiveValue allParts name
 
 idProp str =
   foldl (\acc p -> case p of
                      Id ident -> ident
                      _ -> acc) (filter (\c -> c `elem` " ") str)
+
+prependNewLinesProp =
+  foldl (\acc p -> case p of
+                     PrependNewLines n -> n
+                     _ -> acc) 0
 
 minWidthProp mw =
   foldl (\acc p -> case p of

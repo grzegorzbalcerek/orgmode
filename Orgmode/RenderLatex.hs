@@ -1,6 +1,11 @@
 -- -*- coding: utf-8; -*-
 module Orgmode.RenderLatex where
 
+{-
+cmd /c "u: && cd u:\github\orgmode && make && h:"
+cmd /c "u: && cd u:\github\orgmode && test && h:"
+-}
+
 import Orgmode.Model
 import Control.Monad.Trans.State
 import Control.Monad
@@ -176,6 +181,7 @@ renderRegularSlidePart Pause = "\\pause\n"
 renderRegularSlidePart (Img props img) =
   "\\begin{center}\n\\includegraphics{" ++ img ++ "}\n\\end{center}\n"
 renderRegularSlidePart Skipped = ""
+renderRegularSlidePart (LatexBlock _ content) = content
 renderRegularSlidePart _ = ""
 
 ----------------------------------------------------

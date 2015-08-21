@@ -16,7 +16,8 @@ verifyOutput parts actualOutputFile chapterId sectionId = do
       Chapter title props chapterParts ->
         let chId = idProp title props
         in if chId == chapterId
-           then verifyOutput chapterParts actualOutputFile chapterId sectionId
+           then (if sectionId == "" then verifySection chapterParts actualOutputFile
+                                    else verifyOutput chapterParts actualOutputFile chapterId sectionId)
            else return ()
       Section title props sectionParts ->
         let secId = idProp title props
@@ -24,7 +25,7 @@ verifyOutput parts actualOutputFile chapterId sectionId = do
            then verifySection sectionParts actualOutputFile
            else return ()
       _ -> return ()
-
+  
 verifySection :: [Part] -> String -> IO ()
 verifySection parts path = do
   putStr $ "Verifying " ++ path ++ ": "

@@ -1,6 +1,11 @@
 -- -*- coding: utf-8; -*-
 module Orgmode.Parse where
 
+{-
+cmd /c "u: && cd u:\github\orgmode && make && h:"
+cmd /c "u: && cd u:\github\orgmode && test && h:"
+-}
+
 import Text.Parsec
 import Data.List (dropWhileEnd)
 import Control.Applicative ((<$>))
@@ -72,6 +77,8 @@ chapterElement level =
    try (table level) <|>
    try (index level) <|>
    try (note level) <|>
+   try (asteriskImg level) <|>
+   try (comment level) <|>
    try implicitParagraph) <?> "chapterElement"
 
 ----------------------------------------------------
@@ -120,6 +127,7 @@ slideElement level =
   try (srcBlock level) <|>
   try img <|>
   try (pause2 level) <|>
+  try (latexBlock level) <|>
   try pause <|>
   skipLine
 
@@ -288,6 +296,7 @@ colonProp =
   try colonPropSymbolLike <|>
   try colonPropConstantLike <|>
   try colonPropMinWidth <|>
+  try colonPropPrependNewLines <|>
   try colonPropTangle <|>
   try colonPropUnrecognized
 
@@ -390,6 +399,11 @@ colonPropConstantLike = do
   string ":constantlike"
   value <- many (noneOf "¬:\n\r")
   return $ ConstantLike (words value)
+
+colonPropPrependNewLines = do
+  string ":prependnl "
+  value <- many1 digit
+  return $ PrependNewLines (read value :: Int)
 
 colonPropMinWidth = do
   string ":minwidth "

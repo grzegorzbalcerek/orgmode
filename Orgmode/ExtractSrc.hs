@@ -79,10 +79,12 @@ getSrcContent srcType props src =
   let filteredHighUnicodes = filter (\c -> ord c < 9216) src
       filterScalaPrompts xs = filter (\x -> take 7 x == "scala> " || take 7 x == "     | ") xs
       filterDollarPrompts xs = filter (\x -> take 2 x == "$ ") xs
+      filterGtPrompts xs = filter (\x -> take 2 x == "> " || take 2 x == "| ") xs
       filteredSrc =
         case (srcType, isConsoleProp props) of
          ("scala", True) -> unlines . map (drop 7) . filterScalaPrompts . lines $ filteredHighUnicodes
-         ("cmd", _) -> unlines . map (drop 2) . filterDollarPrompts . lines $ filteredHighUnicodes
+         ("cmd", True) -> unlines . map (drop 2) . filterDollarPrompts . lines $ filteredHighUnicodes
+         ("elm", True) -> unlines . map (drop 2) . filterGtPrompts . lines $ filteredHighUnicodes
          _ -> filteredHighUnicodes
-  in filteredSrc
+  in (take (prependNewLinesProp props) (repeat '\n')) ++ filteredSrc
 

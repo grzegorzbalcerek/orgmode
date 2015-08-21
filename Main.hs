@@ -17,7 +17,7 @@ main = do
   let sourceFile = args !! 1
   let path = args !! 2
   let chapterId = args !! 3
-  let sectionId = args !! 4
+  let sectionId = if length args >= 5 then args !! 4 else ""
   let separator = args !! 3
   hinput <- openFile sourceFile ReadMode
   hSetEncoding hinput utf8
