@@ -121,9 +121,9 @@ renderSlidePart :: Part -> String
 renderSlidePart (Items props items) =
   "\\begin{itemize}\n" ++ concat (map (renderItem []) items) ++  "\\end{itemize}\n"
 renderSlidePart (Src srcType props content) =
-  if elem Ignore props
+  if hasNoRenderProp props
   then ""
-  else
+  else 
     let lns = lines content
         height = floor $ 1.1 * fromIntegral (length lns)
         textwidth = maximum $ map (length . filter (\c -> ord c < 256)) lns

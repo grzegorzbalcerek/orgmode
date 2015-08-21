@@ -1,5 +1,10 @@
 module Orgmode.Model where
 
+{-
+cmd /c "u: && cd u:\github\orgmode && make && h:"
+cmd /c "u: && cd u:\github\orgmode && test && h:"
+-}
+
 import Data.List (intersperse)
 
 data Part =
@@ -23,8 +28,7 @@ data Part =
   deriving (Eq,Show)
 
 data Prop =
-    Ignore
-  | Unrecognized
+    Unrecognized
   | Block String
   | ExampleBlock String
   | MinWidth Int

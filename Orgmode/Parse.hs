@@ -236,7 +236,6 @@ src level = do
   return $ Src srcType props (concat content)
 
 colonProp =
-  try colonPropIgnore <|>
   try colonPropPauseBefore <|>
   try colonPropConsole <|>
   try colonPropFragment <|>
@@ -260,10 +259,6 @@ colonProp =
   try colonPropPrependNewLines <|>
   try colonPropTangle <|>
   try colonPropUnrecognized
-
-colonPropIgnore = do
-  string ":ignore"
-  return Ignore
 
 colonPropPauseBefore = do
   string ":pause"
