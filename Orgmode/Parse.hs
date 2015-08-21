@@ -37,8 +37,7 @@ topLevels = do
 
 topLevel :: Int -> P Part
 topLevel level =
-  try (regularSlide level)<|>
-  try (titleSlide level) <|>
+  try (slide level)<|>
   try (paragraph level) <|>
   try (items level) <|>
   try (comment level) <|>
@@ -101,28 +100,14 @@ sectionElement level =
 
 ----------------------------------------------------
 
-titleSlide :: Int -> P Part
-titleSlide level = do
-  title <- asteriskLine level "TITLESLIDE"
-  content <- many (titleSlideElement $ level + 1)
-  return $ TitleSlide title content
-
-titleSlideElement level =
-  (author <|>
-   date <|>
-   (subtitle level)) <?> "titleSlideElement"
-
-----------------------------------------------------
-
-regularSlide level = do
+slide level = do
   title <- asteriskLine level "SLIDE"
   content <- many (slideElement $ level + 1)
-  return $ RegularSlide title content
+  return $ Slide title content
 
 slideElement level =
   try (paragraph level) <|>
   try (items level) <|>
-  try title <|>
   try header <|>
   try (srcBlock level) <|>
   try img <|>
@@ -210,8 +195,6 @@ pause = do
   eol
   return Pause
 
-subtitle level = try $ Subtitle <$> asteriskLine level "SUBTITLE"
-
 stop = asteriskLine 1 "STOP"
 
 index level = do
@@ -220,10 +203,6 @@ index level = do
 
 ----------------------------------------------------
 
-author = try $ Author <$> (char '⒜' >> restOfLine)
-
-title = try $ Title <$> (char '⒯' >> restOfLine)
-
 header = do
   char '⒣'
   scaleStr <- many1 $ oneOf "0123456789."
@@ -231,8 +210,6 @@ header = do
   char ':'
   content <- restOfLine
   return $ Header scale content
-
-date = try $ Date <$> (char '⒟' >> restOfLine)
 
 img = do
   char '⒤'

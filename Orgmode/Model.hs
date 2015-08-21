@@ -4,15 +4,11 @@ import Data.List (intersperse)
 
 data Part =
     Chapter String [Prop] [Part]
-  | RegularSlide String [Part]
+  | Slide String [Part]
   | Section String [Prop] [Part]
-  | TitleSlide String [Part]
   | Note String [Part]
-  | Author String
-  | Date String
   | EmptyPart
   | Index
-  | Institute String
   | Items [Prop] [Part]
   | Item String
   | Img [Prop] String
@@ -21,8 +17,6 @@ data Part =
   | Skipped
   | SrcBlock String [Prop] String
   | LatexBlock String String
-  | Subtitle String
-  | Title String
   | Table [Prop] [[String]]
   | Header Double String
   | Directive String String
@@ -78,23 +72,17 @@ inspectParts parts = "[" ++ concat (intersperse "," $ fmap inspectPart parts) ++
 
 inspectPart part = case part of
   Chapter str _ parts -> "Chapter ... ... " ++ inspectParts parts
-  RegularSlide str parts -> "RegularSlide ... " ++ inspectParts parts
+  Slide str parts -> "Slide ... " ++ inspectParts parts
   Section str _ parts -> "Section ... ... " ++ inspectParts parts
-  TitleSlide str parts -> "TitleSlide ... " ++ inspectParts parts
   Note t parts -> "Note " ++ t ++ " " ++ inspectParts parts
-  Author str -> "Author ..."
-  Date str -> "Date ..."
   EmptyPart -> "EmptyPart"
   Index -> "Index"
-  Institute str -> "Institute ..."
   Items props parts -> "Items ... " ++ inspectParts parts
   Item str -> "Item ..."
   Paragraph props str -> "Paragraph ..."
   Pause -> "Pause"
   Skipped -> "Skipped"
   SrcBlock srcType props str -> "SrcBlock " ++ srcType ++ " ... ..."
-  Subtitle str -> "Subtitle ..."
-  Title str -> "Title ..."
   Table prop strs -> "Table ... ..." 
   Header scale str -> "Header " ++ show scale ++ " ..."
 

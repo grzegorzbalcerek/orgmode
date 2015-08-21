@@ -69,14 +69,11 @@ renderPart Book _ (LatexBlock "Book" content) = content
 renderPart Slides _ (LatexBlock "Slides" content) = content
 renderPart Slides _ (Paragraph _ txt) = ""
 renderPart _ allParts (Paragraph _ txt) = "\n\n" ++ renderText allParts txt
-renderPart _ _ (RegularSlide title parts) =
+renderPart _ _ (Slide title parts) =
   "\\begin{frame}[fragile]\n" ++
   (if title == "" then "" else "\\frametitle{" ++ title ++ "}\n") ++
-  concat (renderRegularSlidePart `fmap` parts) ++
+  concat (renderSlidePart `fmap` parts) ++
   "\\end{frame}\n"
-renderPart _ _ (TitleSlide title parts) =
-  "\\title{" ++ title ++ "}\n" ++
-  concat (renderTitleSlidePart `fmap` parts) ++ "\\maketitle\n"
 renderPart rt allParts (Chapter title props parts) =
   "\n\\chapter{" ++ renderText allParts title ++ "}\n\\thispagestyle{empty}\n" ++ concat (map (renderPart rt allParts) parts) ++ "\n"
 renderPart rt allParts (Section title props parts) =
@@ -120,23 +117,10 @@ renderPart _ _ _ = ""
 
 ----------------------------------------------------
 
-renderTitleSlidePart :: Part -> String
-renderTitleSlidePart (Author author) =
-  "\\author{" ++ author ++ "}\n"
-renderTitleSlidePart (Subtitle subtitle) =
-  "\\subtitle{" ++ subtitle ++ "}\n"
-renderTitleSlidePart (Institute institute) =
-  "\\institute{" ++ institute ++ "}\n"
-renderTitleSlidePart (Date date) =
-  "\\date{" ++ date ++ "}\n"
-renderTitleSlidePart _ = ""
-
-----------------------------------------------------
-
-renderRegularSlidePart :: Part -> String
-renderRegularSlidePart (Items props items) =
+renderSlidePart :: Part -> String
+renderSlidePart (Items props items) =
   "\\begin{itemize}\n" ++ concat (map (renderItem []) items) ++  "\\end{itemize}\n"
-renderRegularSlidePart (SrcBlock srcType props content) =
+renderSlidePart (SrcBlock srcType props content) =
   if elem Ignore props
   then ""
   else
@@ -173,16 +157,14 @@ renderRegularSlidePart (SrcBlock srcType props content) =
            Just (Block t) -> "\\begin{block}{" ++ t ++ "}\n" ++ verbatimContent content ++ "\\end{block}\n"
            Just (ExampleBlock t) -> "\\begin{exampleblock}{" ++ t ++ "}\n" ++ verbatimContent content ++ "\\end{exampleblock}\n"
            _ -> verbatimContent content)
-renderRegularSlidePart (Title title) =
-  "\\centerline{\\tikz{\\node[scale=4]{" ++ title ++ "};}}\n"
-renderRegularSlidePart (Header scale content) =
+renderSlidePart (Header scale content) =
   "\\centerline{\\tikz{\\node[scale=" ++ show scale ++ "]{" ++ content ++ "};}}\n"
-renderRegularSlidePart Pause = "\\pause\n"
-renderRegularSlidePart (Img props img) =
+renderSlidePart Pause = "\\pause\n"
+renderSlidePart (Img props img) =
   "\\begin{center}\n\\includegraphics{" ++ img ++ "}\n\\end{center}\n"
-renderRegularSlidePart Skipped = ""
-renderRegularSlidePart (LatexBlock _ content) = content
-renderRegularSlidePart _ = ""
+renderSlidePart Skipped = ""
+renderSlidePart (LatexBlock _ content) = content
+renderSlidePart _ = ""
 
 ----------------------------------------------------
 

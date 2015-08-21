@@ -17,7 +17,7 @@ truncateFiles parts =
     case part of
       Chapter _ _ parts -> truncateFiles parts
       Section _ _ parts -> truncateFiles parts
-      RegularSlide _ parts -> truncateFiles parts
+      Slide _ parts -> truncateFiles parts
       Note _ parts -> truncateFiles parts
       SrcBlock srcType props _ ->
         let file = tangleProp props
@@ -53,7 +53,7 @@ extractSrcFromParts' parts defaultfile separator = do
                (Just df, Just sep) -> writeToFile df (map (\x -> if x == '|' then '\n' else x) sep)
                _ -> return ()
           extractSrcFromParts' parts defaultfile separator
-      RegularSlide _ parts -> extractSrcFromParts' parts defaultfile separator
+      Slide _ parts -> extractSrcFromParts' parts defaultfile separator
       Note _ parts -> extractSrcFromParts' parts defaultfile separator
       SrcBlock srcType props str ->
         let file = tangleProp props
