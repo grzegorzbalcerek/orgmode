@@ -64,9 +64,9 @@ imageHeight 'w' = 34
 
 renderPart :: RenderType -> [Part] -> Part -> String
 renderPart _ _ EmptyPart = ""
-renderPart Article _ (LatexBlock "Article" content) = content
-renderPart Book _ (LatexBlock "Book" content) = content
-renderPart Slides _ (LatexBlock "Slides" content) = content
+renderPart Article _ (Latex "Article" content) = content
+renderPart Book _ (Latex "Book" content) = content
+renderPart Slides _ (Latex "Slides" content) = content
 renderPart Slides _ (Paragraph _ txt) = ""
 renderPart _ allParts (Paragraph _ txt) = "\n\n" ++ renderText allParts txt
 renderPart _ _ (Slide title parts) =
@@ -87,7 +87,7 @@ renderPart rt allParts (Note noteType parts) =
   "pt}{\\includegraphics[height=" ++ (show.imageHeight $ head noteType) ++ "pt]{" ++ [head noteType] ++ "sign.png}}&\\small"++
   concat (map (renderPart InNote allParts) parts) ++
   "\\\\ \\noalign{\\smallskip}\\cline{2-3}\n\\end{tabular}\n\n"
-renderPart rt _ (SrcBlock srcType props src) =
+renderPart rt _ (Src srcType props src) =
   let boldCommand line =
         if (take 2 line == "$ ") then "$ \\textbf{" ++ drop 2 line ++ "}"
         else if (take 7 line == "scala> ") then "scala> \\textbf{" ++ drop 7 line ++ "}"
@@ -120,7 +120,7 @@ renderPart _ _ _ = ""
 renderSlidePart :: Part -> String
 renderSlidePart (Items props items) =
   "\\begin{itemize}\n" ++ concat (map (renderItem []) items) ++  "\\end{itemize}\n"
-renderSlidePart (SrcBlock srcType props content) =
+renderSlidePart (Src srcType props content) =
   if elem Ignore props
   then ""
   else
@@ -163,7 +163,7 @@ renderSlidePart Pause = "\\pause\n"
 renderSlidePart (Img props img) =
   "\\begin{center}\n\\includegraphics{" ++ img ++ "}\n\\end{center}\n"
 renderSlidePart Skipped = ""
-renderSlidePart (LatexBlock _ content) = content
+renderSlidePart (Latex _ content) = content
 renderSlidePart _ = ""
 
 ----------------------------------------------------

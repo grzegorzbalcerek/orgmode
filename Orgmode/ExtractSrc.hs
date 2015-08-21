@@ -19,7 +19,7 @@ truncateFiles parts =
       Section _ _ parts -> truncateFiles parts
       Slide _ parts -> truncateFiles parts
       Note _ parts -> truncateFiles parts
-      SrcBlock srcType props _ ->
+      Src srcType props _ ->
         let file = tangleProp props
         in if file == ""
            then return ()
@@ -55,7 +55,7 @@ extractSrcFromParts' parts defaultfile separator = do
           extractSrcFromParts' parts defaultfile separator
       Slide _ parts -> extractSrcFromParts' parts defaultfile separator
       Note _ parts -> extractSrcFromParts' parts defaultfile separator
-      SrcBlock srcType props str ->
+      Src srcType props str ->
         let file = tangleProp props
         in case (hasNoTangleProp props,file,defaultfile) of
              (True,_,_) -> return ()

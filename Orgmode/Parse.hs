@@ -42,8 +42,8 @@ topLevel level =
   try (items level) <|>
   try (comment level) <|>
   try (chapter level) <|>
-  try (srcBlock level) <|>
-  try (latexBlock level)<|>
+  try (src level) <|>
+  try (latex level)<|>
   try (directive level)
 
 ----------------------------------------------------
@@ -71,7 +71,7 @@ chapter level = do
 chapterElement level =
   (try (paragraph level) <|>
    try (items level) <|>
-   try (srcBlock level) <|>
+   try (src level) <|>
    try (section level) <|>
    try (table level) <|>
    try (index level) <|>
@@ -95,7 +95,7 @@ sectionElement level =
    try (asteriskImg level) <|>
    try (comment level) <|>
    try (table level) <|>
-   try (srcBlock level) <|>
+   try (src level) <|>
    try implicitParagraph) <?> "sectionElement"
 
 ----------------------------------------------------
@@ -109,10 +109,10 @@ slideElement level =
   try (paragraph level) <|>
   try (items level) <|>
   try header <|>
-  try (srcBlock level) <|>
+  try (src level) <|>
   try img <|>
   try (pause2 level) <|>
-  try (latexBlock level) <|>
+  try (latex level) <|>
   try pause <|>
   skipLine
 
@@ -220,36 +220,20 @@ img = do
 
 ----------------------------------------------------
 
-latexBlock level = do
+latex level = do
   (blockType,props) <- asteriskLineWithProps level "LATEX"
   content <- many1 emptyOrRegularLineWithEol
-  return $ LatexBlock blockType (concat content)
+  return $ Latex blockType (concat content)
 
 directive level = do
   (name,props) <- asteriskLineWithProps level "DIRECTIVE"
   content <- many1 emptyOrRegularLineWithEol
   return $ Directive name (concat content)
 
---srcBlock = do
---  (srcType,props) <- srcBegin
---  content <- many1 emptyOrRegularLineWithEol
---  srcEnd
---  return $ SrcBlock srcType props (concat content)
-
-srcBlock level = do
+src level = do
   (srcType,props) <- asteriskLineWithProps level "SRC"
   content <- many1 emptyOrRegularLineWithEol
-  return $ SrcBlock srcType props (concat content)
-
---srcBegin = do
---  string "#+begin_src "
---  srcType <- many1 alphaNum
---  many $ noneOf ":\n\r"
---  props <- colonProp `sepBy` (many (noneOf "¬:\n\r"))
---  restOfLine
---  return (srcType,props)
-
---srcEnd = string "#+end_src" >> eol
+  return $ Src srcType props (concat content)
 
 colonProp =
   try colonPropIgnore <|>

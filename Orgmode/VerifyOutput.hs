@@ -1,6 +1,11 @@
 -- -*- coding: utf-8; -*-
 module Orgmode.VerifyOutput where
 
+{-
+cmd /c "u: && cd u:\github\orgmode && make && h:"
+cmd /c "u: && cd u:\github\orgmode && test && h:"
+-}
+
 import Orgmode.Model
 import Control.Monad
 import System.Directory
@@ -50,7 +55,7 @@ getSrcFromParts =
   foldr getSrc []
   where getSrc part acc =
           case part of
-            SrcBlock srcType props src
+            Src srcType props src
               | isConsoleProp props && not (hasNoVerifyProp props) -> (filter (\c -> ord c < 9216) src) : acc
             _ -> acc
 

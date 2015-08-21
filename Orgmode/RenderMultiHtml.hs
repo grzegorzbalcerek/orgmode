@@ -182,7 +182,7 @@ renderPart allParts (Note noteType parts) =
   renderParts allParts parts ++
   "</td></tr></table>\n"
 renderPart allParts (Paragraph _ text) = "<p>" ++ renderText allParts text ++ "</p>\n"
-renderPart allParts (SrcBlock srcType props src) =
+renderPart allParts (Src srcType props src) =
   let boldCommand prefix line =
         if (take (length prefix) line == prefix) then prefix ++ "<b>" ++ drop (length prefix) line ++ "</b>"
         else line

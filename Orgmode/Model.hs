@@ -15,8 +15,8 @@ data Part =
   | Paragraph [Prop] String
   | Pause
   | Skipped
-  | SrcBlock String [Prop] String
-  | LatexBlock String String
+  | Src String [Prop] String
+  | Latex String String
   | Table [Prop] [[String]]
   | Header Double String
   | Directive String String
@@ -79,10 +79,11 @@ inspectPart part = case part of
   Index -> "Index"
   Items props parts -> "Items ... " ++ inspectParts parts
   Item str -> "Item ..."
+  Latex str1 str2 -> "Latex ... ..."
   Paragraph props str -> "Paragraph ..."
   Pause -> "Pause"
   Skipped -> "Skipped"
-  SrcBlock srcType props str -> "SrcBlock " ++ srcType ++ " ... ..."
+  Src srcType props str -> "Src " ++ srcType ++ " ... ..."
   Table prop strs -> "Table ... ..." 
   Header scale str -> "Header " ++ show scale ++ " ..."
 
@@ -224,6 +225,6 @@ extractIndexEntries chId chLabel (Section title props parts) =
 extractIndexEntries partId partLabel (Paragraph props _) = indexEntriesFromProps partId partLabel props
 extractIndexEntries partId partLabel (Items props _) = indexEntriesFromProps partId partLabel props
 extractIndexEntries partId partLabel (Img props _) = indexEntriesFromProps partId partLabel props
-extractIndexEntries partId partLabel (SrcBlock _ props _) = indexEntriesFromProps partId partLabel props
+extractIndexEntries partId partLabel (Src _ props _) = indexEntriesFromProps partId partLabel props
 extractIndexEntries partId partLabel (Table props _) = indexEntriesFromProps partId partLabel props
 extractIndexEntries partId partLabel _ = []
