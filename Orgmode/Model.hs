@@ -34,6 +34,7 @@ data Prop =
   | MinWidth Int
   | Style String
   | Fragment
+  | MkSlide
   | NoTangle
   | NoRender
   | NoVerify
@@ -149,6 +150,11 @@ isConsoleProp =
 hasFragmentProp =
   foldl (\acc p -> case p of
                      Fragment -> True
+                     _ -> acc) False
+
+hasMkSlideProp =
+  foldl (\acc p -> case p of
+                     MkSlide -> True
                      _ -> acc) False
 
 hasNoTangleProp =

@@ -75,9 +75,31 @@ renderPart _ _ (Slide title parts) =
   concat (renderSlidePart `fmap` parts) ++
   "\\end{frame}\n"
 renderPart rt allParts (Chapter title props parts) =
-  "\n\\chapter{" ++ renderText allParts title ++ "}\n\\thispagestyle{empty}\n" ++ concat (map (renderPart rt allParts) parts) ++ "\n"
+  let label = labelProp props
+  in
+    (if label == ""
+     then ""
+     else "\\setcounter{chapter}{" ++ label ++ "}\\addtocounter{chapter}{-1}\\setcounter{section}{1}") ++
+    "\\renewcommand{\\firstsectiontitle}{" ++ firstSectionTitle parts ++ "}" ++
+    "\\chapter" ++
+    (if label == "" then "*" else "") ++
+    "{" ++ renderText allParts title ++ "}\n" ++
+    (if label == ""
+     then "\\addcontentsline{toc}{chapter}{" ++ title ++ "}" ++
+          "\\markboth{" ++ title ++ "}{" ++ firstSectionTitle parts ++ "}"
+     else "") ++
+    concat (map (renderPart rt allParts) parts) ++ "\n"
 renderPart rt allParts (Section title props parts) =
-  "\n\\section{" ++ renderText allParts title ++ "}\n" ++ concat (map (renderPart rt allParts) parts) ++ "\n"
+  let label = labelProp props
+  in
+    (if label == ""
+     then ""
+     else "\\setcounter{section}{" ++ label ++ "}\\addtocounter{section}{-1}") ++
+    "\n\\section" ++
+    (if label == "" then "*" else "") ++
+    "{" ++ renderText allParts title ++ "}\n" ++
+    (if label == "" then "\\addcontentsline{toc}{section}{" ++ title ++ "}" else "") ++
+    concat (map (renderPart rt allParts) parts) ++ "\n"
 renderPart _ allParts (Items props items) =
   "\\begin{itemize}\n" ++ concat (map (renderItem allParts) items) ++  "\\end{itemize}\n"
 renderPart rt allParts (Note noteType parts) =
@@ -87,7 +109,28 @@ renderPart rt allParts (Note noteType parts) =
   "pt}{\\includegraphics[height=" ++ (show.imageHeight $ head noteType) ++ "pt]{" ++ [head noteType] ++ "sign.png}}&\\small"++
   concat (map (renderPart InNote allParts) parts) ++
   "\\\\ \\noalign{\\smallskip}\\cline{2-3}\n\\end{tabular}\n\n"
-renderPart rt _ (Src srcType props src) =
+renderPart rt allParts (Src srcType props src) =
+  if hasMkSlideProp props
+  then renderPart rt allParts (Slide "" [Src srcType props src])
+  else renderSrc rt srcType props src
+renderPart rt allParts (Table props rows) =
+  let renderCell cell = renderText [] cell ++ "&"
+      renderRow row = init (concat (map renderCell row)) ++ "\\\\ \n"
+  in
+    "\n\\begin{longtable}{lll}\n" ++
+    concat (map renderRow rows) ++
+    "\n\\end{longtable}\n"
+renderPart _ _ _ = ""
+
+----------------------------------------------------
+
+firstSectionTitle (Section title _ _ : _) = title
+firstSectionTitle (_:rest) = firstSectionTitle rest
+firstSectionTitle [] = ""
+
+----------------------------------------------------
+
+renderSrc rt srcType props src =
   let boldCommand line =
         if (take 2 line == "$ ") then "$ \\textbf{" ++ drop 2 line ++ "}"
         else if (take 7 line == "scala> ") then "scala> \\textbf{" ++ drop 7 line ++ "}"
@@ -113,7 +156,6 @@ renderPart rt _ (Src srcType props src) =
       (if rt == InNote then "\\medskip" else "") ++
       "\\begin{alltt}\\footnotesize\\leftskip10pt\n" ++ render ++ "\\end{alltt}\n" ++
       (if rt == InNote then "\\medskip" else "")
-renderPart _ _ _ = ""
 
 ----------------------------------------------------
 

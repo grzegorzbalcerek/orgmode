@@ -239,6 +239,7 @@ colonProp =
   try colonPropPauseBefore <|>
   try colonPropConsole <|>
   try colonPropFragment <|>
+  try colonPropMkSlide <|>
   try colonPropNoTangle <|>
   try colonPropNoRender <|>
   try colonPropNoVerify <|>
@@ -271,6 +272,10 @@ colonPropConsole = do
 colonPropFragment = do
   string ":fragment"
   return Fragment
+
+colonPropMkSlide = do
+  string ":mkslide"
+  return MkSlide
 
 colonPropNoTangle = do
   string ":notangle"
