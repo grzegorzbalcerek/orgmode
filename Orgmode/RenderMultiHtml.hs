@@ -1,7 +1,13 @@
 -- -*- coding: utf-8; -*-
 module Orgmode.RenderMultiHtml (writeMultiHtml) where
 
+{-
+cmd /c "u: && cd u:\github\orgmode && make && h:"
+cmd /c "u: && cd u:\github\orgmode && test && h:"
+-}
+
 import Orgmode.Model
+import Orgmode.Util
 import Control.Monad.Trans.State
 import Control.Monad
 import Data.List
@@ -14,7 +20,7 @@ import Debug.Trace
 writeMultiHtml :: String -> [Part] -> IO ()
 writeMultiHtml outputPath allParts = do
   let chapters = filter isChapter allParts
-  outputCss outputPath
+  outputCss outputPath allParts
   writeToc outputPath allParts chapters
   writeChapters outputPath allParts "toc" chapters
   let title = directiveValueNoNewLines allParts "Title"
@@ -24,8 +30,7 @@ writeMultiHtml outputPath allParts = do
 writeToc :: String -> [Part] -> [Part] -> IO ()
 writeToc outputPath allParts chapters = do
   let path = outputPath ++ "/toc.html"
-  houtput <- openFile path WriteMode
-  hSetEncoding houtput utf8
+  houtput <- safeOpenFileForWriting path
   let tableOfContents = directiveValueNoNewLines allParts "TableOfContents"
   let content =
         "<h1>" ++ tableOfContents ++ "</h1>\n<ul class='toc'>\n" ++
@@ -70,8 +75,7 @@ writeChapter outputPath allParts title props chapterParts previousId nextChapter
 writePage :: String -> [Part] -> String -> String -> String -> String -> String -> String -> IO ()
 writePage outputPath allParts name title content left up right = do
   let path = outputPath ++ "/" ++ name ++ ".html"
-  houtput <- openFile path WriteMode
-  hSetEncoding houtput utf8
+  houtput <- safeOpenFileForWriting path
   let footer = directiveValue allParts "MultiHtmlFooter"
   let output = page title content left up right footer
   putStrLn $ "Generating file " ++ path ++ " left: " ++ left ++ " right: " ++ right
@@ -98,8 +102,7 @@ writeSections outputPath allParts chId chLabel previousId sections nextChapters 
 writeSection :: String -> [Part] -> String -> String -> String -> [Prop] -> [Part] -> String -> [Part] -> [Part] -> IO ()
 writeSection outputPath allParts chId chLabel title props parts previousId nextSections nextChapters = do
   let path = outputPath ++ "/" ++ chId ++ "_" ++ (idProp title props) ++ ".html"
-  houtput <- openFile path WriteMode
-  hSetEncoding houtput utf8
+  houtput <- safeOpenFileForWriting path
   let content = renderPart allParts (Section (sectionTitle chLabel title props) props parts)
   let left = previousId
   let right = headPartId chId $ nextSections++nextChapters
@@ -175,7 +178,7 @@ renderPart _ (Chapter title props parts) = ""
 renderPart allParts (Section title props parts) =
   "<h2 class='section'>" ++ title ++ "</h2>\n" ++
   renderParts allParts parts
-renderPart allParts (Note noteType parts) =
+renderPart allParts (Note noteType _ parts) =
   "<table class='remark'><tr><td class='remarksymbol'><img src='" ++
     (head noteType : "sign.png") ++
   "'/></td><td class='remarkcontent'>" ++
@@ -210,7 +213,7 @@ renderPart allParts (Img props file) =
   "<div><img src='" ++ file ++ "'></img><div class='caption'>" ++ (renderText allParts $ labelProp props) ++ "</div></div>\n"
 renderPart allParts (Table props rows) =
   "<table>" ++ concat (map renderTableRow rows) ++ "</table>\n"
-renderPart allParts Index = renderIndex allParts
+renderPart allParts ShowIndex = renderIndex allParts
 renderPart _ _ = ""
 
 renderTableRow row =
@@ -440,79 +443,9 @@ sectionReference' parts chapterId chapterLabel sectionId =
     _:tailParts -> sectionReference' tailParts chapterId chapterLabel sectionId
     _ -> error $ "Unable to find section reference within chapter " ++ chapterId ++ " for section id: " ++ sectionId
 
-cssContent = 
-  "html { background-color: white; }\n\
-  \div.content { margin:auto; width:15cm; }\n\
-  \div.caption { width:12cm; }\n\
-  \img { max-width:14cm; }\n\
-  \div.content { margin-top:0.5cm;}\n\
-  \body, div.content { position:relative; }\n\
-  \p { font-family:'Times New Roman'; }\n\
-  \p { text-align:justify; }\n\
-  \h1, h2, h3 { font-family:'Arial'; font-weight:bold; text-align:left; }\n\
-  \pre, kbd { font-family:'Courier New'; }\n\
-  \em { font-style:italic; }\n\
-  \span.url, span.email, span.f, em { font-style:oblique; }\n\
-  \html, body, div, p, pre, table, tr, td, img, h1, h2, h3, ul, li {margin:0; padding:0; border:0; }\n\
-  \p { margin:0.5em 0; }\n\
-  \pre { margin:0.5em 0 0.5em 1em; }\n\
-  \div.index p.subitem { padding:0 0 0 2em }\n\
-  \ul { margin:0.5em 0 0.5em 0.5cm; }\n\
-  \ul.list { list-style-type:square; }\n\
-  \html, body { margin:0; padding:0; }\n\
-  \ul.none { list-style-type:none; }\n\
-  \h1 { margin:2cm 0 1cm 0; }\n\
-  \h2 { margin:0.5cm 0; }\n\
-  \p { clear: left; }\n\
-  \pre.figure { line-height:1em; }\n\
-  \img {margin:0 auto; display:block; }\n\
-  \img.white, img.black { margin:0; vertical-align:-1.5pt; display:inline; width:10pt; }\n\
-  \img.filesign { display:inline; height:5pt; margin-right:3pt; }\n\
-  \span.white, span.black {vertical-align:-1.5pt; font-size:10pt; }\n\
-  \div.caption { margin:0 auto; text-align:center; }\n\
-  \p.infoline { margin:0 auto; text-align:center; font-family:'Arial'; font-size:22pt; }\n\
-  \p, kbd, table, tr, td, ul, li { font-size:12pt; }\n\
-  \pre, pre * { font-size:10pt; }\n\
-  \div.caption, table.remark p , table.remark p * { font-size:10pt; }\n\
-  \div.info p, div.index p { font-size:10pt; }\n\
-  \table.remark { border-collapse: collapse; table-layout:fixed; width:14cm; border-top:1px solid black; margin:7pt 0.5cm; border-bottom:1px solid black; }\n\
-  \table.remark td.remarksymbol { width:1.4cm; }\n\
-  \table.remark td.remarksymbol img { width:1cm; margin:5pt 0 5pt 0; }\n\
-  \div.navig { text-align:center; margin:0; padding:0.5em; font-size:24pt;\n\
-  \  border: solid 1px black; border-width:0 0 1px 0; }\n\
-  \div.navig h1 { margin:0; padding:0; text-align:center; }\n\
-  \div.navig span { visibility:hidden; }\n\
-  \div.navig a.left { float:left; }\n\
-  \div.navig a.right { float:right; }\n\
-  \div.navig a { text-decoration:none; margin:0; padding:0; }\n\
-  \div.navig a img { height: 24pt; width:24pt; }\n\
-  \div.info { width:100%; margin:0.5cm 0 0 0; padding:0;\n\
-  \  border-style:solid; border-color:black; border-width:1px 0 0 0; }\n\
-  \div.info p { width:100%; text-align:center; margin:2pt auto; }\n\
-  \div.info img { margin:2pt auto; }\n\
-  \img[src='numtypes.png'] { height:60pt; }\n\
-  \img[src='author.png'] { width:10cm; }\n\
-  \img[src='booktitlepl.png'] { width:10cm; }\n\
-  \img[src='booktitleen.png'] { width:10cm; }\n\
-  \img[src='casabattlo.jpg'] { width:7cm; }\n\
-  \img[src='casabattlo1.jpg'] { width:7cm; }\n\
-  \div#index h1, div#index h2, div#index h3 { font-weight: bold; text-align:right; }\n\
-  \div#index h1 { font-size: 1.5cm; }\n\
-  \div#index h1+h1 { margin:0; }\n\
-  \div#index h3 { font-size: 0.7cm; font-style: italic; margin:1cm 0 0 0; }\n\
-  \div#index h2 { font-size: 1cm; }\n\
-  \div#index { text-align: left; }\n\
-  \div#index h1 { margin:1cm 0 0 0; }\n\
-  \div#index h2 { margin:2cm 0 0 0; }\n\
-  \ul.toc { list-style-type:none; }\n\
-  \ul.toc li li { font-weight:normal; margin:0; }\n\
-  \#jps-index h1, #jps-index h2 { font-family: Arial; }\n\
-  \#jps-index h1, #jps-index h2, #jps-index p { width:100%; text-align:center; margin:4pt auto; }\n"
-
-outputCss outputPath = do
+outputCss outputPath allParts = do
   let path = outputPath ++ "/web.css"
-  houtput <- openFile path WriteMode
-  hSetEncoding houtput utf8
+  houtput <- safeOpenFileForWriting path
   putStrLn $ "Generating " ++ path
-  hPutStr houtput cssContent
+  hPutStr houtput (directiveValue allParts "WebCss")
   hClose houtput

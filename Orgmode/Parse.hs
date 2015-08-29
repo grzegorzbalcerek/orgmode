@@ -42,6 +42,7 @@ topLevel level =
   try (items level) <|>
   try (comment level) <|>
   try (chapter level) <|>
+  try (showindex level) <|>
   try (src level) <|>
   try (latex level)<|>
   try (directive level)
@@ -74,7 +75,7 @@ chapterElement level =
    try (src level) <|>
    try (section level) <|>
    try (table level) <|>
-   try (index level) <|>
+   try (showindex level) <|>
    try (note level) <|>
    try (asteriskImg level) <|>
    try (comment level) <|>
@@ -113,6 +114,7 @@ slideElement level =
   try img <|>
   try (pause2 level) <|>
   try (latex level) <|>
+  try (comment level) <|>
   try pause <|>
   skipLine
 
@@ -155,23 +157,23 @@ paragraph level = do
   return $ Paragraph props (concat content)
 
 note level = do
-  noteType <- asteriskLine level "NOTE"
+  (noteType,props) <- asteriskLineWithProps level "NOTE"
   content <- many (sectionElement $ level + 1)
-  return $ Note noteType content
+  return $ Note noteType props content
 
 asteriskImg level = do
   (file,props) <- asteriskLineWithProps level "IMG"
   return $ Img props file
 
 items level = do
-  (noteType,props) <- asteriskLineWithProps level "ITEMS"
+  (_,props) <- asteriskLineWithProps level "ITEMS"
   content <- many1 (item <|> pause)
   return $ Items props content
 
 item = try $ Item <$> (char '•' >> restOfLine)
 
 table level = do
-  (noteType,props) <- asteriskLineWithProps level "TABLE"
+  (_,props) <- asteriskLineWithProps level "TABLE"
   rows <- many (try tableRow)
   return $ Table props rows
 
@@ -197,9 +199,9 @@ pause = do
 
 stop = asteriskLine 1 "STOP"
 
-index level = do
-  asteriskLine level "INDEX"
-  return Index
+showindex level = do
+  asteriskLine level "SHOWINDEX"
+  return ShowIndex
 
 ----------------------------------------------------
 
@@ -249,6 +251,10 @@ colonProp =
   try colonPropStyle <|>
   try colonPropId <|>
   try colonPropLabel <|>
+  try colonPropLatex1 <|>
+  try colonPropLatex2 <|>
+  try colonPropHtml <|>
+  try colonPropX <|>
   try colonPropIe1 <|>
   try colonPropIe2 <|>
   try colonPropKeywordLike <|>
@@ -323,10 +329,30 @@ colonPropLabel = do
   value <- many (noneOf "¬:\n\r")
   return $ Label (trim value)
 
+colonPropLatex1 = do
+  string ":latex1"
+  value <- many (noneOf "¬:\n\r")
+  return $ Latex1Prop (trim value)
+
+colonPropLatex2 = do
+  string ":latex2"
+  value <- many (noneOf "¬:\n\r")
+  return $ Latex2Prop (trim value)
+
+colonPropHtml = do
+  string ":html"
+  value <- many (noneOf "¬:\n\r")
+  return $ HtmlProp (trim value)
+
 colonPropIe1 = do
   string ":ie1"
   value <- many (noneOf "¬:\n\r")
   return $ if (trim value == "") then Unrecognized else Ie1 (trim value)
+
+colonPropX = do
+  string ":x"
+  value <- many (noneOf "¬:\n\r")
+  return $ X (trim value)
 
 colonPropIe2 = do
   string ":ie2"

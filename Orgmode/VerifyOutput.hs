@@ -64,6 +64,6 @@ verifyExpectedAndActualOutputs :: [String] -> String -> String
 verifyExpectedAndActualOutputs _ [] = "OK"
 verifyExpectedAndActualOutputs [] actual = "OK"
 verifyExpectedAndActualOutputs (expected:rest) actual =
-  case find (\a -> isPrefixOf expected a) $ tails actual of
-    Just found -> verifyExpectedAndActualOutputs rest $ drop (length expected) found
-    Nothing -> "\n======== the following expected fragment is not found in the actual results:\n"++ expected ++ "\n========\n"
+    case find (\a -> isPrefixOf expected a) $ tails actual of
+      Just found -> verifyExpectedAndActualOutputs rest $ drop (length expected) found
+      Nothing -> "\n======== the following expected fragment is not found in the actual results:\n"++ expected ++ "\n========\n"

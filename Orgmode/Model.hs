@@ -11,9 +11,9 @@ data Part =
     Chapter String [Prop] [Part]
   | Slide String [Part]
   | Section String [Prop] [Part]
-  | Note String [Part]
+  | Note String [Prop] [Part]
   | EmptyPart
-  | Index
+  | ShowIndex
   | Items [Prop] [Part]
   | Item String
   | Img [Prop] String
@@ -40,8 +40,12 @@ data Prop =
   | NoVerify
   | Tangle String
   | Id String
+  | X String
   | Ie1 String
   | Ie2 String String
+  | Latex1Prop String
+  | Latex2Prop String
+  | HtmlProp String
   | Output
   | Console
   | PrependNewLines Int
@@ -79,9 +83,9 @@ inspectPart part = case part of
   Chapter str _ parts -> "Chapter ... ... " ++ inspectParts parts
   Slide str parts -> "Slide ... " ++ inspectParts parts
   Section str _ parts -> "Section ... ... " ++ inspectParts parts
-  Note t parts -> "Note " ++ t ++ " " ++ inspectParts parts
+  Note t _ parts -> "Note " ++ t ++ " ... " ++ inspectParts parts
   EmptyPart -> "EmptyPart"
-  Index -> "Index"
+  ShowIndex -> "ShowIndex"
   Items props parts -> "Items ... " ++ inspectParts parts
   Item str -> "Item ..."
   Latex str1 str2 -> "Latex ... ..."
@@ -122,10 +126,10 @@ directiveValue allParts name =
 
 directiveValueNoNewLines allParts name = filter (\c -> not (c == '\n')) $ directiveValue allParts name
 
-idProp str =
+idProp fallback =
   foldl (\acc p -> case p of
                      Id ident -> ident
-                     _ -> acc) (filter (\c -> c `elem` " ") str)
+                     _ -> acc) (filter (\c -> c `elem` " ") fallback)
 
 prependNewLinesProp =
   foldl (\acc p -> case p of
@@ -187,6 +191,21 @@ labelProp =
                      Label label -> label
                      _ -> acc) ""
 
+latex1Prop =
+  foldl (\acc p -> case p of
+                     Latex1Prop lp -> lp
+                     _ -> acc) ""
+
+latex2Prop =
+  foldl (\acc p -> case p of
+                     Latex2Prop lp -> lp
+                     _ -> acc) ""
+
+htmlProp =
+  foldl (\acc p -> case p of
+                     HtmlProp hp -> hp
+                     _ -> acc) ""
+
 indexEntriesFromProps ident label =
   foldl (\acc p -> case p of
                      Ie1 entry -> (IndexEntry1 entry ident label):acc
@@ -238,3 +257,26 @@ extractIndexEntries partId partLabel (Img props _) = indexEntriesFromProps partI
 extractIndexEntries partId partLabel (Src _ props _) = indexEntriesFromProps partId partLabel props
 extractIndexEntries partId partLabel (Table props _) = indexEntriesFromProps partId partLabel props
 extractIndexEntries partId partLabel _ = []
+
+filterChapter :: [Part] -> String -> [Part]
+filterChapter (ch@(Chapter _ props _) : rest) wantedChapterId =
+  if idProp "" props == wantedChapterId
+  then [ch]
+  else filterChapter rest wantedChapterId
+filterChapter (_:rest) wantedChapterId = filterChapter rest wantedChapterId
+filterChapter [] wantedChapterId = []
+
+filterSection :: [Part] -> String -> String -> [Part]
+filterSection parts chapterId sectionId =
+  case filterChapter parts chapterId of
+    [Chapter _ _ chapterParts] -> filterSection' chapterParts sectionId
+    _ -> []
+
+filterSection' :: [Part] -> String -> [Part]
+filterSection' (sec@(Section _ props _) : rest) wantedSectionId =
+  if idProp "" props == wantedSectionId
+  then [sec]
+  else filterSection' rest wantedSectionId
+filterSection' (_:rest) wantedSectionId = filterSection' rest wantedSectionId
+filterSection' [] wantedSectionId = []
+

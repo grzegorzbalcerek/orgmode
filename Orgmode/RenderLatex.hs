@@ -68,7 +68,7 @@ renderPart Article _ (Latex "Article" content) = content
 renderPart Book _ (Latex "Book" content) = content
 renderPart Slides _ (Latex "Slides" content) = content
 renderPart Slides _ (Paragraph _ txt) = ""
-renderPart _ allParts (Paragraph _ txt) = "\n\n" ++ renderText allParts txt
+renderPart _ allParts (Paragraph props txt) = "\n\n" ++ renderIndexEntries props ++ renderText allParts txt
 renderPart _ _ (Slide title parts) =
   "\\begin{frame}[fragile]\n" ++
   (if title == "" then "" else "\\frametitle{" ++ title ++ "}\n") ++
@@ -102,8 +102,8 @@ renderPart rt allParts (Section title props parts) =
     concat (map (renderPart rt allParts) parts) ++ "\n"
 renderPart _ allParts (Items props items) =
   "\\begin{itemize}\n" ++ concat (map (renderItem allParts) items) ++  "\\end{itemize}\n"
-renderPart rt allParts (Note noteType parts) =
-  "\n\n\\begin{tabular}{lp{1cm}p{11.2cm}}\n" ++
+renderPart rt allParts (Note noteType props parts) =
+  "\n\n" ++ renderIndexEntries props ++ "\\begin{tabular}{lp{1cm}p{11.2cm}}\n" ++
   "\\cline{2-3}\\noalign{\\smallskip}\n" ++
   "&\\raisebox{-" ++ (show $ (imageHeight $ head noteType) - 10) ++
   "pt}{\\includegraphics[height=" ++ (show.imageHeight $ head noteType) ++ "pt]{" ++ [head noteType] ++ "sign.png}}&\\small"++
@@ -120,6 +120,19 @@ renderPart rt allParts (Table props rows) =
     "\n\\begin{longtable}{lll}\n" ++
     concat (map renderRow rows) ++
     "\n\\end{longtable}\n"
+renderPart rt allParts (Img props filename) =
+  let label = labelProp props
+      latex1 = latex1Prop props
+      latex2 = latex2Prop props
+  in if label == ""
+     then
+       "\n\n\\includegraphics" ++ latex2 ++ "{" ++ filename ++ latex1 ++ "}\n\n"
+     else
+       "\\begin{center}\n" ++
+       "\\includegraphics" ++ latex2 ++ "{" ++ filename ++ latex1 ++ "}\\par\n" ++
+       renderText allParts label ++
+       "\n\\end{center}\n"
+renderPart _ _ ShowIndex = "\\printindex\n"
 renderPart _ _ _ = ""
 
 ----------------------------------------------------
@@ -127,6 +140,13 @@ renderPart _ _ _ = ""
 firstSectionTitle (Section title _ _ : _) = title
 firstSectionTitle (_:rest) = firstSectionTitle rest
 firstSectionTitle [] = ""
+
+----------------------------------------------------
+
+renderIndexEntries =
+  foldl (\acc p -> case p of
+                     X entry -> "\\index{" ++ renderText [] entry ++ "}" ++ acc
+                     _ -> acc) ""
 
 ----------------------------------------------------
 
@@ -219,11 +239,10 @@ renderItem _ Pause = "\\pause\n"
 
 includegraphicsCircle = "\\includegraphics[width=8pt]"
 
-whiteCircleText n =
-  "\\raisebox{-1pt}{\\includegraphics[width=8pt]{whitepng" ++ show n ++ ".png}}"
-
-whiteCircleSource n =
-  "\\includegraphics[width=6pt]{whitepng" ++ show n ++ ".png}"
+whiteCircleText n = "\\raisebox{-1pt}{\\includegraphics[width=8pt]{white" ++ show n ++ ".png}}"
+whiteCircleSource n = " \\includegraphics[width=6pt]{white" ++ show n ++ ".png}"
+blackCircleText n = "\\raisebox{-1pt}{\\includegraphics[width=8pt]{black" ++ show n ++ ".png}}"
+blackCircleSource n = " \\includegraphics[width=6pt]{black" ++ show n ++ ".png}"
 
 renderText :: [Part] -> String -> String
 renderText _ "" = ""
@@ -233,6 +252,7 @@ renderText allParts (c:acc) =
             ('⒰',(url,_:acc')) -> "\\textit{" ++ renderText allParts url ++ "}" ++ renderText allParts acc'
             ('⒤',(text,_:acc')) -> "\\textit{" ++ renderText allParts text ++ "}" ++ renderText allParts acc'
             ('⒞',(code,_:acc')) -> "\\texttt{" ++ renderText allParts code ++ "}" ++ renderText allParts acc'
+            ('⒳',(x,_:acc')) -> "\\index{" ++ x ++ "}" ++ renderText allParts acc'
             ('⒭',(ref,_:acc')) ->
               case break (','==) ref of
                 (chId,[]) ->  chapterReference allParts chId ++ renderText allParts acc'
@@ -292,26 +312,26 @@ renderText allParts (c:acc) =
             ('㉝',_) -> whiteCircleText 33 ++ renderText allParts acc
             ('㉞',_) -> whiteCircleText 34 ++ renderText allParts acc
             ('㉟',_) -> whiteCircleText 35 ++ renderText allParts acc
-            ('❶',_) -> whiteCircleText 1 ++ renderText allParts acc
-            ('❷',_) -> whiteCircleText 2 ++ renderText allParts acc
-            ('❸',_) -> whiteCircleText 3 ++ renderText allParts acc
-            ('❹',_) -> whiteCircleText 4 ++ renderText allParts acc
-            ('❺',_) -> whiteCircleText 5 ++ renderText allParts acc
-            ('❻',_) -> whiteCircleText 6 ++ renderText allParts acc
-            ('❼',_) -> whiteCircleText 7 ++ renderText allParts acc
-            ('❽',_) -> whiteCircleText 8 ++ renderText allParts acc
-            ('❾',_) -> whiteCircleText 9 ++ renderText allParts acc
-            ('❿',_) -> whiteCircleText 10 ++ renderText allParts acc
-            ('⓫',_) -> whiteCircleText 11 ++ renderText allParts acc
-            ('⓬',_) -> whiteCircleText 12 ++ renderText allParts acc
-            ('⓭',_) -> whiteCircleText 13 ++ renderText allParts acc
-            ('⓮',_) -> whiteCircleText 14 ++ renderText allParts acc
-            ('⓯',_) -> whiteCircleText 15 ++ renderText allParts acc
-            ('⓰',_) -> whiteCircleText 16 ++ renderText allParts acc
-            ('⓱',_) -> whiteCircleText 17 ++ renderText allParts acc
-            ('⓲',_) -> whiteCircleText 18 ++ renderText allParts acc
-            ('⓳',_) -> whiteCircleText 19 ++ renderText allParts acc
-            ('⓴',_) -> whiteCircleText 20 ++ renderText allParts acc
+            ('❶',_) -> blackCircleText 1 ++ renderText allParts acc
+            ('❷',_) -> blackCircleText 2 ++ renderText allParts acc
+            ('❸',_) -> blackCircleText 3 ++ renderText allParts acc
+            ('❹',_) -> blackCircleText 4 ++ renderText allParts acc
+            ('❺',_) -> blackCircleText 5 ++ renderText allParts acc
+            ('❻',_) -> blackCircleText 6 ++ renderText allParts acc
+            ('❼',_) -> blackCircleText 7 ++ renderText allParts acc
+            ('❽',_) -> blackCircleText 8 ++ renderText allParts acc
+            ('❾',_) -> blackCircleText 9 ++ renderText allParts acc
+            ('❿',_) -> blackCircleText 10 ++ renderText allParts acc
+            ('⓫',_) -> blackCircleText 11 ++ renderText allParts acc
+            ('⓬',_) -> blackCircleText 12 ++ renderText allParts acc
+            ('⓭',_) -> blackCircleText 13 ++ renderText allParts acc
+            ('⓮',_) -> blackCircleText 14 ++ renderText allParts acc
+            ('⓯',_) -> blackCircleText 15 ++ renderText allParts acc
+            ('⓰',_) -> blackCircleText 16 ++ renderText allParts acc
+            ('⓱',_) -> blackCircleText 17 ++ renderText allParts acc
+            ('⓲',_) -> blackCircleText 18 ++ renderText allParts acc
+            ('⓳',_) -> blackCircleText 19 ++ renderText allParts acc
+            ('⓴',_) -> blackCircleText 20 ++ renderText allParts acc
             _ -> c:renderText allParts acc
 
 -- ⒰ url
@@ -460,26 +480,26 @@ renderSourceSimple sourceType props src =
           ('㉝',_) -> whiteCircleSource 33 ++ acc
           ('㉞',_) -> whiteCircleSource 34 ++ acc
           ('㉟',_) -> whiteCircleSource 35 ++ acc
-          ('❶',_) -> whiteCircleSource 1 ++ acc
-          ('❷',_) -> whiteCircleSource 2 ++ acc
-          ('❸',_) -> whiteCircleSource 3 ++ acc
-          ('❹',_) -> whiteCircleSource 4 ++ acc
-          ('❺',_) -> whiteCircleSource 5 ++ acc
-          ('❻',_) -> whiteCircleSource 6 ++ acc
-          ('❼',_) -> whiteCircleSource 7 ++ acc
-          ('❽',_) -> whiteCircleSource 8 ++ acc
-          ('❾',_) -> whiteCircleSource 9 ++ acc
-          ('❿',_) -> whiteCircleSource 10 ++ acc
-          ('⓫',_) -> whiteCircleSource 11 ++ acc
-          ('⓬',_) -> whiteCircleSource 12 ++ acc
-          ('⓭',_) -> whiteCircleSource 13 ++ acc
-          ('⓮',_) -> whiteCircleSource 14 ++ acc
-          ('⓯',_) -> whiteCircleSource 15 ++ acc
-          ('⓰',_) -> whiteCircleSource 16 ++ acc
-          ('⓱',_) -> whiteCircleSource 17 ++ acc
-          ('⓲',_) -> whiteCircleSource 18 ++ acc
-          ('⓳',_) -> whiteCircleSource 19 ++ acc
-          ('⓴',_) -> whiteCircleSource 20 ++ acc
+          ('❶',_) -> blackCircleSource 1 ++ acc
+          ('❷',_) -> blackCircleSource 2 ++ acc
+          ('❸',_) -> blackCircleSource 3 ++ acc
+          ('❹',_) -> blackCircleSource 4 ++ acc
+          ('❺',_) -> blackCircleSource 5 ++ acc
+          ('❻',_) -> blackCircleSource 6 ++ acc
+          ('❼',_) -> blackCircleSource 7 ++ acc
+          ('❽',_) -> blackCircleSource 8 ++ acc
+          ('❾',_) -> blackCircleSource 9 ++ acc
+          ('❿',_) -> blackCircleSource 10 ++ acc
+          ('⓫',_) -> blackCircleSource 11 ++ acc
+          ('⓬',_) -> blackCircleSource 12 ++ acc
+          ('⓭',_) -> blackCircleSource 13 ++ acc
+          ('⓮',_) -> blackCircleSource 14 ++ acc
+          ('⓯',_) -> blackCircleSource 15 ++ acc
+          ('⓰',_) -> blackCircleSource 16 ++ acc
+          ('⓱',_) -> blackCircleSource 17 ++ acc
+          ('⓲',_) -> blackCircleSource 18 ++ acc
+          ('⓳',_) -> blackCircleSource 19 ++ acc
+          ('⓴',_) -> blackCircleSource 20 ++ acc
           _ -> c:acc
   in
     foldr f "" src

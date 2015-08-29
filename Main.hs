@@ -1,8 +1,14 @@
 -- -*- coding: utf-8; -*-
 module Main where
 
+{-
+cmd /c "u: && cd u:\github\orgmode && make && h:"
+cmd /c "u: && cd u:\github\orgmode && test && h:"
+-}
+
 import System.Environment
 import Orgmode.Model
+import Orgmode.Util
 import Orgmode.Parse
 import Orgmode.RenderLatex
 import Orgmode.ExtractSrc
@@ -15,19 +21,16 @@ import Control.Monad.Trans.State
 main = do
   args <- System.Environment.getArgs
   let sourceFile = args !! 1
-  let path = args !! 2
-  let chapterId = args !! 3
-  let sectionId = if length args >= 5 then args !! 4 else ""
-  let separator = args !! 3
+  let path = if length args > 2 then args !! 2 else ""
+  let chapterId = if length args > 3 then args !! 3 else ""
+  let sectionId = if length args > 4 then args !! 4 else ""
   hinput <- openFile sourceFile ReadMode
   hSetEncoding hinput utf8
   input <- hGetContents hinput
   let content = parseInput input
   putStrLn $ "Content parsed. Length: " ++ show (length content) ++ "."
   case head args of
-    "extractsrc"    -> extractSrcFromParts content Nothing Nothing
-    "extractsrc2"   -> extractSrcFromParts content (Just path) Nothing
-    "extractsrc3"   -> extractSrcFromParts content (Just path) (Just separator)
+    "extractsrc"    -> extractSrcFromParts content path chapterId sectionId
     "inspect"       -> putStrLn (inspectParts content)
     "latexarticle"  -> makeOutputLatex Article path content
     "latexbook"     -> makeOutputLatex Book path content
@@ -39,8 +42,7 @@ main = do
   hClose hinput
 
 makeOutputLatex kind outputPath content = do
-  houtput <- openFile outputPath WriteMode
-  hSetEncoding houtput utf8
+  houtput <- safeOpenFileForWriting outputPath
   let output = renderLatex kind content
   putStrLn $ "Generating " ++ outputPath ++ ". Length: " ++ show (length output) ++ "."
   hPutStr houtput output
