@@ -180,7 +180,7 @@ renderPart allParts (Section title props parts) =
   renderParts allParts parts
 renderPart allParts (Note noteType _ parts) =
   "<table class='remark'><tr><td class='remarksymbol'><img src='" ++
-    (head noteType : "sign.png") ++
+    (head noteType : "sign.png") ++ -- (if head noteType == 'r' then ".png" else ".svg") ++
   "'/></td><td class='remarkcontent'>" ++
   renderParts allParts parts ++
   "</td></tr></table>\n"
@@ -210,7 +210,7 @@ renderPart allParts (Items props items) =
   let style = maybe "list" id $ styleProp props
   in  "<ul class='" ++ style ++ "'>\n" ++ concat (map (renderItem allParts) items) ++  "</ul>\n"
 renderPart allParts (Img props file) =
-  "<div><img src='" ++ file ++ "'></img><div class='caption'>" ++ (renderText allParts $ labelProp props) ++ "</div></div>\n"
+  "<div><img src='" ++ file ++ htmlProp props ++ "'></img><div class='caption'>" ++ (renderText allParts $ labelProp props) ++ "</div></div>\n"
 renderPart allParts (Table props rows) =
   "<table>" ++ concat (map renderTableRow rows) ++ "</table>\n"
 renderPart allParts ShowIndex = renderIndex allParts

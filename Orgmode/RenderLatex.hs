@@ -101,12 +101,14 @@ renderPart rt allParts (Section title props parts) =
     (if label == "" then "\\addcontentsline{toc}{section}{" ++ title ++ "}" else "") ++
     concat (map (renderPart rt allParts) parts) ++ "\n"
 renderPart _ allParts (Items props items) =
-  "\\begin{itemize}\n" ++ concat (map (renderItem allParts) items) ++  "\\end{itemize}\n"
+  renderIndexEntries props ++ "\n\\begin{itemize}\n" ++ concat (map (renderItem allParts) items) ++  "\\end{itemize}\n"
 renderPart rt allParts (Note noteType props parts) =
   "\n\n" ++ renderIndexEntries props ++ "\\begin{tabular}{lp{1cm}p{11.2cm}}\n" ++
   "\\cline{2-3}\\noalign{\\smallskip}\n" ++
   "&\\raisebox{-" ++ (show $ (imageHeight $ head noteType) - 10) ++
-  "pt}{\\includegraphics[height=" ++ (show.imageHeight $ head noteType) ++ "pt]{" ++ [head noteType] ++ "sign.png}}&\\small"++
+  "pt}{\\includegraphics[height=" ++ (show.imageHeight $ head noteType) ++ "pt]{" ++
+  [head noteType] ++ "sign.png" ++ -- (if head noteType == 'r' then ".png" else ".eps") ++
+  "}}&\\small\\setlength{\\parskip}{2mm}" ++
   concat (map (renderPart InNote allParts) parts) ++
   "\\\\ \\noalign{\\smallskip}\\cline{2-3}\n\\end{tabular}\n\n"
 renderPart rt allParts (Src srcType props src) =
@@ -145,7 +147,7 @@ firstSectionTitle [] = ""
 
 renderIndexEntries =
   foldl (\acc p -> case p of
-                     X entry -> "\\index{" ++ renderText [] entry ++ "}" ++ acc
+                     X entry -> "\\index{" ++ renderIndex entry ++ "}" ++ acc
                      _ -> acc) ""
 
 ----------------------------------------------------
@@ -173,9 +175,7 @@ renderSrc rt srcType props src =
     if hasNoRenderProp props
     then ""
     else 
-      (if rt == InNote then "\\medskip" else "") ++
-      "\\begin{alltt}\\footnotesize\\leftskip10pt\n" ++ render ++ "\\end{alltt}\n" ++
-      (if rt == InNote then "\\medskip" else "")
+      "\\begin{alltt}\\footnotesize\\leftskip10pt\n" ++ render ++ "\\end{alltt}\n"
 
 ----------------------------------------------------
 
@@ -240,9 +240,21 @@ renderItem _ Pause = "\\pause\n"
 includegraphicsCircle = "\\includegraphics[width=8pt]"
 
 whiteCircleText n = "\\raisebox{-1pt}{\\includegraphics[width=8pt]{white" ++ show n ++ ".png}}"
-whiteCircleSource n = " \\includegraphics[width=6pt]{white" ++ show n ++ ".png}"
+whiteCircleSource n = " \\includegraphics[width=7pt]{white" ++ show n ++ ".png}"
 blackCircleText n = "\\raisebox{-1pt}{\\includegraphics[width=8pt]{black" ++ show n ++ ".png}}"
-blackCircleSource n = " \\includegraphics[width=6pt]{black" ++ show n ++ ".png}"
+blackCircleSource n = " \\includegraphics[width=7pt]{black" ++ show n ++ ".png}"
+
+
+renderIndex :: String -> String
+renderIndex ('!':t) = "{\\fontencoding{T1}\\selectfont\\char33}" ++ renderText [] t
+renderIndex x =
+   case break f x of
+    (h, '¡':t) -> (takeWhile g . map k $ x) ++ "@" ++ renderText [] h ++ "!" ++ renderText [] t
+    (h, '!':t) -> (takeWhile g . map k $ x) ++ "@" ++ renderText [] h ++ "!" ++ renderText [] t
+    _ -> (map k $ x) ++ "@" ++ renderText [] x
+  where f c = c == '!' || c == '¡'
+        g c = c /= '!' && c /= '¡'
+        k c = if c == '"' then '#' else c
 
 renderText :: [Part] -> String -> String
 renderText _ "" = ""
@@ -252,17 +264,22 @@ renderText allParts (c:acc) =
             ('⒰',(url,_:acc')) -> "\\textit{" ++ renderText allParts url ++ "}" ++ renderText allParts acc'
             ('⒤',(text,_:acc')) -> "\\textit{" ++ renderText allParts text ++ "}" ++ renderText allParts acc'
             ('⒞',(code,_:acc')) -> "\\texttt{" ++ renderText allParts code ++ "}" ++ renderText allParts acc'
-            ('⒳',(x,_:acc')) -> "\\index{" ++ x ++ "}" ++ renderText allParts acc'
+            ('⒳',(x,_:acc')) -> "\\index{" ++ renderIndex x ++ "}" ++ renderText allParts acc'
             ('⒭',(ref,_:acc')) ->
               case break (','==) ref of
                 (chId,[]) ->  chapterReference allParts chId ++ renderText allParts acc'
                 (chId,_:secId) -> sectionReference allParts chId secId ++ renderText allParts acc'
-            ('#',_) -> "{\\char35}" ++ renderText allParts acc
-            ('$',_) -> "{\\char36}" ++ renderText allParts acc
-            ('%',_) -> "{\\char37}" ++ renderText allParts acc
-            ('_',_) -> "{\\char95}" ++ renderText allParts acc
+            ('|',_) -> "{\\fontencoding{T1}\\selectfont\\char124}" ++ renderText allParts acc
+            ('!',_) -> "{\\fontencoding{T1}\\selectfont\\char33}" ++ renderText allParts acc
+            ('"',_) -> "{\\fontencoding{T1}\\selectfont\\char34}" ++ renderText allParts acc
+            ('#',_) -> "{\\fontencoding{T1}\\selectfont\\char35}" ++ renderText allParts acc
+            ('$',_) -> "{\\fontencoding{T1}\\selectfont\\char36}" ++ renderText allParts acc
+            ('%',_) -> "{\\fontencoding{T1}\\selectfont\\char37}" ++ renderText allParts acc
+            ('_',_) -> "{\\fontencoding{T1}\\selectfont\\char95}" ++ renderText allParts acc
+            ('>',_) -> "{\\fontencoding{QX}\\selectfont\\char131}" ++ renderText allParts acc
+            ('<',_) -> "{\\fontencoding{QX}\\selectfont\\char136}" ++ renderText allParts acc
             ('℃',_) -> "{\\fontencoding{TS1}\\selectfont\\char137}" ++ renderText allParts acc
-            ('Σ',_) -> "{\\char6}" ++ renderText allParts acc
+            ('Σ',_) -> "{\\fontencoding{QX}\\selectfont\\char6}" ++ renderText allParts acc
             ('Ω',_) -> "{\\fontencoding{TS1}\\selectfont\\char87}" ++ renderText allParts acc
             ('←',_) -> "{\\fontencoding{TS1}\\selectfont\\char24}" ++ renderText allParts acc
             ('→',_) -> "{\\fontencoding{TS1}\\selectfont\\char25}" ++ renderText allParts acc
@@ -271,11 +288,12 @@ renderText allParts (c:acc) =
             ('–',_) -> "--" ++ renderText allParts acc
             ('—',_) -> "---" ++ renderText allParts acc
             ('∞',_) -> "{\\fontencoding{QX}\\selectfont\\char173}" ++ renderText allParts acc
-            ('^',_) -> "{\\char94}" ++ renderText allParts acc
-            ('{',_) -> "{\\char123}" ++ renderText allParts acc
-            ('}',_) -> "{\\char125}" ++ renderText allParts acc
-            ('\\',_) -> "{\\char92}" ++ renderText allParts acc
-            ('&',_) -> "{\\char38}" ++ renderText allParts acc
+            ('^',_) -> "{\\fontencoding{T1}\\selectfont\\char94}" ++ renderText allParts acc
+            ('{',_) -> "{\\fontencoding{T1}\\selectfont\\char123}" ++ renderText allParts acc
+            ('}',_) -> "{\\fontencoding{T1}\\selectfont\\char125}" ++ renderText allParts acc
+            ('\\',_) -> "{\\fontencoding{T1}\\selectfont\\char92}" ++ renderText allParts acc
+            ('&',_) -> "{\\fontencoding{T1}\\selectfont\\char38}" ++ renderText allParts acc
+            ('\'',_) -> "{\\fontencoding{T1}\\selectfont\\char39}" ++ renderText allParts acc
             ('…',_) -> "{\\fontencoding{QX}\\selectfont\\char8}" ++ renderText allParts acc
             ('①',_) -> whiteCircleText 1 ++ renderText allParts acc
             ('②',_) -> whiteCircleText 2 ++ renderText allParts acc
@@ -436,11 +454,11 @@ renderSourceSimple sourceType props src =
   let f :: Char -> String -> String
       f c acc =
         case (c, break (c ==) acc) of
-          ('}',_) -> "{\\char125}" ++ acc
-          ('{',_) -> "{\\char123}" ++ acc
-          ('\\',_) -> "{\\char92}" ++ acc
-          ('Δ',_) -> "{\\char1}" ++ acc
-          ('Π',_) -> "{\\char5}" ++ acc
+          ('}',_) -> "{\\fontencoding{T1}\\selectfont\\char125}" ++ acc
+          ('{',_) -> "{\\fontencoding{T1}\\selectfont\\char123}" ++ acc
+          ('\\',_) -> "{\\fontencoding{T1}\\selectfont\\char92}" ++ acc
+          ('Δ',_) -> "{\\fontencoding{QX}\\selectfont\\char1}" ++ acc
+          ('Π',_) -> "{\\fontencoding{QX}\\selectfont\\char5}" ++ acc
           ('∞',_) -> "{\\fontencoding{QX}\\selectfont\\char173}" ++ acc
           ('℃',_) -> "{\\fontencoding{TS1}\\selectfont\\char137}" ++ acc
           ('⇒',_) -> "{\\includegraphics[width=7pt]{doublerightarrow.png}}" ++ acc

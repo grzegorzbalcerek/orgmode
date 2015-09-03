@@ -78,6 +78,7 @@ chapterElement level =
    try (showindex level) <|>
    try (note level) <|>
    try (asteriskImg level) <|>
+   try (latex level)<|>
    try (comment level) <|>
    try implicitParagraph) <?> "chapterElement"
 
@@ -97,6 +98,7 @@ sectionElement level =
    try (comment level) <|>
    try (table level) <|>
    try (src level) <|>
+   try (latex level)<|>
    try implicitParagraph) <?> "sectionElement"
 
 ----------------------------------------------------
