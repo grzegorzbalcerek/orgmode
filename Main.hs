@@ -30,8 +30,8 @@ main = do
   let content = parseInput input
   putStrLn $ "Content parsed. Length: " ++ show (length content) ++ "."
   case head args of
-    "extractsrc"    -> extractSrcFromParts content path chapterId sectionId
-    "inspect"       -> putStrLn (inspectParts content)
+    "extractsrc"    -> extractSrcFromElements content path chapterId sectionId
+    "inspect"       -> putStrLn (inspectElements content)
     "latexarticle"  -> makeOutputLatex Article path content
     "latexbook"     -> makeOutputLatex Book path content
     "latexslides"   -> makeOutputLatex Slides path content

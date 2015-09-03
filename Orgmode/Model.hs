@@ -7,14 +7,14 @@ cmd /c "u: && cd u:\github\orgmode && test && h:"
 
 import Data.List (intersperse)
 
-data Part =
-    Chapter String [Prop] [Part]
-  | Slide String [Part]
-  | Section String [Prop] [Part]
-  | Note String [Prop] [Part]
-  | EmptyPart
+data Element =
+    Chapter String [Prop] [Element]
+  | Slide String [Element]
+  | Section String [Prop] [Element]
+  | Note String [Prop] [Element]
+  | EmptyElement
   | ShowIndex
-  | Items [Prop] [Part]
+  | Items [Prop] [Element]
   | Item String
   | Img [Prop] String
   | Paragraph [Prop] String
@@ -77,16 +77,16 @@ data RenderType =
   | Book
   | InNote
   deriving Eq
-inspectParts parts = "[" ++ concat (intersperse "," $ fmap inspectPart parts) ++ "]"
+inspectElements parts = "[" ++ concat (intersperse "," $ fmap inspectElement parts) ++ "]"
 
-inspectPart part = case part of
-  Chapter str _ parts -> "Chapter ... ... " ++ inspectParts parts
-  Slide str parts -> "Slide ... " ++ inspectParts parts
-  Section str _ parts -> "Section ... ... " ++ inspectParts parts
-  Note t _ parts -> "Note " ++ t ++ " ... " ++ inspectParts parts
-  EmptyPart -> "EmptyPart"
+inspectElement part = case part of
+  Chapter str _ parts -> "Chapter ... ... " ++ inspectElements parts
+  Slide str parts -> "Slide ... " ++ inspectElements parts
+  Section str _ parts -> "Section ... ... " ++ inspectElements parts
+  Note t _ parts -> "Note " ++ t ++ " ... " ++ inspectElements parts
+  EmptyElement -> "EmptyElement"
   ShowIndex -> "ShowIndex"
-  Items props parts -> "Items ... " ++ inspectParts parts
+  Items props parts -> "Items ... " ++ inspectElements parts
   Item str -> "Item ..."
   Latex str1 str2 -> "Latex ... ..."
   Paragraph props str -> "Paragraph ..."
@@ -108,7 +108,7 @@ tangleProp =
                      Tangle path -> path
                      _ -> acc) ""
 
-sectionsOnly :: [Part] -> [Part]
+sectionsOnly :: [Element] -> [Element]
 sectionsOnly = filter $ \p ->
   case p of
     Section _ _ _ -> True
@@ -117,14 +117,14 @@ sectionsOnly = filter $ \p ->
 isChapter (Chapter _ _ _) = True
 isChapter _ = False
 
-directiveValue :: [Part] -> String -> String
-directiveValue allParts name =
+directiveValue :: [Element] -> String -> String
+directiveValue allElements name =
   let isRightDirective (Directive n c) = n == name
       isRightDirective _ = False
-      filteredParts = filter isRightDirective allParts
-  in if null filteredParts then "" else let (Directive _ content) = head filteredParts in content
+      filteredElements = filter isRightDirective allElements
+  in if null filteredElements then "" else let (Directive _ content) = head filteredElements in content
 
-directiveValueNoNewLines allParts name = filter (\c -> not (c == '\n')) $ directiveValue allParts name
+directiveValueNoNewLines allElements name = filter (\c -> not (c == '\n')) $ directiveValue allElements name
 
 idProp fallback =
   foldl (\acc p -> case p of
@@ -238,7 +238,7 @@ constantLikeProp =
                      ConstantLike ks -> ks
                      _ -> acc) []
 
-extractIndexEntries :: String -> String -> Part -> [IndexEntry]
+extractIndexEntries :: String -> String -> Element -> [IndexEntry]
 extractIndexEntries _ _ (Chapter title props parts) =
   let chId = idProp title props
       chLabel = labelProp props
@@ -258,7 +258,7 @@ extractIndexEntries partId partLabel (Src _ props _) = indexEntriesFromProps par
 extractIndexEntries partId partLabel (Table props _) = indexEntriesFromProps partId partLabel props
 extractIndexEntries partId partLabel _ = []
 
-filterChapter :: [Part] -> String -> [Part]
+filterChapter :: [Element] -> String -> [Element]
 filterChapter (ch@(Chapter _ props _) : rest) wantedChapterId =
   if idProp "" props == wantedChapterId
   then [ch]
@@ -266,13 +266,13 @@ filterChapter (ch@(Chapter _ props _) : rest) wantedChapterId =
 filterChapter (_:rest) wantedChapterId = filterChapter rest wantedChapterId
 filterChapter [] wantedChapterId = []
 
-filterSection :: [Part] -> String -> String -> [Part]
+filterSection :: [Element] -> String -> String -> [Element]
 filterSection parts chapterId sectionId =
   case filterChapter parts chapterId of
-    [Chapter _ _ chapterParts] -> filterSection' chapterParts sectionId
+    [Chapter _ _ chapterElements] -> filterSection' chapterElements sectionId
     _ -> []
 
-filterSection' :: [Part] -> String -> [Part]
+filterSection' :: [Element] -> String -> [Element]
 filterSection' (sec@(Section _ props _) : rest) wantedSectionId =
   if idProp "" props == wantedSectionId
   then [sec]

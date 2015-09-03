@@ -17,7 +17,7 @@ import System.IO
 import GHC.IO.Encoding
 import Data.Char
 
-truncateFiles :: [Part] -> IO ()
+truncateFiles :: [Element] -> IO ()
 truncateFiles parts =
   forM_ parts $ \part ->
     case part of
@@ -39,32 +39,32 @@ truncateFile file = do
   houtput <- safeOpenFileForWriting file
   hClose houtput
 
-extractSrcFromParts :: [Part] -> String -> String -> String -> IO ()
-extractSrcFromParts parts defaultfile chapterId sectionId =
-  let doWork actualParts = do
+extractSrcFromElements :: [Element] -> String -> String -> String -> IO ()
+extractSrcFromElements parts defaultfile chapterId sectionId =
+  let doWork actualElements = do
         truncateFile defaultfile
         if defaultfile /= "-"
-        then truncateFiles actualParts
+        then truncateFiles actualElements
         else return ()
-        extractSrcFromParts' actualParts defaultfile
+        extractSrcFromElements' actualElements defaultfile
   in
     case (defaultfile,chapterId,sectionId) of
       (_,"","") -> doWork parts
       (_,_,"") -> doWork (filterChapter parts chapterId)
       (_,_,_) -> doWork (filterSection parts chapterId sectionId)
 
-extractSrcFromParts' :: [Part] -> String -> IO ()
-extractSrcFromParts' parts defaultfile = do
+extractSrcFromElements' :: [Element] -> String -> IO ()
+extractSrcFromElements' parts defaultfile = do
   forM_ parts $ \part ->
     case part of
       Chapter title props parts ->
-        extractSrcFromParts' parts defaultfile
+        extractSrcFromElements' parts defaultfile
       Section title props parts ->
         do
           let secId = idProp title props
-          extractSrcFromParts' parts defaultfile
-      Slide _ parts -> extractSrcFromParts' parts defaultfile
-      Note _ _ parts -> extractSrcFromParts' parts defaultfile
+          extractSrcFromElements' parts defaultfile
+      Slide _ parts -> extractSrcFromElements' parts defaultfile
+      Note _ _ parts -> extractSrcFromElements' parts defaultfile
       Src srcType props str ->
         let file = tangleProp props
         in case (hasNoTangleProp props,file,defaultfile) of

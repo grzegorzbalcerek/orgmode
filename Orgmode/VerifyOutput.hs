@@ -14,24 +14,24 @@ import GHC.IO.Encoding
 import Data.List
 import Data.Char
 
-verifyOutput :: [Part] -> String -> String -> String -> IO ()
+verifyOutput :: [Element] -> String -> String -> String -> IO ()
 verifyOutput parts actualOutputFile chapterId sectionId = do
   forM_ parts $ \part ->
     case part of
-      Chapter title props chapterParts ->
+      Chapter title props chapterElements ->
         let chId = idProp title props
         in if chId == chapterId
-           then (if sectionId == "" then verifySection chapterParts actualOutputFile
-                                    else verifyOutput chapterParts actualOutputFile chapterId sectionId)
+           then (if sectionId == "" then verifySection chapterElements actualOutputFile
+                                    else verifyOutput chapterElements actualOutputFile chapterId sectionId)
            else return ()
-      Section title props sectionParts ->
+      Section title props sectionElements ->
         let secId = idProp title props
         in if secId == sectionId
-           then verifySection sectionParts actualOutputFile
+           then verifySection sectionElements actualOutputFile
            else return ()
       _ -> return ()
   
-verifySection :: [Part] -> String -> IO ()
+verifySection :: [Element] -> String -> IO ()
 verifySection parts path = do
   putStr $ "Verifying " ++ path ++ ": "
   inputExists <- doesFileExist path
@@ -40,7 +40,7 @@ verifySection parts path = do
     hinput <- openFile path ReadMode
     hSetEncoding hinput utf8
     actual <- hGetContents hinput
-    let expected = getSrcFromParts parts
+    let expected = getSrcFromElements parts
     --putStrLn $ show expected
     --putStrLn actual
     let result = verifyExpectedAndActualOutputs (map (filter (/='\r')) expected) (filter (/='\r') actual)
@@ -50,8 +50,8 @@ verifySection parts path = do
     putStrLn "file not found"
   
 
-getSrcFromParts :: [Part] -> [String]
-getSrcFromParts =
+getSrcFromElements :: [Element] -> [String]
+getSrcFromElements =
   foldr getSrc []
   where getSrc part acc =
           case part of

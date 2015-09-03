@@ -15,9 +15,9 @@ import Debug.Trace
 
 ----------------------------------------------------
 
-renderLatex :: RenderType -> [Part] -> String
+renderLatex :: RenderType -> [Element] -> String
 renderLatex rt parts =
-  (concat $ renderPart rt parts `fmap` parts) ++
+  (concat $ renderElement rt parts `fmap` parts) ++
   latexEnd
 
 ----------------------------------------------------
@@ -62,19 +62,19 @@ imageHeight 'r' = 24
 imageHeight 'j' = 34
 imageHeight 'w' = 34
 
-renderPart :: RenderType -> [Part] -> Part -> String
-renderPart _ _ EmptyPart = ""
-renderPart Article _ (Latex "Article" content) = content
-renderPart Book _ (Latex "Book" content) = content
-renderPart Slides _ (Latex "Slides" content) = content
-renderPart Slides _ (Paragraph _ txt) = ""
-renderPart _ allParts (Paragraph props txt) = "\n\n" ++ renderIndexEntries props ++ renderText allParts txt
-renderPart _ _ (Slide title parts) =
+renderElement :: RenderType -> [Element] -> Element -> String
+renderElement _ _ EmptyElement = ""
+renderElement Article _ (Latex "Article" content) = content
+renderElement Book _ (Latex "Book" content) = content
+renderElement Slides _ (Latex "Slides" content) = content
+renderElement Slides _ (Paragraph _ txt) = ""
+renderElement _ allElements (Paragraph props txt) = "\n\n" ++ renderIndexEntries props ++ renderText allElements txt
+renderElement _ _ (Slide title parts) =
   "\\begin{frame}[fragile]\n" ++
   (if title == "" then "" else "\\frametitle{" ++ title ++ "}\n") ++
-  concat (renderSlidePart `fmap` parts) ++
+  concat (renderSlideElement `fmap` parts) ++
   "\\end{frame}\n"
-renderPart rt allParts (Chapter title props parts) =
+renderElement rt allElements (Chapter title props parts) =
   let label = labelProp props
   in
     (if label == ""
@@ -83,13 +83,13 @@ renderPart rt allParts (Chapter title props parts) =
     "\\renewcommand{\\firstsectiontitle}{" ++ firstSectionTitle parts ++ "}" ++
     "\\chapter" ++
     (if label == "" then "*" else "") ++
-    "{" ++ renderText allParts title ++ "}\n" ++
+    "{" ++ renderText allElements title ++ "}\n" ++
     (if label == ""
      then "\\addcontentsline{toc}{chapter}{" ++ title ++ "}" ++
           "\\markboth{" ++ title ++ "}{" ++ firstSectionTitle parts ++ "}"
      else "") ++
-    concat (map (renderPart rt allParts) parts) ++ "\n"
-renderPart rt allParts (Section title props parts) =
+    concat (map (renderElement rt allElements) parts) ++ "\n"
+renderElement rt allElements (Section title props parts) =
   let label = labelProp props
   in
     (if label == ""
@@ -97,32 +97,32 @@ renderPart rt allParts (Section title props parts) =
      else "\\setcounter{section}{" ++ label ++ "}\\addtocounter{section}{-1}") ++
     "\n\\section" ++
     (if label == "" then "*" else "") ++
-    "{" ++ renderText allParts title ++ "}\n" ++
+    "{" ++ renderText allElements title ++ "}\n" ++
     (if label == "" then "\\addcontentsline{toc}{section}{" ++ title ++ "}" else "") ++
-    concat (map (renderPart rt allParts) parts) ++ "\n"
-renderPart _ allParts (Items props items) =
-  renderIndexEntries props ++ "\n\\begin{itemize}\n" ++ concat (map (renderItem allParts) items) ++  "\\end{itemize}\n"
-renderPart rt allParts (Note noteType props parts) =
+    concat (map (renderElement rt allElements) parts) ++ "\n"
+renderElement _ allElements (Items props items) =
+  renderIndexEntries props ++ "\n\\begin{itemize}\n" ++ concat (map (renderItem allElements) items) ++  "\\end{itemize}\n"
+renderElement rt allElements (Note noteType props parts) =
   "\n\n" ++ renderIndexEntries props ++ "\\begin{tabular}{lp{1cm}p{11.2cm}}\n" ++
   "\\cline{2-3}\\noalign{\\smallskip}\n" ++
   "&\\raisebox{-" ++ (show $ (imageHeight $ head noteType) - 10) ++
   "pt}{\\includegraphics[height=" ++ (show.imageHeight $ head noteType) ++ "pt]{" ++
   [head noteType] ++ "sign.png" ++ -- (if head noteType == 'r' then ".png" else ".eps") ++
   "}}&\\small\\setlength{\\parskip}{2mm}" ++
-  concat (map (renderPart InNote allParts) parts) ++
+  concat (map (renderElement InNote allElements) parts) ++
   "\\\\ \\noalign{\\smallskip}\\cline{2-3}\n\\end{tabular}\n\n"
-renderPart rt allParts (Src srcType props src) =
+renderElement rt allElements (Src srcType props src) =
   if hasMkSlideProp props
-  then renderPart rt allParts (Slide "" [Src srcType props src])
+  then renderElement rt allElements (Slide "" [Src srcType props src])
   else renderSrc rt srcType props src
-renderPart rt allParts (Table props rows) =
+renderElement rt allElements (Table props rows) =
   let renderCell cell = renderText [] cell ++ "&"
       renderRow row = init (concat (map renderCell row)) ++ "\\\\ \n"
   in
     "\n\\begin{longtable}{lll}\n" ++
     concat (map renderRow rows) ++
     "\n\\end{longtable}\n"
-renderPart rt allParts (Img props filename) =
+renderElement rt allElements (Img props filename) =
   let label = labelProp props
       latex1 = latex1Prop props
       latex2 = latex2Prop props
@@ -132,10 +132,10 @@ renderPart rt allParts (Img props filename) =
      else
        "\\begin{center}\n" ++
        "\\includegraphics" ++ latex2 ++ "{" ++ filename ++ latex1 ++ "}\\par\n" ++
-       renderText allParts label ++
+       renderText allElements label ++
        "\n\\end{center}\n"
-renderPart _ _ ShowIndex = "\\printindex\n"
-renderPart _ _ _ = ""
+renderElement _ _ ShowIndex = "\\printindex\n"
+renderElement _ _ _ = ""
 
 ----------------------------------------------------
 
@@ -179,10 +179,10 @@ renderSrc rt srcType props src =
 
 ----------------------------------------------------
 
-renderSlidePart :: Part -> String
-renderSlidePart (Items props items) =
+renderSlideElement :: Element -> String
+renderSlideElement (Items props items) =
   "\\begin{itemize}\n" ++ concat (map (renderItem []) items) ++  "\\end{itemize}\n"
-renderSlidePart (Src srcType props content) =
+renderSlideElement (Src srcType props content) =
   if hasNoRenderProp props
   then ""
   else 
@@ -219,20 +219,20 @@ renderSlidePart (Src srcType props content) =
            Just (Block t) -> "\\begin{block}{" ++ t ++ "}\n" ++ verbatimContent content ++ "\\end{block}\n"
            Just (ExampleBlock t) -> "\\begin{exampleblock}{" ++ t ++ "}\n" ++ verbatimContent content ++ "\\end{exampleblock}\n"
            _ -> verbatimContent content)
-renderSlidePart (Header scale content) =
+renderSlideElement (Header scale content) =
   "\\centerline{\\tikz{\\node[scale=" ++ show scale ++ "]{" ++ content ++ "};}}\n"
-renderSlidePart Pause = "\\pause\n"
-renderSlidePart (Img props img) =
+renderSlideElement Pause = "\\pause\n"
+renderSlideElement (Img props img) =
   "\\begin{center}\n\\includegraphics{" ++ img ++ "}\n\\end{center}\n"
-renderSlidePart Skipped = ""
-renderSlidePart (Latex _ content) = content
-renderSlidePart _ = ""
+renderSlideElement Skipped = ""
+renderSlideElement (Latex _ content) = content
+renderSlideElement _ = ""
 
 ----------------------------------------------------
 
-renderItem :: [Part] -> Part -> String
-renderItem allParts (Item item) =
-  "\\item{" ++ renderText allParts item ++ "}\n"
+renderItem :: [Element] -> Element -> String
+renderItem allElements (Item item) =
+  "\\item{" ++ renderText allElements item ++ "}\n"
 renderItem _ Pause = "\\pause\n"
 
 ----------------------------------------------------
@@ -256,143 +256,143 @@ renderIndex x =
         g c = c /= '!' && c /= '¡'
         k c = if c == '"' then '#' else c
 
-renderText :: [Part] -> String -> String
+renderText :: [Element] -> String -> String
 renderText _ "" = ""
-renderText allParts (c:acc) =
+renderText allElements (c:acc) =
           case (c, break (c ==) acc) of
-            ('⒡',(file,_:acc')) -> "\\textit{" ++ renderText allParts file ++ "}" ++ renderText allParts acc'
-            ('⒰',(url,_:acc')) -> "\\textit{" ++ renderText allParts url ++ "}" ++ renderText allParts acc'
-            ('⒤',(text,_:acc')) -> "\\textit{" ++ renderText allParts text ++ "}" ++ renderText allParts acc'
-            ('⒞',(code,_:acc')) -> "\\texttt{" ++ renderText allParts code ++ "}" ++ renderText allParts acc'
-            ('⒳',(x,_:acc')) -> "\\index{" ++ renderIndex x ++ "}" ++ renderText allParts acc'
+            ('⒡',(file,_:acc')) -> "\\textit{" ++ renderText allElements file ++ "}" ++ renderText allElements acc'
+            ('⒰',(url,_:acc')) -> "\\textit{" ++ renderText allElements url ++ "}" ++ renderText allElements acc'
+            ('⒤',(text,_:acc')) -> "\\textit{" ++ renderText allElements text ++ "}" ++ renderText allElements acc'
+            ('⒞',(code,_:acc')) -> "\\texttt{" ++ renderText allElements code ++ "}" ++ renderText allElements acc'
+            ('⒳',(x,_:acc')) -> "\\index{" ++ renderIndex x ++ "}" ++ renderText allElements acc'
             ('⒭',(ref,_:acc')) ->
               case break (','==) ref of
-                (chId,[]) ->  chapterReference allParts chId ++ renderText allParts acc'
-                (chId,_:secId) -> sectionReference allParts chId secId ++ renderText allParts acc'
-            ('|',_) -> "{\\fontencoding{T1}\\selectfont\\char124}" ++ renderText allParts acc
-            ('!',_) -> "{\\fontencoding{T1}\\selectfont\\char33}" ++ renderText allParts acc
-            ('"',_) -> "{\\fontencoding{T1}\\selectfont\\char34}" ++ renderText allParts acc
-            ('#',_) -> "{\\fontencoding{T1}\\selectfont\\char35}" ++ renderText allParts acc
-            ('$',_) -> "{\\fontencoding{T1}\\selectfont\\char36}" ++ renderText allParts acc
-            ('%',_) -> "{\\fontencoding{T1}\\selectfont\\char37}" ++ renderText allParts acc
-            ('_',_) -> "{\\fontencoding{T1}\\selectfont\\char95}" ++ renderText allParts acc
-            ('>',_) -> "{\\fontencoding{QX}\\selectfont\\char131}" ++ renderText allParts acc
-            ('<',_) -> "{\\fontencoding{QX}\\selectfont\\char136}" ++ renderText allParts acc
-            ('℃',_) -> "{\\fontencoding{TS1}\\selectfont\\char137}" ++ renderText allParts acc
-            ('Σ',_) -> "{\\fontencoding{QX}\\selectfont\\char6}" ++ renderText allParts acc
-            ('Ω',_) -> "{\\fontencoding{TS1}\\selectfont\\char87}" ++ renderText allParts acc
-            ('←',_) -> "{\\fontencoding{TS1}\\selectfont\\char24}" ++ renderText allParts acc
-            ('→',_) -> "{\\fontencoding{TS1}\\selectfont\\char25}" ++ renderText allParts acc
-            ('⇒',_) -> "{\\includegraphics[width=7pt]{doublerightarrow.png}}" ++ renderText allParts acc
-            ('−',_) -> "{\\fontencoding{TS1}\\selectfont\\char61}" ++ renderText allParts acc
-            ('–',_) -> "--" ++ renderText allParts acc
-            ('—',_) -> "---" ++ renderText allParts acc
-            ('∞',_) -> "{\\fontencoding{QX}\\selectfont\\char173}" ++ renderText allParts acc
-            ('^',_) -> "{\\fontencoding{T1}\\selectfont\\char94}" ++ renderText allParts acc
-            ('{',_) -> "{\\fontencoding{T1}\\selectfont\\char123}" ++ renderText allParts acc
-            ('}',_) -> "{\\fontencoding{T1}\\selectfont\\char125}" ++ renderText allParts acc
-            ('\\',_) -> "{\\fontencoding{T1}\\selectfont\\char92}" ++ renderText allParts acc
-            ('&',_) -> "{\\fontencoding{T1}\\selectfont\\char38}" ++ renderText allParts acc
-            ('\'',_) -> "{\\fontencoding{T1}\\selectfont\\char39}" ++ renderText allParts acc
-            ('…',_) -> "{\\fontencoding{QX}\\selectfont\\char8}" ++ renderText allParts acc
-            ('①',_) -> whiteCircleText 1 ++ renderText allParts acc
-            ('②',_) -> whiteCircleText 2 ++ renderText allParts acc
-            ('③',_) -> whiteCircleText 3 ++ renderText allParts acc
-            ('④',_) -> whiteCircleText 4 ++ renderText allParts acc
-            ('⑤',_) -> whiteCircleText 5 ++ renderText allParts acc
-            ('⑥',_) -> whiteCircleText 6 ++ renderText allParts acc
-            ('⑦',_) -> whiteCircleText 7 ++ renderText allParts acc
-            ('⑧',_) -> whiteCircleText 8 ++ renderText allParts acc
-            ('⑨',_) -> whiteCircleText 9 ++ renderText allParts acc
-            ('⑩',_) -> whiteCircleText 10 ++ renderText allParts acc
-            ('⑪',_) -> whiteCircleText 11 ++ renderText allParts acc
-            ('⑫',_) -> whiteCircleText 12 ++ renderText allParts acc
-            ('⑬',_) -> whiteCircleText 13 ++ renderText allParts acc
-            ('⑭',_) -> whiteCircleText 14 ++ renderText allParts acc
-            ('⑮',_) -> whiteCircleText 15 ++ renderText allParts acc
-            ('⑯',_) -> whiteCircleText 16 ++ renderText allParts acc
-            ('⑰',_) -> whiteCircleText 17 ++ renderText allParts acc
-            ('⑱',_) -> whiteCircleText 18 ++ renderText allParts acc
-            ('⑲',_) -> whiteCircleText 19 ++ renderText allParts acc
-            ('⑳',_) -> whiteCircleText 20 ++ renderText allParts acc
-            ('㉑',_) -> whiteCircleText 21 ++ renderText allParts acc
-            ('㉒',_) -> whiteCircleText 22 ++ renderText allParts acc
-            ('㉓',_) -> whiteCircleText 23 ++ renderText allParts acc
-            ('㉔',_) -> whiteCircleText 24 ++ renderText allParts acc
-            ('㉕',_) -> whiteCircleText 25 ++ renderText allParts acc
-            ('㉖',_) -> whiteCircleText 26 ++ renderText allParts acc
-            ('㉗',_) -> whiteCircleText 27 ++ renderText allParts acc
-            ('㉘',_) -> whiteCircleText 28 ++ renderText allParts acc
-            ('㉙',_) -> whiteCircleText 29 ++ renderText allParts acc
-            ('㉚',_) -> whiteCircleText 30 ++ renderText allParts acc
-            ('㉛',_) -> whiteCircleText 31 ++ renderText allParts acc
-            ('㉜',_) -> whiteCircleText 32 ++ renderText allParts acc
-            ('㉝',_) -> whiteCircleText 33 ++ renderText allParts acc
-            ('㉞',_) -> whiteCircleText 34 ++ renderText allParts acc
-            ('㉟',_) -> whiteCircleText 35 ++ renderText allParts acc
-            ('❶',_) -> blackCircleText 1 ++ renderText allParts acc
-            ('❷',_) -> blackCircleText 2 ++ renderText allParts acc
-            ('❸',_) -> blackCircleText 3 ++ renderText allParts acc
-            ('❹',_) -> blackCircleText 4 ++ renderText allParts acc
-            ('❺',_) -> blackCircleText 5 ++ renderText allParts acc
-            ('❻',_) -> blackCircleText 6 ++ renderText allParts acc
-            ('❼',_) -> blackCircleText 7 ++ renderText allParts acc
-            ('❽',_) -> blackCircleText 8 ++ renderText allParts acc
-            ('❾',_) -> blackCircleText 9 ++ renderText allParts acc
-            ('❿',_) -> blackCircleText 10 ++ renderText allParts acc
-            ('⓫',_) -> blackCircleText 11 ++ renderText allParts acc
-            ('⓬',_) -> blackCircleText 12 ++ renderText allParts acc
-            ('⓭',_) -> blackCircleText 13 ++ renderText allParts acc
-            ('⓮',_) -> blackCircleText 14 ++ renderText allParts acc
-            ('⓯',_) -> blackCircleText 15 ++ renderText allParts acc
-            ('⓰',_) -> blackCircleText 16 ++ renderText allParts acc
-            ('⓱',_) -> blackCircleText 17 ++ renderText allParts acc
-            ('⓲',_) -> blackCircleText 18 ++ renderText allParts acc
-            ('⓳',_) -> blackCircleText 19 ++ renderText allParts acc
-            ('⓴',_) -> blackCircleText 20 ++ renderText allParts acc
-            _ -> c:renderText allParts acc
+                (chId,[]) ->  chapterReference allElements chId ++ renderText allElements acc'
+                (chId,_:secId) -> sectionReference allElements chId secId ++ renderText allElements acc'
+            ('|',_) -> "{\\fontencoding{T1}\\selectfont\\char124}" ++ renderText allElements acc
+            ('!',_) -> "{\\fontencoding{T1}\\selectfont\\char33}" ++ renderText allElements acc
+            ('"',_) -> "{\\fontencoding{T1}\\selectfont\\char34}" ++ renderText allElements acc
+            ('#',_) -> "{\\fontencoding{T1}\\selectfont\\char35}" ++ renderText allElements acc
+            ('$',_) -> "{\\fontencoding{T1}\\selectfont\\char36}" ++ renderText allElements acc
+            ('%',_) -> "{\\fontencoding{T1}\\selectfont\\char37}" ++ renderText allElements acc
+            ('_',_) -> "{\\fontencoding{T1}\\selectfont\\char95}" ++ renderText allElements acc
+            ('>',_) -> "{\\fontencoding{QX}\\selectfont\\char131}" ++ renderText allElements acc
+            ('<',_) -> "{\\fontencoding{QX}\\selectfont\\char136}" ++ renderText allElements acc
+            ('℃',_) -> "{\\fontencoding{TS1}\\selectfont\\char137}" ++ renderText allElements acc
+            ('Σ',_) -> "{\\fontencoding{QX}\\selectfont\\char6}" ++ renderText allElements acc
+            ('Ω',_) -> "{\\fontencoding{TS1}\\selectfont\\char87}" ++ renderText allElements acc
+            ('←',_) -> "{\\fontencoding{TS1}\\selectfont\\char24}" ++ renderText allElements acc
+            ('→',_) -> "{\\fontencoding{TS1}\\selectfont\\char25}" ++ renderText allElements acc
+            ('⇒',_) -> "{\\includegraphics[width=7pt]{doublerightarrow.png}}" ++ renderText allElements acc
+            ('−',_) -> "{\\fontencoding{TS1}\\selectfont\\char61}" ++ renderText allElements acc
+            ('–',_) -> "--" ++ renderText allElements acc
+            ('—',_) -> "---" ++ renderText allElements acc
+            ('∞',_) -> "{\\fontencoding{QX}\\selectfont\\char173}" ++ renderText allElements acc
+            ('^',_) -> "{\\fontencoding{T1}\\selectfont\\char94}" ++ renderText allElements acc
+            ('{',_) -> "{\\fontencoding{T1}\\selectfont\\char123}" ++ renderText allElements acc
+            ('}',_) -> "{\\fontencoding{T1}\\selectfont\\char125}" ++ renderText allElements acc
+            ('\\',_) -> "{\\fontencoding{T1}\\selectfont\\char92}" ++ renderText allElements acc
+            ('&',_) -> "{\\fontencoding{T1}\\selectfont\\char38}" ++ renderText allElements acc
+            ('\'',_) -> "{\\fontencoding{T1}\\selectfont\\char39}" ++ renderText allElements acc
+            ('…',_) -> "{\\fontencoding{QX}\\selectfont\\char8}" ++ renderText allElements acc
+            ('①',_) -> whiteCircleText 1 ++ renderText allElements acc
+            ('②',_) -> whiteCircleText 2 ++ renderText allElements acc
+            ('③',_) -> whiteCircleText 3 ++ renderText allElements acc
+            ('④',_) -> whiteCircleText 4 ++ renderText allElements acc
+            ('⑤',_) -> whiteCircleText 5 ++ renderText allElements acc
+            ('⑥',_) -> whiteCircleText 6 ++ renderText allElements acc
+            ('⑦',_) -> whiteCircleText 7 ++ renderText allElements acc
+            ('⑧',_) -> whiteCircleText 8 ++ renderText allElements acc
+            ('⑨',_) -> whiteCircleText 9 ++ renderText allElements acc
+            ('⑩',_) -> whiteCircleText 10 ++ renderText allElements acc
+            ('⑪',_) -> whiteCircleText 11 ++ renderText allElements acc
+            ('⑫',_) -> whiteCircleText 12 ++ renderText allElements acc
+            ('⑬',_) -> whiteCircleText 13 ++ renderText allElements acc
+            ('⑭',_) -> whiteCircleText 14 ++ renderText allElements acc
+            ('⑮',_) -> whiteCircleText 15 ++ renderText allElements acc
+            ('⑯',_) -> whiteCircleText 16 ++ renderText allElements acc
+            ('⑰',_) -> whiteCircleText 17 ++ renderText allElements acc
+            ('⑱',_) -> whiteCircleText 18 ++ renderText allElements acc
+            ('⑲',_) -> whiteCircleText 19 ++ renderText allElements acc
+            ('⑳',_) -> whiteCircleText 20 ++ renderText allElements acc
+            ('㉑',_) -> whiteCircleText 21 ++ renderText allElements acc
+            ('㉒',_) -> whiteCircleText 22 ++ renderText allElements acc
+            ('㉓',_) -> whiteCircleText 23 ++ renderText allElements acc
+            ('㉔',_) -> whiteCircleText 24 ++ renderText allElements acc
+            ('㉕',_) -> whiteCircleText 25 ++ renderText allElements acc
+            ('㉖',_) -> whiteCircleText 26 ++ renderText allElements acc
+            ('㉗',_) -> whiteCircleText 27 ++ renderText allElements acc
+            ('㉘',_) -> whiteCircleText 28 ++ renderText allElements acc
+            ('㉙',_) -> whiteCircleText 29 ++ renderText allElements acc
+            ('㉚',_) -> whiteCircleText 30 ++ renderText allElements acc
+            ('㉛',_) -> whiteCircleText 31 ++ renderText allElements acc
+            ('㉜',_) -> whiteCircleText 32 ++ renderText allElements acc
+            ('㉝',_) -> whiteCircleText 33 ++ renderText allElements acc
+            ('㉞',_) -> whiteCircleText 34 ++ renderText allElements acc
+            ('㉟',_) -> whiteCircleText 35 ++ renderText allElements acc
+            ('❶',_) -> blackCircleText 1 ++ renderText allElements acc
+            ('❷',_) -> blackCircleText 2 ++ renderText allElements acc
+            ('❸',_) -> blackCircleText 3 ++ renderText allElements acc
+            ('❹',_) -> blackCircleText 4 ++ renderText allElements acc
+            ('❺',_) -> blackCircleText 5 ++ renderText allElements acc
+            ('❻',_) -> blackCircleText 6 ++ renderText allElements acc
+            ('❼',_) -> blackCircleText 7 ++ renderText allElements acc
+            ('❽',_) -> blackCircleText 8 ++ renderText allElements acc
+            ('❾',_) -> blackCircleText 9 ++ renderText allElements acc
+            ('❿',_) -> blackCircleText 10 ++ renderText allElements acc
+            ('⓫',_) -> blackCircleText 11 ++ renderText allElements acc
+            ('⓬',_) -> blackCircleText 12 ++ renderText allElements acc
+            ('⓭',_) -> blackCircleText 13 ++ renderText allElements acc
+            ('⓮',_) -> blackCircleText 14 ++ renderText allElements acc
+            ('⓯',_) -> blackCircleText 15 ++ renderText allElements acc
+            ('⓰',_) -> blackCircleText 16 ++ renderText allElements acc
+            ('⓱',_) -> blackCircleText 17 ++ renderText allElements acc
+            ('⓲',_) -> blackCircleText 18 ++ renderText allElements acc
+            ('⓳',_) -> blackCircleText 19 ++ renderText allElements acc
+            ('⓴',_) -> blackCircleText 20 ++ renderText allElements acc
+            _ -> c:renderText allElements acc
 
 -- ⒰ url
 -- ⒞ code
 -- ⒡ file
 
-chapterReference :: [Part] -> String -> (String)
+chapterReference :: [Element] -> String -> (String)
 chapterReference parts chapterId =
   case parts of
-    (Chapter title props _):tailParts ->
+    (Chapter title props _):tailElements ->
       let chId = idProp title props
           chLabel = labelProp props
       in
           if chId == chapterId
           then chLabel
-          else chapterReference tailParts chapterId
-    _:tailParts -> chapterReference tailParts chapterId
+          else chapterReference tailElements chapterId
+    _:tailElements -> chapterReference tailElements chapterId
     _ -> error $ "Unable to find chapter reference for chapter id: " ++ chapterId
 
-sectionReference :: [Part] -> String -> String -> (String)
+sectionReference :: [Element] -> String -> String -> (String)
 sectionReference parts chapterId sectionId =
   case parts of
-    (Chapter title props chapterParts):tailParts ->
+    (Chapter title props chapterElements):tailElements ->
       let chId = idProp title props
           chLabel = labelProp props
       in
           if chId == chapterId
-          then sectionReference' chapterParts chId chLabel sectionId
-          else sectionReference tailParts chapterId sectionId
-    _:tailParts -> sectionReference tailParts chapterId sectionId
+          then sectionReference' chapterElements chId chLabel sectionId
+          else sectionReference tailElements chapterId sectionId
+    _:tailElements -> sectionReference tailElements chapterId sectionId
     _ -> error $ "Unable to find chapter/section reference for chapter/section: " ++ chapterId ++ "," ++ sectionId
 
-sectionReference' :: [Part] -> String -> String -> String -> (String)
+sectionReference' :: [Element] -> String -> String -> String -> (String)
 sectionReference' parts chapterId chapterLabel sectionId =
   case parts of
-    (Section title props _):tailParts ->
+    (Section title props _):tailElements ->
       let secId = idProp title props
           secLabel = labelProp props
       in
           if secId == sectionId
           then chapterLabel ++ "." ++ secLabel
-          else sectionReference' tailParts chapterId chapterLabel sectionId
-    _:tailParts -> sectionReference' tailParts chapterId chapterLabel sectionId
+          else sectionReference' tailElements chapterId chapterLabel sectionId
+    _:tailElements -> sectionReference' tailElements chapterId chapterLabel sectionId
     _ -> error $ "Unable to find section reference within chapter " ++ chapterId ++ " for section id: " ++ sectionId
 
 ----------------------------------------------------

@@ -14,7 +14,7 @@ import Data.String (words)
 
 type P = Parsec String ()
 
-parseInput :: String -> [Part]
+parseInput :: String -> [Element]
 parseInput input =
     case (parse entry "error" input) of
       Right result -> result
@@ -22,20 +22,20 @@ parseInput input =
 
 ----------------------------------------------------
 
-entry :: P [Part]
+entry :: P [Element]
 entry = do
   propLine
   (try groups) <|> (try topLevels)
 
 ----------------------------------------------------
 
-topLevels :: P [Part]
+topLevels :: P [Element]
 topLevels = do
   results <- many1 (try $ topLevel 1)
   try (stop >> return ()) <|> eof
   return results
 
-topLevel :: Int -> P Part
+topLevel :: Int -> P Element
 topLevel level =
   try (slide level)<|>
   try (paragraph level) <|>
@@ -49,13 +49,13 @@ topLevel level =
 
 ----------------------------------------------------
 
-groups :: P [Part]
+groups :: P [Element]
 groups = do
   gs <- many1 (try $ group 1)
   try (stop >> return ()) <|> eof
   return $ concat gs
 
-group :: Int -> P [Part]
+group :: Int -> P [Element]
 group level = do
   asteriskLine level "GROUP"
   content <- many (topLevel $ level + 1)
@@ -63,7 +63,7 @@ group level = do
 
 ----------------------------------------------------
 
-chapter :: Int -> P Part
+chapter :: Int -> P Element
 chapter level = do
   (title,props) <- asteriskLineWithProps level "CHAPTER"
   content <- many (chapterElement $ level + 1)
@@ -84,7 +84,7 @@ chapterElement level =
 
 ----------------------------------------------------
 
-section :: Int -> P Part
+section :: Int -> P Element
 section level = do
   (title,props) <- asteriskLineWithProps level "SECTION"
   content <- many (sectionElement (level+1))
@@ -125,7 +125,7 @@ slideElement level =
 comment level = do
   asteriskLine level "COMMENT"
   content <- many (slideElement $ level + 1)
-  return $ EmptyPart
+  return $ EmptyElement
 
 ----------------------------------------------------
 
