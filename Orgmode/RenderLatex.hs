@@ -67,12 +67,19 @@ renderElement _ _ EmptyElement = ""
 renderElement Article _ (Latex "Article" content) = content
 renderElement Book _ (Latex "Book" content) = content
 renderElement Slides _ (Latex "Slides" content) = content
+renderElement _ _ Pause = "\\pause\n"
+renderElement _ allElements (Item item) =
+  "\\item{" ++ renderText allElements item ++ "}\n"
+renderElement _ _ (Header scale content) =
+  "\\centerline{\\tikz{\\node[scale=" ++ show scale ++ "]{" ++ content ++ "};}}\n"
 renderElement Slides _ (Paragraph _ txt) = ""
-renderElement _ allElements (Paragraph props txt) = "\n\n" ++ renderIndexEntries props ++ renderText allElements txt
-renderElement _ _ (Slide title parts) =
+renderElement _ _ Skipped = ""
+renderElement _ allElements (Paragraph props txt) =
+  "\n\n" ++ renderIndexEntries props ++ renderText allElements txt
+renderElement rt allElements (Slide title parts) =
   "\\begin{frame}[fragile]\n" ++
   (if title == "" then "" else "\\frametitle{" ++ title ++ "}\n") ++
-  concat (renderSlideElement `fmap` parts) ++
+  concat (renderElement rt allElements `fmap` parts) ++
   "\\end{frame}\n"
 renderElement Slides allElements (Chapter title props parts) =
   concat (map (renderElement Slides allElements) parts) ++ "\n"
@@ -104,8 +111,8 @@ renderElement rt allElements (Section title props parts) =
     "{" ++ renderText allElements title ++ "}\n" ++
     (if label == "" then "\\addcontentsline{toc}{section}{" ++ title ++ "}" else "") ++
     concat (map (renderElement rt allElements) parts) ++ "\n"
-renderElement _ allElements (Items props items) =
-  renderIndexEntries props ++ "\n\\begin{itemize}\n" ++ concat (map (renderItem allElements) items) ++  "\\end{itemize}\n"
+renderElement rt allElements (Items props items) =
+  renderIndexEntries props ++ "\n\\begin{itemize}\n" ++ concat (map (renderElement rt allElements) items) ++  "\\end{itemize}\n"
 renderElement rt allElements (Note noteType props parts) =
   "\n\n" ++ renderIndexEntries props ++ "\\begin{tabular}{lp{1cm}p{11.2cm}}\n" ++
   "\\cline{2-3}\\noalign{\\smallskip}\n" ++
@@ -115,10 +122,12 @@ renderElement rt allElements (Note noteType props parts) =
   "}}&\\small\\setlength{\\parskip}{2mm}" ++
   concat (map (renderElement InNote allElements) parts) ++
   "\\\\ \\noalign{\\smallskip}\\cline{2-3}\n\\end{tabular}\n\n"
-renderElement rt allElements (Src srcType props src) =
+renderElement Slides allElements (Src srcType props src) =
   if hasSlideProp props
-  then renderElement rt allElements (Slide "" [Src srcType props src])
-  else renderSrc rt srcType props src
+  then "\\begin{frame}[fragile]\n" ++ renderSrcSlides (Src srcType props src) ++ "\\end{frame}\n"
+  else renderSrcSlides (Src srcType props src)
+renderElement rt allElements (Src srcType props src) =
+  renderSrcBook rt srcType props src
 renderElement rt allElements (Table props rows) =
   let renderCell cell = renderText [] cell ++ "&"
       renderRow row = init (concat (map renderCell row)) ++ "\\\\ \n"
@@ -132,7 +141,7 @@ renderElement rt allElements (Img props filename) =
       latex2 = latex2Prop props
   in if label == ""
      then
-       "\n\n\\includegraphics" ++ latex2 ++ "{" ++ filename ++ latex1 ++ "}\n\n"
+       "\n\n\\begin{center}\n\\includegraphics" ++ latex2 ++ "{" ++ filename ++ latex1 ++ "}\n\\end{center}\n"
      else
        "\\begin{center}\n" ++
        "\\includegraphics" ++ latex2 ++ "{" ++ filename ++ latex1 ++ "}\\par\n" ++
@@ -156,7 +165,7 @@ renderIndexEntries =
 
 ----------------------------------------------------
 
-renderSrc rt srcType props src =
+renderSrcBook rt srcType props src =
   let boldCommand line =
         if (take 2 line == "$ ") then "$ \\textbf{" ++ drop 2 line ++ "}"
         else if (take 7 line == "scala> ") then "scala> \\textbf{" ++ drop 7 line ++ "}"
@@ -164,13 +173,13 @@ renderSrc rt srcType props src =
         else line
       boldCommands = unlines . map boldCommand . lines
       fileName = tangleFileName props
-      renderConsoleLike = boldCommands (renderSourceSimple srcType props (divideLongLines 89 src))
+      renderConsoleLike = boldCommands (renderSourceBook srcType props (divideLongLines 89 src))
       renderFile =
              (if fileName == ""
               then ""
               else "\\includegraphics[width=7pt]{filesign.png} \\textbf{Plik " ++ fileName ++
                 (if hasFragmentProp props then " (fragment)" else "") ++ ":}\n") ++
-             renderSourceSimple srcType props (divideLongLines 89 src)
+             renderSourceBook srcType props (divideLongLines 89 src)
       render =
         if isConsoleProp props || srcType == "cmd"
         then renderConsoleLike
@@ -183,10 +192,7 @@ renderSrc rt srcType props src =
 
 ----------------------------------------------------
 
-renderSlideElement :: Element -> String
-renderSlideElement (Items props items) =
-  "\\begin{itemize}\n" ++ concat (map (renderItem []) items) ++  "\\end{itemize}\n"
-renderSlideElement (Src srcType props content) =
+renderSrcSlides (Src srcType props content) =
   if hasNoRenderProp props
   then ""
   else 
@@ -214,7 +220,7 @@ renderSlideElement (Src srcType props content) =
           else "tiny"
         verbatimContent content =
           "\\begin{semiverbatim}\n" ++
-          renderSource srcType props content ++
+          renderSourceSlides srcType props content ++
           "\\end{semiverbatim}\n"
         pauseBeforeCmd = if isPauseBeforeProp props then "\\pause\n" else ""
     in
@@ -223,21 +229,6 @@ renderSlideElement (Src srcType props content) =
            Just (Block t) -> "\\begin{block}{" ++ t ++ "}\n" ++ verbatimContent content ++ "\\end{block}\n"
            Just (ExampleBlock t) -> "\\begin{exampleblock}{" ++ t ++ "}\n" ++ verbatimContent content ++ "\\end{exampleblock}\n"
            _ -> verbatimContent content)
-renderSlideElement (Header scale content) =
-  "\\centerline{\\tikz{\\node[scale=" ++ show scale ++ "]{" ++ content ++ "};}}\n"
-renderSlideElement Pause = "\\pause\n"
-renderSlideElement (Img props img) =
-  "\\begin{center}\n\\includegraphics{" ++ img ++ "}\n\\end{center}\n"
-renderSlideElement Skipped = ""
-renderSlideElement (Latex _ content) = content
-renderSlideElement _ = ""
-
-----------------------------------------------------
-
-renderItem :: [Element] -> Element -> String
-renderItem allElements (Item item) =
-  "\\item{" ++ renderText allElements item ++ "}\n"
-renderItem _ Pause = "\\pause\n"
 
 ----------------------------------------------------
 
@@ -401,8 +392,8 @@ sectionReference' parts chapterId chapterLabel sectionId =
 
 ----------------------------------------------------
 
-renderSource :: String -> [Prop] -> String -> String
-renderSource sourceType props src =
+renderSourceSlides :: String -> [Prop] -> String -> String
+renderSourceSlides sourceType props src =
   let keywordlike =
         keywordLikeProp props ++
         if sourceType == "scala" then ["val", "var", "def", "type", "trait", "abstract", "final", "match"
@@ -453,8 +444,8 @@ divideLongLine n line =
 
 divideLongLines n = unlines . map (divideLongLine n) . lines
 
-renderSourceSimple :: String -> [Prop] -> String -> String
-renderSourceSimple sourceType props src =
+renderSourceBook :: String -> [Prop] -> String -> String
+renderSourceBook sourceType props src =
   let f :: Char -> String -> String
       f c acc =
         case (c, break (c ==) acc) of
