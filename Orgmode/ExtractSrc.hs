@@ -17,14 +17,29 @@ import System.IO
 import GHC.IO.Encoding
 import Data.Char
 
+extractSrcFromElements :: [Element] -> String -> String -> String -> IO ()
+extractSrcFromElements elements defaultfile chapterId sectionId =
+  let doWork actualElements = do
+        truncateFile defaultfile
+        if defaultfile /= "-"
+        then truncateFiles actualElements
+        else return ()
+        extractSrcFromElements' actualElements defaultfile
+  in
+    case (defaultfile,chapterId,sectionId) of
+      (_,"","") -> doWork elements
+      (_,_,"") -> doWork (filterChapter elements chapterId)
+      (_,_,_) -> doWork (filterSection elements chapterId sectionId)
+
 truncateFiles :: [Element] -> IO ()
-truncateFiles parts =
-  forM_ parts $ \part ->
-    case part of
-      Chapter _ _ parts -> truncateFiles parts
-      Section _ _ parts -> truncateFiles parts
-      Slide _ parts -> truncateFiles parts
-      Note _  _ parts -> truncateFiles parts
+truncateFiles elements =
+  forM_ elements $ \element ->
+    case element of
+      Part _ _ elements -> truncateFiles elements
+      Chapter _ _ elements -> truncateFiles elements
+      Section _ _ elements -> truncateFiles elements
+      Slide _ elements -> truncateFiles elements
+      Note _  _ elements -> truncateFiles elements
       Src srcType props _ ->
         let file = tangleProp props
         in if file == ""
@@ -39,32 +54,20 @@ truncateFile file = do
   houtput <- safeOpenFileForWriting file
   hClose houtput
 
-extractSrcFromElements :: [Element] -> String -> String -> String -> IO ()
-extractSrcFromElements parts defaultfile chapterId sectionId =
-  let doWork actualElements = do
-        truncateFile defaultfile
-        if defaultfile /= "-"
-        then truncateFiles actualElements
-        else return ()
-        extractSrcFromElements' actualElements defaultfile
-  in
-    case (defaultfile,chapterId,sectionId) of
-      (_,"","") -> doWork parts
-      (_,_,"") -> doWork (filterChapter parts chapterId)
-      (_,_,_) -> doWork (filterSection parts chapterId sectionId)
-
 extractSrcFromElements' :: [Element] -> String -> IO ()
-extractSrcFromElements' parts defaultfile = do
-  forM_ parts $ \part ->
-    case part of
-      Chapter title props parts ->
-        extractSrcFromElements' parts defaultfile
-      Section title props parts ->
+extractSrcFromElements' elements defaultfile = do
+  forM_ elements $ \element ->
+    case element of
+      Part title props elements ->
+        extractSrcFromElements' elements defaultfile
+      Chapter title props elements ->
+        extractSrcFromElements' elements defaultfile
+      Section title props elements ->
         do
           let secId = idProp title props
-          extractSrcFromElements' parts defaultfile
-      Slide _ parts -> extractSrcFromElements' parts defaultfile
-      Note _ _ parts -> extractSrcFromElements' parts defaultfile
+          extractSrcFromElements' elements defaultfile
+      Slide _ elements -> extractSrcFromElements' elements defaultfile
+      Note _ _ elements -> extractSrcFromElements' elements defaultfile
       Src srcType props str ->
         let file = tangleProp props
         in case (hasNoTangleProp props,file,defaultfile) of
@@ -72,6 +75,7 @@ extractSrcFromElements' parts defaultfile = do
              (_,"","") -> return ()
              (_,"","-") -> putStrLn $ getSrcContent srcType props str
              (_,_,"-") -> return ()
+             (_,"","+") -> return ()
              (_,"",_) -> do writeToFile defaultfile $ getSrcContent srcType props str
                             writeToFile defaultfile "\n"
              _ -> writeToFile file $ getSrcContent srcType props str

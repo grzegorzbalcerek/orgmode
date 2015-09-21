@@ -8,7 +8,8 @@ cmd /c "u: && cd u:\github\orgmode && test && h:"
 import Data.List (intersperse)
 
 data Element =
-    Chapter String [Prop] [Element]
+    Part String [Prop] [Element]
+  | Chapter String [Prop] [Element]
   | Slide String [Element]
   | Section String [Prop] [Element]
   | Note String [Prop] [Element]
@@ -34,7 +35,7 @@ data Prop =
   | MinWidth Int
   | Style String
   | Fragment
-  | MkSlide
+  | SlideProp
   | NoTangle
   | NoRender
   | NoVerify
@@ -47,7 +48,7 @@ data Prop =
   | Latex2Prop String
   | HtmlProp String
   | Output
-  | Console
+  | Console String
   | PrependNewLines Int
   | PauseBefore
   | Label String
@@ -77,16 +78,17 @@ data RenderType =
   | Book
   | InNote
   deriving Eq
-inspectElements parts = "[" ++ concat (intersperse "," $ fmap inspectElement parts) ++ "]"
+inspectElements elements = "[" ++ concat (intersperse "," $ fmap inspectElement elements) ++ "]"
 
-inspectElement part = case part of
-  Chapter str _ parts -> "Chapter ... ... " ++ inspectElements parts
-  Slide str parts -> "Slide ... " ++ inspectElements parts
-  Section str _ parts -> "Section ... ... " ++ inspectElements parts
-  Note t _ parts -> "Note " ++ t ++ " ... " ++ inspectElements parts
+inspectElement element = case element of
+  Part str _ elements -> "Part ... ... " ++ inspectElements elements
+  Chapter str _ elements -> "Chapter ... ... " ++ inspectElements elements
+  Slide str elements -> "Slide ... " ++ inspectElements elements
+  Section str _ elements -> "Section ... ... " ++ inspectElements elements
+  Note t _ elements -> "Note " ++ t ++ " ... " ++ inspectElements elements
   EmptyElement -> "EmptyElement"
   ShowIndex -> "ShowIndex"
-  Items props parts -> "Items ... " ++ inspectElements parts
+  Items props elements -> "Items ... " ++ inspectElements elements
   Item str -> "Item ..."
   Latex str1 str2 -> "Latex ... ..."
   Paragraph props str -> "Paragraph ..."
@@ -148,7 +150,7 @@ styleProp =
 
 isConsoleProp =
   foldl (\acc p -> case p of
-                     Console -> True
+                     Console _ -> True
                      _ -> acc) False
 
 hasFragmentProp =
@@ -156,9 +158,9 @@ hasFragmentProp =
                      Fragment -> True
                      _ -> acc) False
 
-hasMkSlideProp =
+hasSlideProp =
   foldl (\acc p -> case p of
-                     MkSlide -> True
+                     SlideProp -> True
                      _ -> acc) False
 
 hasNoTangleProp =
@@ -239,36 +241,38 @@ constantLikeProp =
                      _ -> acc) []
 
 extractIndexEntries :: String -> String -> Element -> [IndexEntry]
-extractIndexEntries _ _ (Chapter title props parts) =
+extractIndexEntries _ _ (Chapter title props elements) =
   let chId = idProp title props
       chLabel = labelProp props
   in
-      indexEntriesFromProps chId chLabel props ++ (parts >>= extractIndexEntries chId chLabel)
-extractIndexEntries chId chLabel (Section title props parts) =
+      indexEntriesFromProps chId chLabel props ++ (elements >>= extractIndexEntries chId chLabel)
+extractIndexEntries chId chLabel (Section title props elements) =
   let secId = idProp title props
       secLabel = labelProp props
-      partId = chId ++ "_" ++ secId
-      partLabel = chLabel ++ "." ++ secLabel
+      elementId = chId ++ "_" ++ secId
+      elementLabel = chLabel ++ "." ++ secLabel
   in
-      indexEntriesFromProps partId partLabel props ++ (parts >>= extractIndexEntries partId partLabel)
-extractIndexEntries partId partLabel (Paragraph props _) = indexEntriesFromProps partId partLabel props
-extractIndexEntries partId partLabel (Items props _) = indexEntriesFromProps partId partLabel props
-extractIndexEntries partId partLabel (Img props _) = indexEntriesFromProps partId partLabel props
-extractIndexEntries partId partLabel (Src _ props _) = indexEntriesFromProps partId partLabel props
-extractIndexEntries partId partLabel (Table props _) = indexEntriesFromProps partId partLabel props
-extractIndexEntries partId partLabel _ = []
+      indexEntriesFromProps elementId elementLabel props ++ (elements >>= extractIndexEntries elementId elementLabel)
+extractIndexEntries elementId elementLabel (Paragraph props _) = indexEntriesFromProps elementId elementLabel props
+extractIndexEntries elementId elementLabel (Items props _) = indexEntriesFromProps elementId elementLabel props
+extractIndexEntries elementId elementLabel (Img props _) = indexEntriesFromProps elementId elementLabel props
+extractIndexEntries elementId elementLabel (Src _ props _) = indexEntriesFromProps elementId elementLabel props
+extractIndexEntries elementId elementLabel (Table props _) = indexEntriesFromProps elementId elementLabel props
+extractIndexEntries elementId elementLabel _ = []
 
 filterChapter :: [Element] -> String -> [Element]
 filterChapter (ch@(Chapter _ props _) : rest) wantedChapterId =
   if idProp "" props == wantedChapterId
   then [ch]
   else filterChapter rest wantedChapterId
+filterChapter (p@(Part _ _ elems) : rest) wantedChapterId =
+  filterChapter elems wantedChapterId ++ filterChapter rest wantedChapterId
 filterChapter (_:rest) wantedChapterId = filterChapter rest wantedChapterId
 filterChapter [] wantedChapterId = []
 
 filterSection :: [Element] -> String -> String -> [Element]
-filterSection parts chapterId sectionId =
-  case filterChapter parts chapterId of
+filterSection elements chapterId sectionId =
+  case filterChapter elements chapterId of
     [Chapter _ _ chapterElements] -> filterSection' chapterElements sectionId
     _ -> []
 
@@ -280,3 +284,6 @@ filterSection' (sec@(Section _ props _) : rest) wantedSectionId =
 filterSection' (_:rest) wantedSectionId = filterSection' rest wantedSectionId
 filterSection' [] wantedSectionId = []
 
+isBook :: RenderType -> Bool
+isBook Book = True
+isBook _ = False

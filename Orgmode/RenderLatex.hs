@@ -74,6 +74,10 @@ renderElement _ _ (Slide title parts) =
   (if title == "" then "" else "\\frametitle{" ++ title ++ "}\n") ++
   concat (renderSlideElement `fmap` parts) ++
   "\\end{frame}\n"
+renderElement Slides allElements (Chapter title props parts) =
+  concat (map (renderElement Slides allElements) parts) ++ "\n"
+renderElement Article allElements (Chapter title props parts) =
+  concat (map (renderElement Article allElements) parts) ++ "\n"
 renderElement rt allElements (Chapter title props parts) =
   let label = labelProp props
   in
@@ -112,7 +116,7 @@ renderElement rt allElements (Note noteType props parts) =
   concat (map (renderElement InNote allElements) parts) ++
   "\\\\ \\noalign{\\smallskip}\\cline{2-3}\n\\end{tabular}\n\n"
 renderElement rt allElements (Src srcType props src) =
-  if hasMkSlideProp props
+  if hasSlideProp props
   then renderElement rt allElements (Slide "" [Src srcType props src])
   else renderSrc rt srcType props src
 renderElement rt allElements (Table props rows) =

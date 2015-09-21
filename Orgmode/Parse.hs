@@ -25,7 +25,7 @@ parseInput input =
 entry :: P [Element]
 entry = do
   propLine
-  (try groups) <|> (try topLevels)
+  topLevels
 
 ----------------------------------------------------
 
@@ -42,6 +42,7 @@ topLevel level =
   try (items level) <|>
   try (comment level) <|>
   try (chapter level) <|>
+  try (part level) <|>
   try (showindex level) <|>
   try (src level) <|>
   try (latex level)<|>
@@ -49,17 +50,18 @@ topLevel level =
 
 ----------------------------------------------------
 
-groups :: P [Element]
-groups = do
-  gs <- many1 (try $ group 1)
-  try (stop >> return ()) <|> eof
-  return $ concat gs
+part :: Int -> P Element
+part level = do
+  (title,props) <- asteriskLineWithProps level "PART"
+  content <- many (partElement $ level + 1)
+  return $ Part title props content
 
-group :: Int -> P [Element]
-group level = do
-  asteriskLine level "GROUP"
-  content <- many (topLevel $ level + 1)
-  return $ content
+partElement level =
+  (try (paragraph level) <|>
+   try (chapter level) <|>
+   try (section level) <|>
+   try (src level) <|>
+   try (comment level)) <?> "partElement"
 
 ----------------------------------------------------
 
@@ -71,6 +73,7 @@ chapter level = do
 
 chapterElement level =
   (try (paragraph level) <|>
+   try (slide level)<|>
    try (items level) <|>
    try (src level) <|>
    try (section level) <|>
@@ -92,6 +95,7 @@ section level = do
 
 sectionElement level =
   (try (paragraph level) <|>
+   try (slide level)<|>
    try (items level) <|>
    try (note level) <|>
    try (asteriskImg level) <|>
@@ -114,9 +118,9 @@ slideElement level =
   try header <|>
   try (src level) <|>
   try img <|>
-  try (pause2 level) <|>
   try (latex level) <|>
   try (comment level) <|>
+  try (pause2 level) <|>
   try pause <|>
   skipLine
 
@@ -243,7 +247,7 @@ colonProp =
   try colonPropPauseBefore <|>
   try colonPropConsole <|>
   try colonPropFragment <|>
-  try colonPropMkSlide <|>
+  try colonPropSlide <|>
   try colonPropNoTangle <|>
   try colonPropNoRender <|>
   try colonPropNoVerify <|>
@@ -275,15 +279,16 @@ colonPropPauseBefore = do
 
 colonPropConsole = do
   string ":console"
-  return Console
+  consoleType <- many (noneOf "¬:\n\r")
+  return $ Console consoleType
 
 colonPropFragment = do
   string ":fragment"
   return Fragment
 
-colonPropMkSlide = do
-  string ":mkslide"
-  return MkSlide
+colonPropSlide = do
+  string ":slide"
+  return SlideProp
 
 colonPropNoTangle = do
   string ":notangle"
