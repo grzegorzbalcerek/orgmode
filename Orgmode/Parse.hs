@@ -31,22 +31,22 @@ entry = do
 
 topLevels :: P [Element]
 topLevels = do
-  results <- many1 (try $ topLevel 1)
+  results <- many1 (try $ topLevelElement 1)
   try (stop >> return ()) <|> eof
   return results
 
-topLevel :: Int -> P Element
-topLevel level =
-  try (slide level)<|>
-  try (paragraph level) <|>
-  try (items level) <|>
+topLevelElement :: Int -> P Element
+topLevelElement level =
+  (
   try (comment level) <|>
-  try (chapter level) <|>
   try (part level) <|>
+  try (chapter level) <|>
+  try (section level) <|>
+  try (slide level) <|>
   try (showindex level) <|>
-  try (src level) <|>
-  try (latex level)<|>
-  try (directive level)
+  try (directive level) <|>
+  try (contentElement level)
+  ) <?> "topLevelElement"
 
 ----------------------------------------------------
 
@@ -57,11 +57,13 @@ part level = do
   return $ Part title props content
 
 partElement level =
-  (try (paragraph level) <|>
-   try (chapter level) <|>
-   try (section level) <|>
-   try (src level) <|>
-   try (comment level)) <?> "partElement"
+  (
+  try (comment level) <|>
+  try (chapter level) <|>
+  try (section level) <|>
+  try (slide level) <|>
+  try (contentElement level)
+  ) <?> "partElement"
 
 ----------------------------------------------------
 
@@ -72,18 +74,12 @@ chapter level = do
   return $ Chapter title props content
 
 chapterElement level =
-  (try (paragraph level) <|>
-   try (slide level)<|>
-   try (items level) <|>
-   try (src level) <|>
-   try (section level) <|>
-   try (table level) <|>
-   try (showindex level) <|>
-   try (note level) <|>
-   try (asteriskImg level) <|>
-   try (latex level)<|>
-   try (comment level) <|>
-   try implicitParagraph) <?> "chapterElement"
+  (
+  try (comment level) <|>
+  try (section level) <|>
+  try (slide level)<|>
+  try (contentElement level)
+  ) <?> "chapterElement"
 
 ----------------------------------------------------
 
@@ -94,16 +90,11 @@ section level = do
   return $ Section title props content
 
 sectionElement level =
-  (try (paragraph level) <|>
-   try (slide level)<|>
-   try (items level) <|>
-   try (note level) <|>
-   try (asteriskImg level) <|>
-   try (comment level) <|>
-   try (table level) <|>
-   try (src level) <|>
-   try (latex level)<|>
-   try implicitParagraph) <?> "sectionElement"
+  (
+  try (comment level) <|>
+  try (slide level)<|>
+  try (contentElement level)
+  ) <?> "sectionElement"
 
 ----------------------------------------------------
 
@@ -113,22 +104,35 @@ slide level = do
   return $ Slide title content
 
 slideElement level =
-  try (paragraph level) <|>
-  try (items level) <|>
-  try header <|>
-  try (src level) <|>
-  try img <|>
-  try (latex level) <|>
+  (
   try (comment level) <|>
+  try (contentElement level) <|>
   try (pause2 level) <|>
   try pause <|>
   skipLine
+  ) <?> "slideElement"
+
+----------------------------------------------------
+
+contentElement level =
+  (
+  try (paragraph level) <|>
+  try (src level) <|>
+  try header <|>
+  try img <|>
+  try (table level) <|>
+  try (note level) <|>
+  try (asteriskImg level) <|>
+  try (latex level) <|>
+  try (items level) <|>
+  try implicitParagraph
+  ) <?> "contentElement"
 
 ----------------------------------------------------
 
 comment level = do
   asteriskLine level "COMMENT"
-  content <- many (slideElement $ level + 1)
+  content <- many (topLevelElement $ level + 1)
   return $ EmptyElement
 
 ----------------------------------------------------
@@ -239,9 +243,9 @@ directive level = do
   return $ Directive name (concat content)
 
 src level = do
-  (srcType,props) <- asteriskLineWithProps level "SRC"
+  (description,props) <- asteriskLineWithProps level "SRC"
   content <- many1 emptyOrRegularLineWithEol
-  return $ Src srcType props (concat content)
+  return $ Src description props (concat content)
 
 colonProp =
   try colonPropPauseBefore <|>
@@ -261,6 +265,7 @@ colonProp =
   try colonPropLatex2 <|>
   try colonPropHtml <|>
   try colonPropX <|>
+  try colonPropType <|>
   try colonPropIe1 <|>
   try colonPropIe2 <|>
   try colonPropKeywordLike <|>
@@ -360,6 +365,11 @@ colonPropX = do
   string ":x"
   value <- many (noneOf "¬:\n\r")
   return $ X (trim value)
+
+colonPropType = do
+  string ":type"
+  value <- many (noneOf "¬:\n\r")
+  return $ Type (trim value)
 
 colonPropIe2 = do
   string ":ie2"

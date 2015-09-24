@@ -42,6 +42,7 @@ data Prop =
   | Tangle String
   | Id String
   | X String
+  | Type String
   | Ie1 String
   | Ie2 String String
   | Latex1Prop String
@@ -191,6 +192,11 @@ isPauseBeforeProp =
 labelProp =
   foldl (\acc p -> case p of
                      Label label -> label
+                     _ -> acc) ""
+
+typeProp =
+  foldl (\acc p -> case p of
+                     Type t -> t
                      _ -> acc) ""
 
 latex1Prop =
