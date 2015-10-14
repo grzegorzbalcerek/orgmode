@@ -99,9 +99,9 @@ sectionElement level =
 ----------------------------------------------------
 
 slide level = do
-  title <- asteriskLine level "SLIDE"
+  (title,props) <- asteriskLineWithProps level "SLIDE"
   content <- many (slideElement $ level + 1)
-  return $ Slide title content
+  return $ Slide title props content
 
 slideElement level =
   (
@@ -250,6 +250,7 @@ src level = do
 colonProp =
   try colonPropPauseBefore <|>
   try colonPropConsole <|>
+  try colonPropVariant <|>
   try colonPropFragment <|>
   try colonPropSlide <|>
   try colonPropNoTangle <|>
@@ -287,6 +288,11 @@ colonPropConsole = do
   consoleType <- many (noneOf "¬:\n\r")
   return $ Console consoleType
 
+colonPropVariant = do
+  string ":variant"
+  name <- many (noneOf "¬:\n\r")
+  return $ Variant (trim name)
+
 colonPropFragment = do
   string ":fragment"
   return Fragment
@@ -294,10 +300,6 @@ colonPropFragment = do
 colonPropSlide = do
   string ":slide"
   return SlideProp
-
-colonPropNoTangle = do
-  string ":notangle"
-  return NoTangle
 
 colonPropNoRender = do
   string ":norender"
@@ -315,6 +317,10 @@ colonPropTangle = do
   string ":tangle "
   fileName <- many1 (char '.' <|> char '_' <|> char '-' <|> char '/' <|> alphaNum)
   return $ Tangle fileName
+
+colonPropNoTangle = do
+  try (string ":notangle " >> many1 (char '.' <|> char '_' <|> char '-' <|> char '/' <|> alphaNum)) <|> try (string ":notangle")
+  return NoTangle
 
 colonPropBlock = do
   string ":block"

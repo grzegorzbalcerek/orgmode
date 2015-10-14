@@ -38,7 +38,7 @@ truncateFiles elements =
       Part _ _ elements -> truncateFiles elements
       Chapter _ _ elements -> truncateFiles elements
       Section _ _ elements -> truncateFiles elements
-      Slide _ elements -> truncateFiles elements
+      Slide _ _ elements -> truncateFiles elements
       Note _  _ elements -> truncateFiles elements
       Src srcType props _ ->
         let file = tangleProp props
@@ -66,7 +66,7 @@ extractSrcFromElements' elements defaultfile = do
         do
           let secId = idProp title props
           extractSrcFromElements' elements defaultfile
-      Slide _ elements -> extractSrcFromElements' elements defaultfile
+      Slide _ _ elements -> extractSrcFromElements' elements defaultfile
       Note _ _ elements -> extractSrcFromElements' elements defaultfile
       Src srcType props str ->
         let file = tangleProp props

@@ -10,7 +10,7 @@ import Data.List (intersperse)
 data Element =
     Part String [Prop] [Element]
   | Chapter String [Prop] [Element]
-  | Slide String [Element]
+  | Slide String [Prop] [Element]
   | Section String [Prop] [Element]
   | Note String [Prop] [Element]
   | EmptyElement
@@ -50,6 +50,7 @@ data Prop =
   | HtmlProp String
   | Output
   | Console String
+  | Variant String
   | PrependNewLines Int
   | PauseBefore
   | Label String
@@ -84,7 +85,7 @@ inspectElements elements = "[" ++ concat (intersperse "," $ fmap inspectElement 
 inspectElement element = case element of
   Part str _ elements -> "Part ... ... " ++ inspectElements elements
   Chapter str _ elements -> "Chapter ... ... " ++ inspectElements elements
-  Slide str elements -> "Slide ... " ++ inspectElements elements
+  Slide str _ elements -> "Slide ... ... " ++ inspectElements elements
   Section str _ elements -> "Section ... ... " ++ inspectElements elements
   Note t _ elements -> "Note " ++ t ++ " ... " ++ inspectElements elements
   EmptyElement -> "EmptyElement"
@@ -127,12 +128,22 @@ directiveValue allElements name =
       filteredElements = filter isRightDirective allElements
   in if null filteredElements then "" else let (Directive _ content) = head filteredElements in content
 
+directiveValueAsList :: [Element] -> String -> [String]
+directiveValueAsList allElements name =
+  let dv = directiveValue allElements name
+  in lines dv
+
 directiveValueNoNewLines allElements name = filter (\c -> not (c == '\n')) $ directiveValue allElements name
 
 idProp fallback =
   foldl (\acc p -> case p of
                      Id ident -> ident
                      _ -> acc) (filter (\c -> c `elem` " ") fallback)
+
+variantProp =
+  foldl (\acc p -> case p of
+                     Variant v -> v
+                     _ -> acc) "default"
 
 prependNewLinesProp =
   foldl (\acc p -> case p of

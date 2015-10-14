@@ -16,6 +16,7 @@ import System.IO
 import GHC.IO.Encoding
 import Data.Char
 import Debug.Trace
+import Control.Monad.Reader
 
 writeMultiHtml :: String -> [Element] -> IO ()
 writeMultiHtml outputPath allElements = do
@@ -136,6 +137,19 @@ containerElement _ = False
 
 nonContainerElement = not . containerElement
 
+chapterTitle2 :: [Char] -> [Prop] -> Reader [Element] [Char]
+chapterTitle2 title props = do
+  allElements <- ask
+  let label = labelProp props
+  let chapterName = directiveValue allElements "Chapter"
+  let appendixName = directiveValue allElements "Apendix"
+  let prefix =
+        if label == "" then ""
+        else if isDigit (head label) then chapterName ++ " " ++ label ++ ". "
+        else appendixName ++" " ++ label ++ ". "
+  return $ prefix ++ title
+
+chapterTitle :: [Element] -> [Char] -> [Prop] -> [Char]
 chapterTitle allElements title props =
   let label = labelProp props
       chapterName = directiveValue allElements "Chapter"
@@ -160,7 +174,7 @@ renderChapterContent allElements title props parts =
   let chId = idProp title props
       chLabel = labelProp props
   in
-    "<h1 class='chapter'>" ++ chapterTitle allElements title props ++ "</h1>\n" ++
+    "<h1 class='chapter'>" ++ runReader (chapterTitle2 title props) allElements ++ "</h1>\n" ++
     renderElements allElements (filter nonContainerElement parts) ++
     "<ul class='toc'>\n" ++
     concat (fmap (renderSectionLink chId chLabel) parts) ++
@@ -276,6 +290,7 @@ renderText allElements txt =
             ('⒝',(text,_:acc')) -> "<strong>" ++ text ++ "</strong>" ++ acc'
             ('⒠',(text,_:acc')) -> "<em>" ++ text ++ "</em>" ++ acc'
             ('⒤',(text,_:acc')) -> "<em>" ++ text ++ "</em>" ++ acc'
+            ('⒳',(_,_:acc')) -> ""
             ('⒭',(ref,_:acc')) ->
               case break (','==) ref of
                 (chId,[]) -> chapterReference (filter isChapter allElements) chId ++ acc'

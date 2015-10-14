@@ -78,7 +78,7 @@ renderElement Slides _ (Paragraph _ txt) = ""
 renderElement _ _ Skipped = ""
 renderElement _ allElements (Paragraph props txt) =
   "\n\n" ++ renderIndexEntries props ++ renderText allElements txt
-renderElement rt allElements (Slide title parts) =
+renderElement rt allElements (Slide title props parts) =
   "\\begin{frame}[fragile]\n" ++
   (if title == "" then "" else "\\frametitle{" ++ title ++ "}\n") ++
   concat (renderElement rt allElements `fmap` parts) ++
@@ -372,8 +372,8 @@ renderText :: [Element] -> String -> String
 renderText _ "" = ""
 renderText allElements (c:acc) =
           case (c, break (c ==) acc) of
-            ('⒡',(file,_:acc')) -> "\\textit{" ++ renderText allElements file ++ "}" ++ renderText allElements acc'
-            ('⒰',(url,_:acc')) -> "\\textit{" ++ renderText allElements url ++ "}" ++ renderText allElements acc'
+            ('⒡',(file,_:acc')) -> "\\textsl{" ++ renderText allElements file ++ "}" ++ renderText allElements acc'
+            ('⒰',(url,_:acc')) -> "\\textsl{" ++ renderText allElements url ++ "}" ++ renderText allElements acc'
             ('⒤',(text,_:acc')) -> "\\textit{" ++ renderText allElements text ++ "}" ++ renderText allElements acc'
             ('⒞',(code,_:acc')) -> "\\texttt{" ++ renderText allElements code ++ "}" ++ renderText allElements acc'
             ('⒳',(x,_:acc')) -> "\\index{" ++ renderIndex x ++ "}" ++ renderText allElements acc'
@@ -388,8 +388,8 @@ renderText allElements (c:acc) =
             ('$',_) -> "{\\fontencoding{T1}\\selectfont\\char36}" ++ renderText allElements acc
             ('%',_) -> "{\\fontencoding{T1}\\selectfont\\char37}" ++ renderText allElements acc
             ('_',_) -> "{\\fontencoding{T1}\\selectfont\\char95}" ++ renderText allElements acc
-            ('>',_) -> "{\\fontencoding{QX}\\selectfont\\char131}" ++ renderText allElements acc
-            ('<',_) -> "{\\fontencoding{QX}\\selectfont\\char136}" ++ renderText allElements acc
+            ('>',_) -> "{\\fontencoding{T1}\\selectfont\\char62}" ++ renderText allElements acc
+            ('<',_) -> "{\\fontencoding{T1}\\selectfont\\char60}" ++ renderText allElements acc
             ('℃',_) -> "{\\fontencoding{TS1}\\selectfont\\char137}" ++ renderText allElements acc
             ('Σ',_) -> "{\\fontencoding{QX}\\selectfont\\char6}" ++ renderText allElements acc
             ('Ω',_) -> "{\\fontencoding{TS1}\\selectfont\\char87}" ++ renderText allElements acc

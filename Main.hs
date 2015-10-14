@@ -14,6 +14,7 @@ import Orgmode.RenderLatex
 import Orgmode.ExtractSrc
 import Orgmode.RenderMultiHtml
 import Orgmode.VerifyOutput
+import Orgmode.Variant
 import System.IO
 import GHC.IO.Encoding
 import Control.Monad.Trans.State
@@ -27,7 +28,8 @@ main = do
   hinput <- openFile sourceFile ReadMode
   hSetEncoding hinput utf8
   input <- hGetContents hinput
-  let content = parseInput input
+  let contentBeforeFiltering = parseInput input
+  let content = filterVariants contentBeforeFiltering
   putStrLn $ "Content parsed. Length: " ++ show (length content) ++ "."
   case head args of
     "extractsrc"    -> extractSrcFromElements content path chapterId sectionId
