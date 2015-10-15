@@ -47,7 +47,7 @@ writeToc outputPath allElements chapters = do
 
 renderChapterLink allElements (Chapter title props _) =
   "<li><a href='" ++ (idProp title props) ++ ".html'>" ++
-  chapterTitle allElements title props ++
+  runReader (chapterTitle title props) allElements ++
   "</a>\n"
 renderChapterLink _ _ = ""
 
@@ -67,7 +67,7 @@ writeChapter :: String -> [Element] -> String -> [Prop] -> [Element] -> String -
 writeChapter outputPath allElements title props chapterElements previousId nextChapters = do
   let chId = idProp title props
   let chLabel = labelProp props
-  let content = renderChapterContent allElements title props chapterElements
+  let content = runReader (renderChapterContent title props chapterElements) allElements
   let left = previousId
   let right = headElementId chId $ (sectionsOnly chapterElements) ++ nextChapters
   writePage outputPath allElements chId title content left "toc" right
@@ -137,8 +137,8 @@ containerElement _ = False
 
 nonContainerElement = not . containerElement
 
-chapterTitle2 :: [Char] -> [Prop] -> Reader [Element] [Char]
-chapterTitle2 title props = do
+chapterTitle :: [Char] -> [Prop] -> Reader [Element] [Char]
+chapterTitle title props = do
   allElements <- ask
   let label = labelProp props
   let chapterName = directiveValue allElements "Chapter"
@@ -149,17 +149,6 @@ chapterTitle2 title props = do
         else appendixName ++" " ++ label ++ ". "
   return $ prefix ++ title
 
-chapterTitle :: [Element] -> [Char] -> [Prop] -> [Char]
-chapterTitle allElements title props =
-  let label = labelProp props
-      chapterName = directiveValue allElements "Chapter"
-      appendixName = directiveValue allElements "Apendix"
-      prefix =
-        if label == "" then ""
-        else if isDigit (head label) then chapterName ++ " " ++ label ++ ". "
-        else appendixName ++" " ++ label ++ ". "
-  in
-    prefix ++ title
 
 sectionTitle chapterLabel title props =
   let label = labelProp props
@@ -169,12 +158,13 @@ sectionTitle chapterLabel title props =
   in
     prefix ++ title
 
-renderChapterContent :: [Element] -> String -> [Prop] -> [Element] -> String
-renderChapterContent allElements title props parts =
+renderChapterContent :: String -> [Prop] -> [Element] -> Reader [Element] String
+renderChapterContent title props parts = do
+  allElements <- ask
   let chId = idProp title props
-      chLabel = labelProp props
-  in
-    "<h1 class='chapter'>" ++ runReader (chapterTitle2 title props) allElements ++ "</h1>\n" ++
+  let chLabel = labelProp props
+  chTitle <- chapterTitle title props
+  return $ "<h1 class='chapter'>" ++ chTitle ++ "</h1>\n" ++
     renderElements allElements (filter nonContainerElement parts) ++
     "<ul class='toc'>\n" ++
     concat (fmap (renderSectionLink chId chLabel) parts) ++
