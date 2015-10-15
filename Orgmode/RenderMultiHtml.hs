@@ -28,15 +28,14 @@ writeMultiHtml outputPath allElements = do
   let indexPageContent = directiveValue allElements "IndexHtmlPage"
   writePage outputPath allElements "index" title indexPageContent "" "index" "toc"
 
+--writeToc :: String -> [Element] -> ReaderT ([Element] (IO ()) ()
 writeToc :: String -> [Element] -> [Element] -> IO ()
 writeToc outputPath allElements chapters = do
   let path = outputPath ++ "/toc.html"
   houtput <- safeOpenFileForWriting path
   let tableOfContents = directiveValueNoNewLines allElements "TableOfContents"
-  let content =
-        "<h1>" ++ tableOfContents ++ "</h1>\n<ul class='toc'>\n" ++
-        concat (map (renderChapterLink allElements) chapters) ++
-        "</ul>\n"
+  let chapterLinks = chapters >>= (\chapter -> runReader (renderChapterLink chapter) allElements)
+  let content = "<h1>" ++ tableOfContents ++ "</h1>\n<ul class='toc'>\n" ++ chapterLinks ++ "</ul>\n"
   let (Chapter title props _) = head chapters
   let right = idProp title props
   let footer = directiveValue allElements "MultiHtmlFooter"
@@ -45,11 +44,11 @@ writeToc outputPath allElements chapters = do
   hPutStr houtput output
   hClose houtput
 
-renderChapterLink allElements (Chapter title props _) =
-  "<li><a href='" ++ (idProp title props) ++ ".html'>" ++
-  runReader (chapterTitle title props) allElements ++
-  "</a>\n"
-renderChapterLink _ _ = ""
+renderChapterLink :: Element -> Reader [Element] String
+renderChapterLink (Chapter title props _) = do
+  chTitle <- chapterTitle title props
+  return $ "<li><a href='" ++ (idProp title props) ++ ".html'>" ++ chTitle ++ "</a>\n"
+renderChapterLink _ = return ""
 
 writeChapters :: String -> [Element] -> String -> [Element] -> IO ()
 writeChapters outputPath allElements previousId chapters =
