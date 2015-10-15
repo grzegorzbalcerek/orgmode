@@ -22,17 +22,18 @@ writeMultiHtml :: String -> [Element] -> IO ()
 writeMultiHtml outputPath allElements = do
   let chapters = filter isChapter allElements
   outputCss outputPath allElements
-  writeToc outputPath allElements chapters
+  runReaderT (writeToc outputPath chapters) allElements
   writeChapters outputPath allElements "toc" chapters
   let title = directiveValueNoNewLines allElements "Title"
   let indexPageContent = directiveValue allElements "IndexHtmlPage"
   writePage outputPath allElements "index" title indexPageContent "" "index" "toc"
 
---writeToc :: String -> [Element] -> ReaderT ([Element] (IO ()) ()
-writeToc :: String -> [Element] -> [Element] -> IO ()
-writeToc outputPath allElements chapters = do
+--writeToc :: String -> [Element] -> [Element] -> IO ()
+writeToc :: String -> [Element] -> ReaderT [Element] IO ()
+writeToc outputPath chapters = do
+  allElements <- ask
   let path = outputPath ++ "/toc.html"
-  houtput <- safeOpenFileForWriting path
+  houtput <- liftIO $ safeOpenFileForWriting path
   let tableOfContents = directiveValueNoNewLines allElements "TableOfContents"
   let chapterLinks = chapters >>= (\chapter -> runReader (renderChapterLink chapter) allElements)
   let content = "<h1>" ++ tableOfContents ++ "</h1>\n<ul class='toc'>\n" ++ chapterLinks ++ "</ul>\n"
@@ -40,9 +41,9 @@ writeToc outputPath allElements chapters = do
   let right = idProp title props
   let footer = directiveValue allElements "MultiHtmlFooter"
   let output = page "Spis treści" content "index" "index" right footer
-  putStrLn $ "Generating " ++ path
-  hPutStr houtput output
-  hClose houtput
+  liftIO $ putStrLn $ "Generating " ++ path
+  liftIO $ hPutStr houtput output
+  liftIO $ hClose houtput
 
 renderChapterLink :: Element -> Reader [Element] String
 renderChapterLink (Chapter title props _) = do
