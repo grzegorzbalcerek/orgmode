@@ -18,6 +18,7 @@ import Orgmode.Variant
 import System.IO
 import GHC.IO.Encoding
 import Control.Monad.Trans.State
+import Control.Monad.Reader
 
 main = do
   args <- System.Environment.getArgs
@@ -37,7 +38,7 @@ main = do
     "latexarticle"  -> makeOutputLatex Article path content
     "latexbook"     -> makeOutputLatex Book path content
     "latexslides"   -> makeOutputLatex Slides path content
-    "multihtml"     -> writeMultiHtml path content
+    "multihtml"     -> runReaderT (writeMultiHtml path) content
     "verifyoutput"  -> verifyOutput content path chapterId sectionId
     "parse"         -> putStrLn (show content)
     _ -> return()

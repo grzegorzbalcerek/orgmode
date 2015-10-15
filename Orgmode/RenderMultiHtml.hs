@@ -2,8 +2,8 @@
 module Orgmode.RenderMultiHtml (writeMultiHtml) where
 
 {-
-cmd /c "u: && cd u:\github\orgmode && make && h:"
-cmd /c "u: && cd u:\github\orgmode && test && h:"
+cmd /c "u: && cd u:\github\orgmode && make"
+cmd /c "u: && cd u:\github\orgmode && test"
 -}
 
 import Orgmode.Model
@@ -18,17 +18,17 @@ import Data.Char
 import Debug.Trace
 import Control.Monad.Reader
 
-writeMultiHtml :: String -> [Element] -> IO ()
-writeMultiHtml outputPath allElements = do
+writeMultiHtml :: String -> ReaderT [Element] IO ()
+writeMultiHtml outputPath = do
+  allElements <- ask
   let chapters = filter isChapter allElements
-  outputCss outputPath allElements
-  runReaderT (writeToc outputPath chapters) allElements
-  writeChapters outputPath allElements "toc" chapters
+  liftIO $ outputCss outputPath allElements
+  writeToc outputPath chapters
+  liftIO $ writeChapters outputPath allElements "toc" chapters
   let title = directiveValueNoNewLines allElements "Title"
   let indexPageContent = directiveValue allElements "IndexHtmlPage"
-  writePage outputPath allElements "index" title indexPageContent "" "index" "toc"
+  liftIO $ writePage outputPath allElements "index" title indexPageContent "" "index" "toc"
 
---writeToc :: String -> [Element] -> [Element] -> IO ()
 writeToc :: String -> [Element] -> ReaderT [Element] IO ()
 writeToc outputPath chapters = do
   allElements <- ask

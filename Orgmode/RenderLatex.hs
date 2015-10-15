@@ -2,8 +2,8 @@
 module Orgmode.RenderLatex where
 
 {-
-cmd /c "u: && cd u:\github\orgmode && make && h:"
-cmd /c "u: && cd u:\github\orgmode && test && h:"
+cmd /c "u: && cd u:\github\orgmode && make"
+cmd /c "u: && cd u:\github\orgmode && test"
 -}
 
 import Orgmode.Model
