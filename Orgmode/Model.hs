@@ -37,10 +37,10 @@ data Prop =
   | Style String
   | Fragment
   | SlideProp
-  | NoTangle
+  | DoNotExtractSrc
   | NoRender
   | NoVerify
-  | Tangle String
+  | Path String
   | Id String
   | X String
   | Type String
@@ -104,16 +104,16 @@ inspectElement element = case element of
 
 takeWhileEnd f = reverse . takeWhile f . reverse
 
-tangleFileName :: [Prop] -> String
-tangleFileName =
+pathFileName :: [Prop] -> String
+pathFileName =
   foldl (\acc p -> case p of
-                     Tangle path -> takeWhileEnd (/= '/') path
+                     Path path -> takeWhileEnd (/= '/') path
                      _ -> acc) ""
 
-tangleProp :: [Prop] -> String
-tangleProp =
+pathProp :: [Prop] -> String
+pathProp =
   foldl (\acc p -> case p of
-                     Tangle path -> path
+                     Path path -> path
                      _ -> acc) ""
 
 sectionsOnly :: [Element] -> [Element]
@@ -194,10 +194,10 @@ hasSlideProp =
                      SlideProp -> True
                      _ -> acc) False
 
-hasNoTangleProp :: [Prop] -> Bool
-hasNoTangleProp =
+hasDoNotExtractSrcProp :: [Prop] -> Bool
+hasDoNotExtractSrcProp =
   foldl (\acc p -> case p of
-                     NoTangle -> True
+                     DoNotExtractSrc -> True
                      _ -> acc) False
 
 hasNoRenderProp :: [Prop] -> Bool

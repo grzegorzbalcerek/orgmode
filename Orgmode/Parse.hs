@@ -253,7 +253,7 @@ colonProp =
   try colonPropVariant <|>
   try colonPropFragment <|>
   try colonPropSlide <|>
-  try colonPropNoTangle <|>
+  try colonPropDoNotExtractSrc <|>
   try colonPropNoRender <|>
   try colonPropNoVerify <|>
   try colonPropOutput <|>
@@ -276,7 +276,7 @@ colonProp =
   try colonPropConstantLike <|>
   try colonPropMinWidth <|>
   try colonPropPrependNewLines <|>
-  try colonPropTangle <|>
+  try colonPropPath <|>
   try colonPropUnrecognized
 
 colonPropPauseBefore = do
@@ -313,14 +313,14 @@ colonPropOutput = do
   string ":output"
   return Output
 
-colonPropTangle = do
-  string ":tangle "
+colonPropPath = do
+  string ":path "
   fileName <- many1 (char '.' <|> char '_' <|> char '-' <|> char '/' <|> alphaNum)
-  return $ Tangle fileName
+  return $ Path fileName
 
-colonPropNoTangle = do
-  try (string ":notangle " >> many1 (char '.' <|> char '_' <|> char '-' <|> char '/' <|> alphaNum)) <|> try (string ":notangle")
-  return NoTangle
+colonPropDoNotExtractSrc = do
+  try (string ":donotextractsrc " >> many1 (char '.' <|> char '_' <|> char '-' <|> char '/' <|> alphaNum)) <|> try (string ":donotextractsrc")
+  return DoNotExtractSrc
 
 colonPropBlock = do
   string ":block"

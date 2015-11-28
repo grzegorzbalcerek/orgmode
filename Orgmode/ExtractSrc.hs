@@ -41,7 +41,7 @@ truncateFiles elements =
       Slide _ _ elements -> truncateFiles elements
       Note _  _ elements -> truncateFiles elements
       Src srcType props _ ->
-        let file = tangleProp props
+        let file = pathProp props
         in if file == ""
            then return ()
            else truncateFile file
@@ -69,8 +69,8 @@ extractSrcFromElements' elements defaultfile = do
       Slide _ _ elements -> extractSrcFromElements' elements defaultfile
       Note _ _ elements -> extractSrcFromElements' elements defaultfile
       Src srcType props str ->
-        let file = tangleProp props
-        in case (hasNoTangleProp props,file,defaultfile) of
+        let file = pathProp props
+        in case (hasDoNotExtractSrcProp props,file,defaultfile) of
              (True,_,_) -> return ()
              (_,"","") -> return ()
              (_,"","-") -> putStrLn $ getSrcContent srcType props str

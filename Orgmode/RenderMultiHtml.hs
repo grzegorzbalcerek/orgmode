@@ -193,7 +193,7 @@ renderElement allElements (Src srcType props src) =
         if (take (length prefix) line == prefix) then prefix ++ "<b>" ++ drop (length prefix) line ++ "</b>"
         else line
       boldCommands prefix = unlines . map (boldCommand prefix) . lines
-      fileName = tangleFileName props
+      fileName = pathFileName props
       fileLabel = runReader (directiveValueNoNewLines "File") allElements
   in 
     if hasNoRenderProp props

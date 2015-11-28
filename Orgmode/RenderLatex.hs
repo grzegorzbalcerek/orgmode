@@ -172,7 +172,7 @@ renderSrcBook rt description props src =
         else if (take 7 line == "     | ") then "     | \\textbf{" ++ drop 7 line ++ "}"
         else line
       boldCommands = unlines . map boldCommand . lines
-      fileName = tangleFileName props
+      fileName = pathFileName props
       renderConsoleLike = boldCommands (renderCodeBook description props (divideLongLines 89 src))
       renderFile =
              (if fileName == ""
