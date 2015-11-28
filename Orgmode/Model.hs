@@ -6,6 +6,7 @@ cmd /c "u: && cd u:\github\orgmode && test"
 -}
 
 import Data.List (intersperse)
+import Control.Monad.Reader
 
 data Element =
     Part String [Prop] [Element]
@@ -99,6 +100,7 @@ inspectElement element = case element of
   Src srcType props str -> "Src " ++ srcType ++ " ... ..."
   Table prop strs -> "Table ... ..." 
   Header scale str -> "Header " ++ show scale ++ " ..."
+  _ -> "(Missing pattern in case)"
 
 takeWhileEnd f = reverse . takeWhile f . reverse
 
@@ -121,19 +123,27 @@ sectionsOnly = filter $ \p ->
 isChapter (Chapter _ _ _) = True
 isChapter _ = False
 
-directiveValue :: [Element] -> String -> String
-directiveValue allElements name =
-  let isRightDirective (Directive n c) = n == name
-      isRightDirective _ = False
-      filteredElements = filter isRightDirective allElements
-  in if null filteredElements then "" else let (Directive _ content) = head filteredElements in content
+directiveValue :: (Monad a) => String -> ReaderT [Element] a String
+directiveValue name = do
+  allElements <- ask
+  let isRightDirective directive =
+        case directive of
+          (Directive n c) -> n == name
+          _ -> False
+  let filteredElements = filter isRightDirective allElements
+  if null filteredElements
+  then return ""
+  else let (Directive _ content) = head filteredElements in return content
 
-directiveValueAsList :: [Element] -> String -> [String]
-directiveValueAsList allElements name =
-  let dv = directiveValue allElements name
-  in lines dv
+directiveValueAsList :: (Monad a) => String -> ReaderT [Element] a [String]
+directiveValueAsList name = do
+  dv <- directiveValue name
+  return $ lines dv
 
-directiveValueNoNewLines allElements name = filter (\c -> not (c == '\n')) $ directiveValue allElements name
+directiveValueNoNewLines :: (Monad a) => String -> ReaderT [Element] a String
+directiveValueNoNewLines name = do
+  n <- directiveValue name
+  return $ filter (\c -> not (c == '\n')) n
 
 idProp fallback =
   foldl (\acc p -> case p of

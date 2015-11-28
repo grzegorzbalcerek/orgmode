@@ -8,16 +8,20 @@ cmd /c "u: && cd u:\github\orgmode && test"
 
 import Data.List (find)
 import Orgmode.Model
+import Control.Monad.Reader
 
-filterVariants :: [Element] -> [Element]
-filterVariants allElements =
-  let variants = "default" : directiveValueAsList allElements "Variants"
-      reallyFilterVariants :: [Element] -> [Element]
+calculateVariants :: [Element] -> [String]
+calculateVariants allElements = runReader (directiveValueAsList "Variants") allElements
+
+filterVariants :: [Element] -> [String] -> [Element]
+filterVariants allElements variants =
+  let reallyFilterVariants :: [Element] -> [Element]
       reallyFilterVariants elements = map filterElement elements
       filterElement :: Element -> Element
       filterElement element =
         let includeElement props =
-              variantProp props `elem` variants
+              let elementVariant = variantProp props
+              in elementVariant == "default" || elementVariant `elem` variants
         in case element of
               Part s props elements -> if includeElement props then (Part s props $ reallyFilterVariants elements) else Skipped
               Chapter s props elements -> if includeElement props then (Chapter s props $ reallyFilterVariants elements) else Skipped
@@ -39,5 +43,6 @@ filterVariants allElements =
               Directive _ _ -> element
   in case variants of
        [] -> allElements
+       ["default"] -> allElements
        _ -> reallyFilterVariants allElements
 

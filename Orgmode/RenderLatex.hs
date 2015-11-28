@@ -77,7 +77,7 @@ renderElement _ _ (Header scale content) =
 renderElement Slides _ (Paragraph _ txt) = ""
 renderElement _ _ Skipped = ""
 renderElement _ allElements (Paragraph props txt) =
-  "\n\n" ++ renderIndexEntries props ++ renderText allElements txt
+  "\n\n" ++ latex1Prop props ++ renderIndexEntries props ++ renderText allElements txt ++ latex2Prop props
 renderElement rt allElements (Slide title props parts) =
   "\\begin{frame}[fragile]\n" ++
   (if title == "" then "" else "\\frametitle{" ++ title ++ "}\n") ++
@@ -108,6 +108,7 @@ renderElement rt allElements (Chapter title props parts) =
 renderElement rt allElements (Section title props parts) =
   let label = labelProp props
   in
+    latex1Prop props ++
     (if label == ""
      then ""
      else "\\setcounter{section}{" ++ label ++ "}\\addtocounter{section}{-1}") ++
@@ -115,7 +116,7 @@ renderElement rt allElements (Section title props parts) =
     (if label == "" then "*" else "") ++
     "{" ++ renderText allElements title ++ "}\n" ++
     (if label == "" then "\\addcontentsline{toc}{section}{" ++ title ++ "}" else "") ++
-    concat (map (renderElement rt allElements) parts) ++ "\n"
+    concat (map (renderElement rt allElements) parts) ++ latex2Prop props ++ "\n"
 renderElement rt allElements (Items props items) =
   renderIndexEntries props ++ "\n\\begin{itemize}\n" ++ concat (map (renderElement rt allElements) items) ++  "\\end{itemize}\n"
 renderElement rt allElements (Note noteType props parts) =
@@ -372,6 +373,12 @@ renderText :: [Element] -> String -> String
 renderText _ "" = ""
 renderText allElements (c:acc) =
           case (c, break (c ==) acc) of
+            (' ',("z",' ':acc')) -> " z{\\nobreak} {\\nobreak}" ++ renderText allElements acc'
+            (' ',("w",' ':acc')) -> " w{\\nobreak} {\\nobreak}" ++ renderText allElements acc'
+            (' ',("i",' ':acc')) -> " i{\\nobreak} {\\nobreak}" ++ renderText allElements acc'
+            (' ',("a",' ':acc')) -> " a{\\nobreak} {\\nobreak}" ++ renderText allElements acc'
+            (' ',("u",' ':acc')) -> " u{\\nobreak} {\\nobreak}" ++ renderText allElements acc'
+            (' ',("o",' ':acc')) -> " o{\\nobreak} {\\nobreak}" ++ renderText allElements acc'
             ('⒡',(file,_:acc')) -> "\\textsl{" ++ renderText allElements file ++ "}" ++ renderText allElements acc'
             ('⒰',(url,_:acc')) -> "\\textsl{" ++ renderText allElements url ++ "}" ++ renderText allElements acc'
             ('⒤',(text,_:acc')) -> "\\textit{" ++ renderText allElements text ++ "}" ++ renderText allElements acc'

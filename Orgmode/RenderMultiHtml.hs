@@ -22,24 +22,24 @@ writeMultiHtml :: String -> ReaderT [Element] IO ()
 writeMultiHtml outputPath = do
   allElements <- ask
   let chapters = filter isChapter allElements
-  liftIO $ outputCss outputPath allElements
+  outputCss outputPath
   writeToc outputPath chapters
   liftIO $ writeChapters outputPath allElements "toc" chapters
-  let title = directiveValueNoNewLines allElements "Title"
-  let indexPageContent = directiveValue allElements "IndexHtmlPage"
-  liftIO $ writePage outputPath allElements "index" title indexPageContent "" "index" "toc"
+  title <- directiveValueNoNewLines "Title"
+  indexPageContent <- directiveValue "IndexHtmlPage"
+  writePage outputPath "index" title indexPageContent "" "index" "toc"
 
 writeToc :: String -> [Element] -> ReaderT [Element] IO ()
 writeToc outputPath chapters = do
   allElements <- ask
   let path = outputPath ++ "/toc.html"
   houtput <- liftIO $ safeOpenFileForWriting path
-  let tableOfContents = directiveValueNoNewLines allElements "TableOfContents"
+  tableOfContents <- directiveValueNoNewLines "TableOfContents"
   let chapterLinks = chapters >>= (\chapter -> runReader (renderChapterLink chapter) allElements)
   let content = "<h1>" ++ tableOfContents ++ "</h1>\n<ul class='toc'>\n" ++ chapterLinks ++ "</ul>\n"
   let (Chapter title props _) = head chapters
   let right = idProp title props
-  let footer = directiveValue allElements "MultiHtmlFooter"
+  footer <- directiveValue "MultiHtmlFooter"
   let output = page "Spis treści" content "index" "index" right footer
   liftIO $ putStrLn $ "Generating " ++ path
   liftIO $ hPutStr houtput output
@@ -70,18 +70,18 @@ writeChapter outputPath allElements title props chapterElements previousId nextC
   let content = runReader (renderChapterContent title props chapterElements) allElements
   let left = previousId
   let right = headElementId chId $ (sectionsOnly chapterElements) ++ nextChapters
-  writePage outputPath allElements chId title content left "toc" right
+  runReaderT (writePage outputPath chId title content left "toc" right) allElements
   writeSections outputPath allElements chId chLabel chId chapterElements nextChapters
 
-writePage :: String -> [Element] -> String -> String -> String -> String -> String -> String -> IO ()
-writePage outputPath allElements name title content left up right = do
+writePage :: String -> String -> String -> String -> String -> String -> String -> ReaderT [Element] IO ()
+writePage outputPath name title content left up right = do
   let path = outputPath ++ "/" ++ name ++ ".html"
-  houtput <- safeOpenFileForWriting path
-  let footer = directiveValue allElements "MultiHtmlFooter"
+  houtput <- liftIO $ safeOpenFileForWriting path
+  footer <- directiveValue "MultiHtmlFooter"
   let output = page title content left up right footer
-  putStrLn $ "Generating file " ++ path ++ " left: " ++ left ++ " right: " ++ right
-  hPutStr houtput output
-  hClose houtput
+  liftIO $ putStrLn $ "Generating file " ++ path ++ " left: " ++ left ++ " right: " ++ right
+  liftIO $ hPutStr houtput output
+  liftIO $ hClose houtput
 
 headElementId chId parts =
   case parts of
@@ -107,7 +107,7 @@ writeSection outputPath allElements chId chLabel title props parts previousId ne
   let content = renderElement allElements (Section (sectionTitle chLabel title props) props parts)
   let left = previousId
   let right = headElementId chId $ nextSections++nextChapters
-  let footer = directiveValue allElements "MultiHtmlFooter"
+  let footer = runReader (directiveValue "MultiHtmlFooter") allElements
   let output = page title content left chId right footer
   putStrLn $ "Generating section " ++ path ++ " left: " ++ left ++ " right: " ++ right
   hPutStr houtput output
@@ -139,10 +139,9 @@ nonContainerElement = not . containerElement
 
 chapterTitle :: [Char] -> [Prop] -> Reader [Element] [Char]
 chapterTitle title props = do
-  allElements <- ask
   let label = labelProp props
-  let chapterName = directiveValue allElements "Chapter"
-  let appendixName = directiveValue allElements "Apendix"
+  chapterName <- directiveValue "Chapter"
+  appendixName <- directiveValue "Apendix"
   let prefix =
         if label == "" then ""
         else if isDigit (head label) then chapterName ++ " " ++ label ++ ". "
@@ -195,7 +194,7 @@ renderElement allElements (Src srcType props src) =
         else line
       boldCommands prefix = unlines . map (boldCommand prefix) . lines
       fileName = tangleFileName props
-      fileLabel = directiveValueNoNewLines allElements "File"
+      fileLabel = runReader (directiveValueNoNewLines "File") allElements
   in 
     if hasNoRenderProp props
     then ""
@@ -448,9 +447,13 @@ sectionReference' parts chapterId chapterLabel sectionId =
     _:tailElements -> sectionReference' tailElements chapterId chapterLabel sectionId
     _ -> error $ "Unable to find section reference within chapter " ++ chapterId ++ " for section id: " ++ sectionId
 
-outputCss outputPath allElements = do
+outputCss :: String -> ReaderT [Element] IO ()
+outputCss outputPath = do
+  allElements <- ask
   let path = outputPath ++ "/web.css"
-  houtput <- safeOpenFileForWriting path
-  putStrLn $ "Generating " ++ path
-  hPutStr houtput (directiveValue allElements "WebCss")
-  hClose houtput
+  houtput <- liftIO $ safeOpenFileForWriting path
+  webCss <- directiveValue "WebCss"
+  liftIO $ do 
+    putStrLn $ "Generating " ++ path
+    hPutStr houtput webCss
+    hClose houtput

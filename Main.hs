@@ -30,7 +30,9 @@ main = do
   hSetEncoding hinput utf8
   input <- hGetContents hinput
   let contentBeforeFiltering = parseInput input
-  let content = filterVariants contentBeforeFiltering
+  let variants = calculateVariants contentBeforeFiltering
+  if (null variants) then return () else putStrLn $ "Variants: " ++ (show variants)
+  let content = filterVariants contentBeforeFiltering variants
   putStrLn $ "Content parsed. Length: " ++ show (length content) ++ "."
   case head args of
     "extractsrc"    -> extractSrcFromElements content path chapterId sectionId
