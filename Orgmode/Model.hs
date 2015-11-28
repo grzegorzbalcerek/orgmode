@@ -104,11 +104,13 @@ inspectElement element = case element of
 
 takeWhileEnd f = reverse . takeWhile f . reverse
 
+tangleFileName :: [Prop] -> String
 tangleFileName =
   foldl (\acc p -> case p of
                      Tangle path -> takeWhileEnd (/= '/') path
                      _ -> acc) ""
 
+tangleProp :: [Prop] -> String
 tangleProp =
   foldl (\acc p -> case p of
                      Tangle path -> path
@@ -150,61 +152,73 @@ idProp fallback =
                      Id ident -> ident
                      _ -> acc) (filter (\c -> c `elem` " ") fallback)
 
+variantProp :: [Prop] -> String
 variantProp =
   foldl (\acc p -> case p of
                      Variant v -> v
                      _ -> acc) "default"
 
+prependNewLinesProp :: [Prop] -> Int
 prependNewLinesProp =
   foldl (\acc p -> case p of
                      PrependNewLines n -> n
                      _ -> acc) 0
 
+minWidthProp :: Int -> [Prop] -> Int
 minWidthProp mw =
   foldl (\acc p -> case p of
                      MinWidth m -> m
                      _ -> acc) mw
 
+styleProp :: [Prop] -> Maybe String
 styleProp =
   foldl (\acc p -> case p of
                      Style s -> Just s
                      _ -> acc) Nothing
 
+isConsoleProp :: [Prop] -> Bool
 isConsoleProp =
   foldl (\acc p -> case p of
                      Console _ -> True
                      _ -> acc) False
 
+hasFragmentProp :: [Prop] -> Bool
 hasFragmentProp =
   foldl (\acc p -> case p of
                      Fragment -> True
                      _ -> acc) False
 
+hasSlideProp :: [Prop] -> Bool
 hasSlideProp =
   foldl (\acc p -> case p of
                      SlideProp -> True
                      _ -> acc) False
 
+hasNoTangleProp :: [Prop] -> Bool
 hasNoTangleProp =
   foldl (\acc p -> case p of
                      NoTangle -> True
                      _ -> acc) False
 
+hasNoRenderProp :: [Prop] -> Bool
 hasNoRenderProp =
   foldl (\acc p -> case p of
                      NoRender -> True
                      _ -> acc) False
 
+hasNoVerifyProp :: [Prop] -> Bool
 hasNoVerifyProp =
   foldl (\acc p -> case p of
                      NoVerify -> True
                      _ -> acc) False
 
+isOutputProp :: [Prop] -> Bool
 isOutputProp =
   foldl (\acc p -> case p of
                      Output -> True
                      _ -> acc) False
 
+isPauseBeforeProp :: [Prop] -> Bool
 isPauseBeforeProp =
   foldl (\acc p -> case p of
                      PauseBefore -> True
@@ -215,21 +229,25 @@ labelProp =
                      Label label -> label
                      _ -> acc) ""
 
+typeProp :: [Prop] -> String
 typeProp =
   foldl (\acc p -> case p of
                      Type t -> t
                      _ -> acc) ""
 
+latex1Prop :: [Prop] -> String
 latex1Prop =
   foldl (\acc p -> case p of
                      Latex1Prop lp -> lp
                      _ -> acc) ""
 
+latex2Prop :: [Prop] -> String
 latex2Prop =
   foldl (\acc p -> case p of
                      Latex2Prop lp -> lp
                      _ -> acc) ""
 
+htmlProp :: [Prop] -> String
 htmlProp =
   foldl (\acc p -> case p of
                      HtmlProp hp -> hp
@@ -242,26 +260,31 @@ indexEntriesFromProps ident label =
                      _ -> acc) []
 
 
+keywordLikeProp :: [Prop] -> [String]
 keywordLikeProp =
   foldl (\acc p -> case p of
                      KeywordLike ks -> ks
                      _ -> acc) []
 
+typeLikeProp :: [Prop] -> [String]
 typeLikeProp =
   foldl (\acc p -> case p of
                      TypeLike ks -> ks
                      _ -> acc) []
 
+identifierLikeProp :: [Prop] -> [String]
 identifierLikeProp =
   foldl (\acc p -> case p of
                      IdentifierLike ks -> ks
                      _ -> acc) []
 
+symbolLikeProp :: [Prop] -> [String]
 symbolLikeProp =
   foldl (\acc p -> case p of
                      SymbolLike ks -> ks
                      _ -> acc) []
 
+constantLikeProp :: [Prop] -> [String]
 constantLikeProp =
   foldl (\acc p -> case p of
                      ConstantLike ks -> ks
