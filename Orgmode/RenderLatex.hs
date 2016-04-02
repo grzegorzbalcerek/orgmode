@@ -76,8 +76,10 @@ renderElement _ _ (Header scale content) =
   "\\centerline{\\tikz{\\node[scale=" ++ show scale ++ "]{" ++ content ++ "};}}\n"
 renderElement Slides _ (Paragraph _ txt) = ""
 renderElement _ _ Skipped = ""
+renderElement InNote allElements (Paragraph props txt) =
+  "\n\n" ++ latex1Prop props ++ "\n\n" ++ renderIndexEntries props ++ renderText allElements txt
 renderElement _ allElements (Paragraph props txt) =
-  "\n\n" ++ latex1Prop props ++ renderIndexEntries props ++ renderText allElements txt ++ latex2Prop props
+  "\n\n" ++ latex1Prop props ++ "\n\n" ++ renderIndexEntries props ++ renderText allElements txt ++ "\n\n" ++ latex2Prop props ++ "\n\n"
 renderElement rt allElements (Slide title props parts) =
   "\\begin{frame}[fragile]\n" ++
   (if title == "" then "" else "\\frametitle{" ++ title ++ "}\n") ++
@@ -118,16 +120,18 @@ renderElement rt allElements (Section title props parts) =
     (if label == "" then "\\addcontentsline{toc}{section}{" ++ title ++ "}" else "") ++
     concat (map (renderElement rt allElements) parts) ++ latex2Prop props ++ "\n"
 renderElement rt allElements (Items props items) =
-  renderIndexEntries props ++ "\n\\begin{itemize}\n" ++ concat (map (renderElement rt allElements) items) ++  "\\end{itemize}\n"
+  renderIndexEntries props ++ "\n\\begin{itemize}\n" ++
+  (if styleProp props == Just "none" then "\\renewcommand{\\labelitemi}{}\n" else "") ++
+  concat (map (renderElement rt allElements) items) ++  "\\end{itemize}\n"
 renderElement rt allElements (Note noteType props parts) =
-  "\n\n" ++ renderIndexEntries props ++ "\\begin{tabular}{lp{1cm}p{11.2cm}}\n" ++
+  "\n\n" ++ latex1Prop props ++ "\n\n" ++ renderIndexEntries props ++ "\\begin{tabular}{lp{1cm}p{11.2cm}}\n" ++
   "\\cline{2-3}\\noalign{\\smallskip}\n" ++
   "&\\raisebox{-" ++ (show $ (imageHeight $ head noteType) - 10) ++
   "pt}{\\includegraphics[height=" ++ (show.imageHeight $ head noteType) ++ "pt]{" ++
   [head noteType] ++ "sign.png" ++ -- (if head noteType == 'r' then ".png" else ".eps") ++
   "}}&\\small\\setlength{\\parskip}{2mm}" ++
   concat (map (renderElement InNote allElements) parts) ++
-  "\\\\ \\noalign{\\smallskip}\\cline{2-3}\n\\end{tabular}\n\n"
+  "\\\\ \\noalign{\\smallskip}\\cline{2-3}\n\\end{tabular}\n\n" ++ latex2Prop props
 renderElement Slides allElements (Src description props src) =
   if hasSlideProp props
   then "\\begin{frame}[fragile]\n" ++ renderSrcSlides (Src description props src) ++ "\\end{frame}\n"
@@ -188,7 +192,7 @@ renderSrcBook rt description props src =
     if hasNoRenderProp props
     then ""
     else 
-      "\\begin{alltt}\\footnotesize\\leftskip10pt\n" ++ render ++ "\\end{alltt}\n"
+      latex1Prop props ++ "\n\\begin{alltt}\\footnotesize\\leftskip10pt\n" ++ render ++ "\\end{alltt}\n\n" ++ latex2Prop props
 
 renderCodeBook :: String -> [Prop] -> String -> String
 renderCodeBook sourceType props src =
@@ -204,6 +208,7 @@ renderCodeBook sourceType props src =
           ('℃',_) -> "{\\fontencoding{TS1}\\selectfont\\char137}" ++ acc
           ('⇒',_) -> "{\\includegraphics[width=7pt]{doublerightarrow.png}}" ++ acc
           ('…',_) -> "{\\fontencoding{QX}\\selectfont\\char8}" ++ acc
+          ('`',_) -> "{\\fontencoding{T1}\\selectfont\\char0}" ++ acc
           ('①',_) -> whiteCircleSource 1 ++ acc
           ('②',_) -> whiteCircleSource 2 ++ acc
           ('③',_) -> whiteCircleSource 3 ++ acc
@@ -369,107 +374,125 @@ renderIndex x =
         g c = c /= '!' && c /= '¡'
         k c = if c == '"' then '#' else c
 
+replaceBlank '\n' = ' '
+replaceBlank '\r' = ' '
+replaceBlank c = c
+
 renderText :: [Element] -> String -> String
-renderText _ "" = ""
-renderText allElements (c:acc) =
+renderText allElements text = renderText' allElements $ map replaceBlank text
+
+renderText' :: [Element] -> String -> String
+renderText' _ "" = ""
+renderText' allElements (c:acc) =
           case (c, break (c ==) acc) of
-            (' ',("z",' ':acc')) -> " z{\\nobreak} {\\nobreak}" ++ renderText allElements acc'
-            (' ',("w",' ':acc')) -> " w{\\nobreak} {\\nobreak}" ++ renderText allElements acc'
-            (' ',("i",' ':acc')) -> " i{\\nobreak} {\\nobreak}" ++ renderText allElements acc'
-            (' ',("a",' ':acc')) -> " a{\\nobreak} {\\nobreak}" ++ renderText allElements acc'
-            (' ',("u",' ':acc')) -> " u{\\nobreak} {\\nobreak}" ++ renderText allElements acc'
-            (' ',("o",' ':acc')) -> " o{\\nobreak} {\\nobreak}" ++ renderText allElements acc'
-            ('⒡',(file,_:acc')) -> "\\textsl{" ++ renderText allElements file ++ "}" ++ renderText allElements acc'
-            ('⒰',(url,_:acc')) -> "\\textsl{" ++ renderText allElements url ++ "}" ++ renderText allElements acc'
-            ('⒤',(text,_:acc')) -> "\\textit{" ++ renderText allElements text ++ "}" ++ renderText allElements acc'
-            ('⒞',(code,_:acc')) -> "\\texttt{" ++ renderText allElements code ++ "}" ++ renderText allElements acc'
-            ('⒳',(x,_:acc')) -> "\\index{" ++ renderIndex x ++ "}" ++ renderText allElements acc'
+            ('\n',_) -> renderText' allElements (' ':acc)
+            (' ',("z",' ':acc')) -> " z{\\nobreak} " ++ renderText' allElements acc'
+            (' ',("w",' ':acc')) -> " w{\\nobreak} " ++ renderText' allElements acc'
+            (' ',("i",' ':acc')) -> " i{\\nobreak} " ++ renderText' allElements acc'
+            (' ',("a",' ':acc')) -> " a{\\nobreak} " ++ renderText' allElements acc'
+            (' ',("u",' ':acc')) -> " u{\\nobreak} " ++ renderText' allElements acc'
+            (' ',("o",' ':acc')) -> " o{\\nobreak} " ++ renderText' allElements acc'
+            (' ',("Z",' ':acc')) -> " Z{\\nobreak} " ++ renderText' allElements acc'
+            (' ',("W",' ':acc')) -> " W{\\nobreak} " ++ renderText' allElements acc'
+            (' ',("I",' ':acc')) -> " I{\\nobreak} " ++ renderText' allElements acc'
+            (' ',("A",' ':acc')) -> " A{\\nobreak} " ++ renderText' allElements acc'
+            (' ',("U",' ':acc')) -> " U{\\nobreak} " ++ renderText' allElements acc'
+            (' ',("O",' ':acc')) -> " O{\\nobreak} " ++ renderText' allElements acc'
+            ('⒡',(file,_:acc')) -> "\\textsl{" ++ renderText' allElements file ++ "}" ++ renderText' allElements acc'
+            ('⒰',(url,_:acc')) -> "\\textsl{" ++ renderText' allElements url ++ "}" ++ renderText' allElements acc'
+            ('⒤',(text,_:acc')) -> "\\textit{" ++ renderText' allElements text ++ "}" ++ renderText' allElements acc'
+            ('⒞',(code,_:acc')) -> "\\texttt{" ++ renderText' allElements code ++ "}" ++ renderText' allElements acc'
+            ('⒳',(x,_:acc')) -> "\\index{" ++ renderIndex x ++ "}" ++ renderText' allElements acc'
             ('⒭',(ref,_:acc')) ->
               case break (','==) ref of
-                (chId,[]) ->  chapterReference allElements chId ++ renderText allElements acc'
-                (chId,_:secId) -> sectionReference allElements chId secId ++ renderText allElements acc'
-            ('|',_) -> "{\\fontencoding{T1}\\selectfont\\char124}" ++ renderText allElements acc
-            ('!',_) -> "{\\fontencoding{T1}\\selectfont\\char33}" ++ renderText allElements acc
-            ('"',_) -> "{\\fontencoding{T1}\\selectfont\\char34}" ++ renderText allElements acc
-            ('#',_) -> "{\\fontencoding{T1}\\selectfont\\char35}" ++ renderText allElements acc
-            ('$',_) -> "{\\fontencoding{T1}\\selectfont\\char36}" ++ renderText allElements acc
-            ('%',_) -> "{\\fontencoding{T1}\\selectfont\\char37}" ++ renderText allElements acc
-            ('_',_) -> "{\\fontencoding{T1}\\selectfont\\char95}" ++ renderText allElements acc
-            ('>',_) -> "{\\fontencoding{T1}\\selectfont\\char62}" ++ renderText allElements acc
-            ('<',_) -> "{\\fontencoding{T1}\\selectfont\\char60}" ++ renderText allElements acc
-            ('℃',_) -> "{\\fontencoding{TS1}\\selectfont\\char137}" ++ renderText allElements acc
-            ('Σ',_) -> "{\\fontencoding{QX}\\selectfont\\char6}" ++ renderText allElements acc
-            ('Ω',_) -> "{\\fontencoding{TS1}\\selectfont\\char87}" ++ renderText allElements acc
-            ('←',_) -> "{\\fontencoding{TS1}\\selectfont\\char24}" ++ renderText allElements acc
-            ('→',_) -> "{\\fontencoding{TS1}\\selectfont\\char25}" ++ renderText allElements acc
-            ('⇒',_) -> "{\\includegraphics[width=7pt]{doublerightarrow.png}}" ++ renderText allElements acc
-            ('−',_) -> "{\\fontencoding{TS1}\\selectfont\\char61}" ++ renderText allElements acc
-            ('–',_) -> "--" ++ renderText allElements acc
-            ('—',_) -> "---" ++ renderText allElements acc
-            ('∞',_) -> "{\\fontencoding{QX}\\selectfont\\char173}" ++ renderText allElements acc
-            ('^',_) -> "{\\fontencoding{T1}\\selectfont\\char94}" ++ renderText allElements acc
-            ('{',_) -> "{\\fontencoding{T1}\\selectfont\\char123}" ++ renderText allElements acc
-            ('}',_) -> "{\\fontencoding{T1}\\selectfont\\char125}" ++ renderText allElements acc
-            ('\\',_) -> "{\\fontencoding{T1}\\selectfont\\char92}" ++ renderText allElements acc
-            ('&',_) -> "{\\fontencoding{T1}\\selectfont\\char38}" ++ renderText allElements acc
-            ('\'',_) -> "{\\fontencoding{T1}\\selectfont\\char39}" ++ renderText allElements acc
-            ('…',_) -> "{\\fontencoding{QX}\\selectfont\\char8}" ++ renderText allElements acc
-            ('①',_) -> whiteCircleText 1 ++ renderText allElements acc
-            ('②',_) -> whiteCircleText 2 ++ renderText allElements acc
-            ('③',_) -> whiteCircleText 3 ++ renderText allElements acc
-            ('④',_) -> whiteCircleText 4 ++ renderText allElements acc
-            ('⑤',_) -> whiteCircleText 5 ++ renderText allElements acc
-            ('⑥',_) -> whiteCircleText 6 ++ renderText allElements acc
-            ('⑦',_) -> whiteCircleText 7 ++ renderText allElements acc
-            ('⑧',_) -> whiteCircleText 8 ++ renderText allElements acc
-            ('⑨',_) -> whiteCircleText 9 ++ renderText allElements acc
-            ('⑩',_) -> whiteCircleText 10 ++ renderText allElements acc
-            ('⑪',_) -> whiteCircleText 11 ++ renderText allElements acc
-            ('⑫',_) -> whiteCircleText 12 ++ renderText allElements acc
-            ('⑬',_) -> whiteCircleText 13 ++ renderText allElements acc
-            ('⑭',_) -> whiteCircleText 14 ++ renderText allElements acc
-            ('⑮',_) -> whiteCircleText 15 ++ renderText allElements acc
-            ('⑯',_) -> whiteCircleText 16 ++ renderText allElements acc
-            ('⑰',_) -> whiteCircleText 17 ++ renderText allElements acc
-            ('⑱',_) -> whiteCircleText 18 ++ renderText allElements acc
-            ('⑲',_) -> whiteCircleText 19 ++ renderText allElements acc
-            ('⑳',_) -> whiteCircleText 20 ++ renderText allElements acc
-            ('㉑',_) -> whiteCircleText 21 ++ renderText allElements acc
-            ('㉒',_) -> whiteCircleText 22 ++ renderText allElements acc
-            ('㉓',_) -> whiteCircleText 23 ++ renderText allElements acc
-            ('㉔',_) -> whiteCircleText 24 ++ renderText allElements acc
-            ('㉕',_) -> whiteCircleText 25 ++ renderText allElements acc
-            ('㉖',_) -> whiteCircleText 26 ++ renderText allElements acc
-            ('㉗',_) -> whiteCircleText 27 ++ renderText allElements acc
-            ('㉘',_) -> whiteCircleText 28 ++ renderText allElements acc
-            ('㉙',_) -> whiteCircleText 29 ++ renderText allElements acc
-            ('㉚',_) -> whiteCircleText 30 ++ renderText allElements acc
-            ('㉛',_) -> whiteCircleText 31 ++ renderText allElements acc
-            ('㉜',_) -> whiteCircleText 32 ++ renderText allElements acc
-            ('㉝',_) -> whiteCircleText 33 ++ renderText allElements acc
-            ('㉞',_) -> whiteCircleText 34 ++ renderText allElements acc
-            ('㉟',_) -> whiteCircleText 35 ++ renderText allElements acc
-            ('❶',_) -> blackCircleText 1 ++ renderText allElements acc
-            ('❷',_) -> blackCircleText 2 ++ renderText allElements acc
-            ('❸',_) -> blackCircleText 3 ++ renderText allElements acc
-            ('❹',_) -> blackCircleText 4 ++ renderText allElements acc
-            ('❺',_) -> blackCircleText 5 ++ renderText allElements acc
-            ('❻',_) -> blackCircleText 6 ++ renderText allElements acc
-            ('❼',_) -> blackCircleText 7 ++ renderText allElements acc
-            ('❽',_) -> blackCircleText 8 ++ renderText allElements acc
-            ('❾',_) -> blackCircleText 9 ++ renderText allElements acc
-            ('❿',_) -> blackCircleText 10 ++ renderText allElements acc
-            ('⓫',_) -> blackCircleText 11 ++ renderText allElements acc
-            ('⓬',_) -> blackCircleText 12 ++ renderText allElements acc
-            ('⓭',_) -> blackCircleText 13 ++ renderText allElements acc
-            ('⓮',_) -> blackCircleText 14 ++ renderText allElements acc
-            ('⓯',_) -> blackCircleText 15 ++ renderText allElements acc
-            ('⓰',_) -> blackCircleText 16 ++ renderText allElements acc
-            ('⓱',_) -> blackCircleText 17 ++ renderText allElements acc
-            ('⓲',_) -> blackCircleText 18 ++ renderText allElements acc
-            ('⓳',_) -> blackCircleText 19 ++ renderText allElements acc
-            ('⓴',_) -> blackCircleText 20 ++ renderText allElements acc
-            _ -> c:renderText allElements acc
+                (chId,[]) ->  chapterReference allElements chId ++ renderText' allElements acc'
+                (chId,_:secId) -> sectionReference allElements chId secId ++ renderText' allElements acc'
+            ('~',_) -> "{\\fontencoding{T1}\\selectfont\\char126}" ++ renderText' allElements acc
+            ('|',_) -> "{\\fontencoding{T1}\\selectfont\\char124}" ++ renderText' allElements acc
+            ('!',_) -> "{\\fontencoding{T1}\\selectfont\\char33}" ++ renderText' allElements acc
+            ('"',_) -> "{\\fontencoding{T1}\\selectfont\\char34}" ++ renderText' allElements acc
+            ('#',_) -> "{\\fontencoding{T1}\\selectfont\\char35}" ++ renderText' allElements acc
+            ('$',_) -> "{\\fontencoding{T1}\\selectfont\\char36}" ++ renderText' allElements acc
+            ('%',_) -> "{\\fontencoding{T1}\\selectfont\\char37}" ++ renderText' allElements acc
+            ('_',_) -> "{\\fontencoding{T1}\\selectfont\\char95}" ++ renderText' allElements acc
+            ('>',_) -> "{\\fontencoding{T1}\\selectfont\\char62}" ++ renderText' allElements acc
+            ('<',_) -> "{\\fontencoding{T1}\\selectfont\\char60}" ++ renderText' allElements acc
+            ('℃',_) -> "{\\fontencoding{TS1}\\selectfont\\char137}" ++ renderText' allElements acc
+            ('Σ',_) -> "{\\fontencoding{QX}\\selectfont\\char6}" ++ renderText' allElements acc
+            ('Ω',_) -> "{\\fontencoding{TS1}\\selectfont\\char87}" ++ renderText' allElements acc
+            ('Δ',_) -> "{\\fontencoding{QX}\\selectfont\\char1}" ++ renderText' allElements acc
+            ('Π',_) -> "{\\fontencoding{QX}\\selectfont\\char5}" ++ renderText' allElements acc
+            ('←',_) -> "{\\fontencoding{TS1}\\selectfont\\char24}" ++ renderText' allElements acc
+            ('→',_) -> "{\\fontencoding{TS1}\\selectfont\\char25}" ++ renderText' allElements acc
+            ('⇒',_) -> "{\\includegraphics[width=7pt]{doublerightarrow.png}}" ++ renderText' allElements acc
+            ('−',_) -> "{\\fontencoding{TS1}\\selectfont\\char61}" ++ renderText' allElements acc
+            ('–',_) -> "--" ++ renderText' allElements acc
+            ('—',_) -> "---" ++ renderText' allElements acc
+            ('∞',_) -> "{\\fontencoding{QX}\\selectfont\\char173}" ++ renderText' allElements acc
+            ('^',_) -> "{\\fontencoding{T1}\\selectfont\\char94}" ++ renderText' allElements acc
+            ('{',_) -> "{\\fontencoding{T1}\\selectfont\\char123}" ++ renderText' allElements acc
+            ('}',_) -> "{\\fontencoding{T1}\\selectfont\\char125}" ++ renderText' allElements acc
+            ('\\',_) -> "{\\fontencoding{T1}\\selectfont\\char92}" ++ renderText' allElements acc
+            ('&',_) -> "{\\fontencoding{T1}\\selectfont\\char38}" ++ renderText' allElements acc
+            ('\'',_) -> "{\\fontencoding{T1}\\selectfont\\char39}" ++ renderText' allElements acc
+            ('…',_) -> "{\\fontencoding{QX}\\selectfont\\char8}" ++ renderText' allElements acc
+            ('`',_) -> "{\\fontencoding{T1}\\selectfont\\char0}" ++ renderText' allElements acc
+            ('①',_) -> whiteCircleText 1 ++ renderText' allElements acc
+            ('②',_) -> whiteCircleText 2 ++ renderText' allElements acc
+            ('③',_) -> whiteCircleText 3 ++ renderText' allElements acc
+            ('④',_) -> whiteCircleText 4 ++ renderText' allElements acc
+            ('⑤',_) -> whiteCircleText 5 ++ renderText' allElements acc
+            ('⑥',_) -> whiteCircleText 6 ++ renderText' allElements acc
+            ('⑦',_) -> whiteCircleText 7 ++ renderText' allElements acc
+            ('⑧',_) -> whiteCircleText 8 ++ renderText' allElements acc
+            ('⑨',_) -> whiteCircleText 9 ++ renderText' allElements acc
+            ('⑩',_) -> whiteCircleText 10 ++ renderText' allElements acc
+            ('⑪',_) -> whiteCircleText 11 ++ renderText' allElements acc
+            ('⑫',_) -> whiteCircleText 12 ++ renderText' allElements acc
+            ('⑬',_) -> whiteCircleText 13 ++ renderText' allElements acc
+            ('⑭',_) -> whiteCircleText 14 ++ renderText' allElements acc
+            ('⑮',_) -> whiteCircleText 15 ++ renderText' allElements acc
+            ('⑯',_) -> whiteCircleText 16 ++ renderText' allElements acc
+            ('⑰',_) -> whiteCircleText 17 ++ renderText' allElements acc
+            ('⑱',_) -> whiteCircleText 18 ++ renderText' allElements acc
+            ('⑲',_) -> whiteCircleText 19 ++ renderText' allElements acc
+            ('⑳',_) -> whiteCircleText 20 ++ renderText' allElements acc
+            ('㉑',_) -> whiteCircleText 21 ++ renderText' allElements acc
+            ('㉒',_) -> whiteCircleText 22 ++ renderText' allElements acc
+            ('㉓',_) -> whiteCircleText 23 ++ renderText' allElements acc
+            ('㉔',_) -> whiteCircleText 24 ++ renderText' allElements acc
+            ('㉕',_) -> whiteCircleText 25 ++ renderText' allElements acc
+            ('㉖',_) -> whiteCircleText 26 ++ renderText' allElements acc
+            ('㉗',_) -> whiteCircleText 27 ++ renderText' allElements acc
+            ('㉘',_) -> whiteCircleText 28 ++ renderText' allElements acc
+            ('㉙',_) -> whiteCircleText 29 ++ renderText' allElements acc
+            ('㉚',_) -> whiteCircleText 30 ++ renderText' allElements acc
+            ('㉛',_) -> whiteCircleText 31 ++ renderText' allElements acc
+            ('㉜',_) -> whiteCircleText 32 ++ renderText' allElements acc
+            ('㉝',_) -> whiteCircleText 33 ++ renderText' allElements acc
+            ('㉞',_) -> whiteCircleText 34 ++ renderText' allElements acc
+            ('㉟',_) -> whiteCircleText 35 ++ renderText' allElements acc
+            ('❶',_) -> blackCircleText 1 ++ renderText' allElements acc
+            ('❷',_) -> blackCircleText 2 ++ renderText' allElements acc
+            ('❸',_) -> blackCircleText 3 ++ renderText' allElements acc
+            ('❹',_) -> blackCircleText 4 ++ renderText' allElements acc
+            ('❺',_) -> blackCircleText 5 ++ renderText' allElements acc
+            ('❻',_) -> blackCircleText 6 ++ renderText' allElements acc
+            ('❼',_) -> blackCircleText 7 ++ renderText' allElements acc
+            ('❽',_) -> blackCircleText 8 ++ renderText' allElements acc
+            ('❾',_) -> blackCircleText 9 ++ renderText' allElements acc
+            ('❿',_) -> blackCircleText 10 ++ renderText' allElements acc
+            ('⓫',_) -> blackCircleText 11 ++ renderText' allElements acc
+            ('⓬',_) -> blackCircleText 12 ++ renderText' allElements acc
+            ('⓭',_) -> blackCircleText 13 ++ renderText' allElements acc
+            ('⓮',_) -> blackCircleText 14 ++ renderText' allElements acc
+            ('⓯',_) -> blackCircleText 15 ++ renderText' allElements acc
+            ('⓰',_) -> blackCircleText 16 ++ renderText' allElements acc
+            ('⓱',_) -> blackCircleText 17 ++ renderText' allElements acc
+            ('⓲',_) -> blackCircleText 18 ++ renderText' allElements acc
+            ('⓳',_) -> blackCircleText 19 ++ renderText' allElements acc
+            ('⓴',_) -> blackCircleText 20 ++ renderText' allElements acc
+            _ -> c:renderText' allElements acc
 
 -- ⒰ url
 -- ⒞ code
