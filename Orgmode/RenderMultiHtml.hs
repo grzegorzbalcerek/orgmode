@@ -219,8 +219,9 @@ renderElement allElements (Table props rows) =
 renderElement allElements ShowIndex = renderIndex allElements
 renderElement _ _ = ""
 
-renderTableRow row =
-  "<tr>" ++ concat (map renderTableCell row) ++ "</tr>\n"
+renderTableRow (RegularRow cells) =
+  "<tr>" ++ concat (map renderTableCell cells) ++ "</tr>\n"
+renderTableRow _ = ""
 
 renderTableCell cell =
   "<td>" ++ cell ++ "</td>"
@@ -351,61 +352,61 @@ renderSource sourceType props src =
             ('<',_) -> "&lt;" ++ acc
             ('>',_) -> "&gt;" ++ acc
             ('&',_) -> "&amp;" ++ acc
-            ('①',_) -> "<img class='white' src='white1.png'></img>" ++ acc
-            ('②',_) -> "<img class='white' src='white2.png'></img>" ++ acc
-            ('③',_) -> "<img class='white' src='white3.png'></img>" ++ acc
-            ('④',_) -> "<img class='white' src='white4.png'></img>" ++ acc
-            ('⑤',_) -> "<img class='white' src='white5.png'></img>" ++ acc
-            ('⑥',_) -> "<img class='white' src='white6.png'></img>" ++ acc
-            ('⑦',_) -> "<img class='white' src='white7.png'></img>" ++ acc
-            ('⑧',_) -> "<img class='white' src='white8.png'></img>" ++ acc
-            ('⑨',_) -> "<img class='white' src='white9.png'></img>" ++ acc
-            ('⑩',_) -> "<img class='white' src='white10.png'></img>" ++ acc
-            ('⑪',_) -> "<img class='white' src='white11.png'></img>" ++ acc
-            ('⑫',_) -> "<img class='white' src='white12.png'></img>" ++ acc
-            ('⑬',_) -> "<img class='white' src='white13.png'></img>" ++ acc
-            ('⑭',_) -> "<img class='white' src='white14.png'></img>" ++ acc
-            ('⑮',_) -> "<img class='white' src='white15.png'></img>" ++ acc
-            ('⑯',_) -> "<img class='white' src='white16.png'></img>" ++ acc
-            ('⑰',_) -> "<img class='white' src='white17.png'></img>" ++ acc
-            ('⑱',_) -> "<img class='white' src='white18.png'></img>" ++ acc
-            ('⑲',_) -> "<img class='white' src='white19.png'></img>" ++ acc
-            ('⑳',_) -> "<img class='white' src='white20.png'></img>" ++ acc
-            ('㉑',_) -> "<img class='white' src='white21.png'></img>" ++ acc
-            ('㉒',_) -> "<img class='white' src='white22.png'></img>" ++ acc
-            ('㉓',_) -> "<img class='white' src='white23.png'></img>" ++ acc
-            ('㉔',_) -> "<img class='white' src='white24.png'></img>" ++ acc
-            ('㉕',_) -> "<img class='white' src='white25.png'></img>" ++ acc
-            ('㉖',_) -> "<img class='white' src='white26.png'></img>" ++ acc
-            ('㉗',_) -> "<img class='white' src='white27.png'></img>" ++ acc
-            ('㉘',_) -> "<img class='white' src='white28.png'></img>" ++ acc
-            ('㉙',_) -> "<img class='white' src='white29.png'></img>" ++ acc
-            ('㉚',_) -> "<img class='white' src='white30.png'></img>" ++ acc
-            ('㉛',_) -> "<img class='white' src='white31.png'></img>" ++ acc
-            ('㉜',_) -> "<img class='white' src='white32.png'></img>" ++ acc
-            ('㉝',_) -> "<img class='white' src='white33.png'></img>" ++ acc
-            ('㉞',_) -> "<img class='white' src='white34.png'></img>" ++ acc
-            ('㉟',_) -> "<img class='white' src='white35.png'></img>" ++ acc
-            ('❶',_) -> "<img class='black' src='black1.png'></img>" ++ acc
-            ('❷',_) -> "<img class='black' src='black2.png'></img>" ++ acc
-            ('❸',_) -> "<img class='black' src='black3.png'></img>" ++ acc
-            ('❹',_) -> "<img class='black' src='black4.png'></img>" ++ acc
-            ('❺',_) -> "<img class='black' src='black5.png'></img>" ++ acc
-            ('❻',_) -> "<img class='black' src='black6.png'></img>" ++ acc
-            ('❼',_) -> "<img class='black' src='black7.png'></img>" ++ acc
-            ('❽',_) -> "<img class='black' src='black8.png'></img>" ++ acc
-            ('❾',_) -> "<img class='black' src='black9.png'></img>" ++ acc
-            ('❿',_) -> "<img class='black' src='black10.png'></img>" ++ acc
-            ('⓫',_) -> "<img class='black' src='black11.png'></img>" ++ acc
-            ('⓬',_) -> "<img class='black' src='black12.png'></img>" ++ acc
-            ('⓭',_) -> "<img class='black' src='black13.png'></img>" ++ acc
-            ('⓮',_) -> "<img class='black' src='black14.png'></img>" ++ acc
-            ('⓯',_) -> "<img class='black' src='black15.png'></img>" ++ acc
-            ('⓰',_) -> "<img class='black' src='black16.png'></img>" ++ acc
-            ('⓱',_) -> "<img class='black' src='black17.png'></img>" ++ acc
-            ('⓲',_) -> "<img class='black' src='black18.png'></img>" ++ acc
-            ('⓳',_) -> "<img class='black' src='black19.png'></img>" ++ acc
-            ('⓴',_) -> "<img class='black' src='black20.png'></img>" ++ acc
+            ('①',_) -> " <img class='white' src='white1.png'></img>" ++ acc
+            ('②',_) -> " <img class='white' src='white2.png'></img>" ++ acc
+            ('③',_) -> " <img class='white' src='white3.png'></img>" ++ acc
+            ('④',_) -> " <img class='white' src='white4.png'></img>" ++ acc
+            ('⑤',_) -> " <img class='white' src='white5.png'></img>" ++ acc
+            ('⑥',_) -> " <img class='white' src='white6.png'></img>" ++ acc
+            ('⑦',_) -> " <img class='white' src='white7.png'></img>" ++ acc
+            ('⑧',_) -> " <img class='white' src='white8.png'></img>" ++ acc
+            ('⑨',_) -> " <img class='white' src='white9.png'></img>" ++ acc
+            ('⑩',_) -> " <img class='white' src='white10.png'></img>" ++ acc
+            ('⑪',_) -> " <img class='white' src='white11.png'></img>" ++ acc
+            ('⑫',_) -> " <img class='white' src='white12.png'></img>" ++ acc
+            ('⑬',_) -> " <img class='white' src='white13.png'></img>" ++ acc
+            ('⑭',_) -> " <img class='white' src='white14.png'></img>" ++ acc
+            ('⑮',_) -> " <img class='white' src='white15.png'></img>" ++ acc
+            ('⑯',_) -> " <img class='white' src='white16.png'></img>" ++ acc
+            ('⑰',_) -> " <img class='white' src='white17.png'></img>" ++ acc
+            ('⑱',_) -> " <img class='white' src='white18.png'></img>" ++ acc
+            ('⑲',_) -> " <img class='white' src='white19.png'></img>" ++ acc
+            ('⑳',_) -> " <img class='white' src='white20.png'></img>" ++ acc
+            ('㉑',_) -> " <img class='white' src='white21.png'></img>" ++ acc
+            ('㉒',_) -> " <img class='white' src='white22.png'></img>" ++ acc
+            ('㉓',_) -> " <img class='white' src='white23.png'></img>" ++ acc
+            ('㉔',_) -> " <img class='white' src='white24.png'></img>" ++ acc
+            ('㉕',_) -> " <img class='white' src='white25.png'></img>" ++ acc
+            ('㉖',_) -> " <img class='white' src='white26.png'></img>" ++ acc
+            ('㉗',_) -> " <img class='white' src='white27.png'></img>" ++ acc
+            ('㉘',_) -> " <img class='white' src='white28.png'></img>" ++ acc
+            ('㉙',_) -> " <img class='white' src='white29.png'></img>" ++ acc
+            ('㉚',_) -> " <img class='white' src='white30.png'></img>" ++ acc
+            ('㉛',_) -> " <img class='white' src='white31.png'></img>" ++ acc
+            ('㉜',_) -> " <img class='white' src='white32.png'></img>" ++ acc
+            ('㉝',_) -> " <img class='white' src='white33.png'></img>" ++ acc
+            ('㉞',_) -> " <img class='white' src='white34.png'></img>" ++ acc
+            ('㉟',_) -> " <img class='white' src='white35.png'></img>" ++ acc
+            ('❶',_) -> " <img class='black' src='black1.png'></img>" ++ acc
+            ('❷',_) -> " <img class='black' src='black2.png'></img>" ++ acc
+            ('❸',_) -> " <img class='black' src='black3.png'></img>" ++ acc
+            ('❹',_) -> " <img class='black' src='black4.png'></img>" ++ acc
+            ('❺',_) -> " <img class='black' src='black5.png'></img>" ++ acc
+            ('❻',_) -> " <img class='black' src='black6.png'></img>" ++ acc
+            ('❼',_) -> " <img class='black' src='black7.png'></img>" ++ acc
+            ('❽',_) -> " <img class='black' src='black8.png'></img>" ++ acc
+            ('❾',_) -> " <img class='black' src='black9.png'></img>" ++ acc
+            ('❿',_) -> " <img class='black' src='black10.png'></img>" ++ acc
+            ('⓫',_) -> " <img class='black' src='black11.png'></img>" ++ acc
+            ('⓬',_) -> " <img class='black' src='black12.png'></img>" ++ acc
+            ('⓭',_) -> " <img class='black' src='black13.png'></img>" ++ acc
+            ('⓮',_) -> " <img class='black' src='black14.png'></img>" ++ acc
+            ('⓯',_) -> " <img class='black' src='black15.png'></img>" ++ acc
+            ('⓰',_) -> " <img class='black' src='black16.png'></img>" ++ acc
+            ('⓱',_) -> " <img class='black' src='black17.png'></img>" ++ acc
+            ('⓲',_) -> " <img class='black' src='black18.png'></img>" ++ acc
+            ('⓳',_) -> " <img class='black' src='black19.png'></img>" ++ acc
+            ('⓴',_) -> " <img class='black' src='black20.png'></img>" ++ acc
             _ -> c:acc
   in
     foldr f "" src

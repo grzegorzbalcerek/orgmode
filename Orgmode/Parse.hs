@@ -116,6 +116,12 @@ slideElement level =
 
 contentElement level =
   (
+  try (h1 level) <|>
+  try (h2 level) <|>
+  try (h3 level) <|>
+  try (h4 level) <|>
+  try (h5 level) <|>
+  try (h6 level) <|>
   try (paragraph level) <|>
   try (src level) <|>
   try header <|>
@@ -161,6 +167,30 @@ implicitParagraph = do
   content <- many1 regularLineWithEol
   return $ Paragraph [] (concat content)
 
+h1 level = do
+  (title,props) <- asteriskLineWithProps level "H1"
+  return $ H1 title props
+
+h2 level = do
+  (title,props) <- asteriskLineWithProps level "H2"
+  return $ H2 title props
+
+h3 level = do
+  (title,props) <- asteriskLineWithProps level "H3"
+  return $ H3 title props
+
+h4 level = do
+  (title,props) <- asteriskLineWithProps level "H4"
+  return $ H4 title props
+
+h5 level = do
+  (title,props) <- asteriskLineWithProps level "H5"
+  return $ H5 title props
+
+h6 level = do
+  (title,props) <- asteriskLineWithProps level "H6"
+  return $ H6 title props
+
 paragraph level = do
   (_,props) <- asteriskLineWithProps level "PARA"
   content <- many regularLineWithEol
@@ -187,11 +217,24 @@ table level = do
   rows <- many (try tableRow)
   return $ Table props rows
 
-tableRow = do
+tableRow =
+  (
+  try (tableRowHline) <|>
+  try (tableRowRegular)
+  ) <?> "tableRow"
+
+tableRowHline = do
+  char '|'
+  char '-'
+  many (noneOf "\n\r")
+  eol
+  return $ HLine
+
+tableRowRegular = do
   char '|'
   cells <- many (try tableCell)
   eol
-  return $ cells
+  return $ RegularRow cells
 
 tableCell = do
   content <- many (noneOf "|\n\r")
@@ -257,9 +300,11 @@ colonProp =
   try colonPropNoRender <|>
   try colonPropNoVerify <|>
   try colonPropOutput <|>
+  try colonPropCenter <|>
   try colonPropBlock <|>
   try colonPropExampleBlock <|>
   try colonPropStyle <|>
+  try colonPropSpec <|>
   try colonPropId <|>
   try colonPropLabel <|>
   try colonPropLatex1 <|>
@@ -274,7 +319,7 @@ colonProp =
   try colonPropIdentifierLike <|>
   try colonPropSymbolLike <|>
   try colonPropConstantLike <|>
-  try colonPropMinWidth <|>
+  try colonPropWidth <|>
   try colonPropPrependNewLines <|>
   try colonPropPath <|>
   try colonPropUnrecognized
@@ -313,6 +358,10 @@ colonPropOutput = do
   string ":output"
   return Output
 
+colonPropCenter = do
+  string ":center"
+  return Center
+
 colonPropPath = do
   string ":path "
   fileName <- many1 (char '.' <|> char '_' <|> char '-' <|> char '/' <|> alphaNum)
@@ -341,6 +390,11 @@ colonPropStyle = do
   string ":style"
   value <- many (noneOf "¬:\n\r")
   return $ Style (trim value)
+
+colonPropSpec = do
+  string ":spec"
+  value <- many (noneOf "¬:\n\r")
+  return $ Spec (trim value)
 
 colonPropLabel = do
   string ":label"
@@ -415,10 +469,10 @@ colonPropPrependNewLines = do
   value <- many1 digit
   return $ PrependNewLines (read value :: Int)
 
-colonPropMinWidth = do
-  string ":minwidth "
-  value <- many1 digit
-  return $ MinWidth (read value :: Int)
+colonPropWidth = do
+  string ":width "
+  value <- many (noneOf "¬:\n\r")
+  return $ Width $ trim value
 
 colonPropUnrecognized = do
   string ":"

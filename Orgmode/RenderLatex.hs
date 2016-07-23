@@ -12,6 +12,7 @@ import Control.Monad
 import Data.List
 import Data.Char
 import Debug.Trace
+import Data.Maybe (fromMaybe,maybe)
 
 ----------------------------------------------------
 
@@ -22,7 +23,7 @@ renderLatex rt parts =
 
 ----------------------------------------------------
 
-latexStart Slides =
+latexStart "Slides" =
   "%% -*- coding: utf-8 -*-\n\
   \\\documentclass[smaller]{beamer}\n\
   \\\usetheme{Madrid}\n\
@@ -40,7 +41,7 @@ latexStart Slides =
   \\\begin{document}\n\
   \\\Large\n"
 
-latexStart Article =
+latexStart "Article" =
   "%% -*- coding: utf-8 -*-\n\
   \\\documentclass[11pt]{article}\n\
   \\\usepackage[paperwidth=210mm,paperheight=296mm,left=20mm,top=20mm,right=20mm,bottom=20mm]{geometry}\n\
@@ -66,18 +67,24 @@ imageHeight 'w' = 34
 
 renderElement :: RenderType -> [Element] -> Element -> String
 renderElement _ _ EmptyElement = ""
-renderElement Article _ (Latex "Article" content) = content
-renderElement Book _ (Latex "Book" content) = content
-renderElement Slides _ (Latex "Slides" content) = content
+renderElement "Article" _ (Latex "Article" content) = content
+renderElement "Book" _ (Latex "Book" content) = content
+renderElement "Slides" _ (Latex "Slides" content) = content
 renderElement _ _ Pause = "\\pause\n"
 renderElement _ allElements (Item item) =
   "\\item{" ++ renderText allElements item ++ "}\n"
 renderElement _ _ (Header scale content) =
   "\\centerline{\\tikz{\\node[scale=" ++ show scale ++ "]{" ++ content ++ "};}}\n"
-renderElement Slides _ (Paragraph _ txt) = ""
+renderElement "Slides" _ (Paragraph _ txt) = ""
 renderElement _ _ Skipped = ""
-renderElement InNote allElements (Paragraph props txt) =
+renderElement "InNote" allElements (Paragraph props txt) =
   "\n\n" ++ latex1Prop props ++ "\n\n" ++ renderIndexEntries props ++ renderText allElements txt
+renderElement _ _ (H1 title props) = renderH "\\Huge"       title props
+renderElement _ _ (H2 title props) = renderH "\\huge"       title props
+renderElement _ _ (H3 title props) = renderH "\\LARGE"      title props
+renderElement _ _ (H4 title props) = renderH "\\Large"      title props
+renderElement _ _ (H5 title props) = renderH "\\large"      title props
+renderElement _ _ (H6 title props) = renderH "\\normalsize" title props
 renderElement _ allElements (Paragraph props txt) =
   "\n\n" ++ latex1Prop props ++ "\n\n" ++ renderIndexEntries props ++ renderText allElements txt ++ "\n\n" ++ latex2Prop props ++ "\n\n"
 renderElement rt allElements (Slide title props parts) =
@@ -85,10 +92,10 @@ renderElement rt allElements (Slide title props parts) =
   (if title == "" then "" else "\\frametitle{" ++ title ++ "}\n") ++
   concat (renderElement rt allElements `fmap` parts) ++
   "\\end{frame}\n"
-renderElement Slides allElements (Chapter title props parts) =
-  concat (map (renderElement Slides allElements) parts) ++ "\n"
-renderElement Article allElements (Chapter title props parts) =
-  concat (map (renderElement Article allElements) parts) ++ "\n"
+renderElement "Slides" allElements (Chapter title props parts) =
+  concat (map (renderElement "Slides" allElements) parts) ++ "\n"
+renderElement "Article" allElements (Chapter title props parts) =
+  concat (map (renderElement "Article" allElements) parts) ++ "\n"
 renderElement rt allElements (Chapter title props parts) =
   let label = labelProp props
       firstSectionTitle (Section title _ _ : _) = title
@@ -130,21 +137,23 @@ renderElement rt allElements (Note noteType props parts) =
   "pt}{\\includegraphics[height=" ++ (show.imageHeight $ head noteType) ++ "pt]{" ++
   [head noteType] ++ "sign.png" ++ -- (if head noteType == 'r' then ".png" else ".eps") ++
   "}}&\\small\\setlength{\\parskip}{2mm}" ++
-  concat (map (renderElement InNote allElements) parts) ++
+  concat (map (renderElement "InNote" allElements) parts) ++
   "\\\\ \\noalign{\\smallskip}\\cline{2-3}\n\\end{tabular}\n\n" ++ latex2Prop props
-renderElement Slides allElements (Src description props src) =
+renderElement "Slides" allElements (Src description props src) =
   if hasSlideProp props
   then "\\begin{frame}[fragile]\n" ++ renderSrcSlides (Src description props src) ++ "\\end{frame}\n"
   else renderSrcSlides (Src description props src)
 renderElement rt allElements (Src description props src) =
   renderSrcBook rt description props src
 renderElement rt allElements (Table props rows) =
-  let renderCell cell = renderText [] cell ++ "&"
-      renderRow row = init (concat (map renderCell row)) ++ "\\\\ \n"
+  let t = fromMaybe "tabular" $ typePropOpt props
+      w = maybe "" (\x -> "{" ++ x ++ "}") $ widthPropOpt props
+      spec = fromMaybe "" $ specProp props
   in
-    "\n\\begin{longtable}{lll}\n" ++
+    "\n" ++ latex1Prop props ++
+    "\n\\begin{" ++ t ++ "}" ++ w ++ "{" ++ spec ++ "}\n" ++
     concat (map renderRow rows) ++
-    "\n\\end{longtable}\n"
+    "\\end{" ++ t ++ "}\n"
 renderElement rt allElements (Img props filename) =
   let label = labelProp props
       latex1 = latex1Prop props
@@ -159,6 +168,48 @@ renderElement rt allElements (Img props filename) =
        "\n\\end{center}\n"
 renderElement _ _ ShowIndex = "\\printindex\n"
 renderElement _ _ _ = ""
+
+----------------------------------------------------
+
+renderRow :: TableRow -> String
+renderRow (RegularRow cells)
+  | elem '-' (concat cells) && filter (/='-') (concat cells) == ""
+  = renderClines 1 cells
+renderRow (RegularRow cells) = renderCells 1 "&" cells ++ "\\\\\n"
+renderRow HLine = "\\hline\n"
+
+-- pusta lista
+renderCells n _ [] = ""
+-- koniec wielokomórkowej serii lub jedna komórka z określonym wyrównaniem
+renderCells n sep (cell:cells)
+  | elem '⇐' cell || elem '⇔' cell || elem '⇒' cell =
+  (if n > 1 then (removeAlignment sep) else "") ++
+  "\\multicolumn{" ++ (show $ multiColumnSize sep) ++ "}{" ++ multiColumnAlignment cell ++ "}{" ++
+  renderText [] (removeAlignment cell) ++ "}" ++
+  renderCells (n+1) (removeAlignment sep) cells
+-- jak jest w tekście ⒨ lub w separatorze, to albo zaczyna się albo kontynuuje wielokomórkowa seria
+renderCells n sep (cell:nextcell:cells)
+  | elem '⒨' cell || elem '⒨' sep
+  = renderCells n ('⒨':sep) $ (cell ++ nextcell):cells
+-- normalny wiersz
+renderCells n sep (cell:cells) =
+  (if n > 1 then sep else "") ++
+  renderText [] cell ++ renderCells (n+1) sep cells
+
+renderClines _ [] = ""
+renderClines n ("":cells) = renderClines (n+1) cells
+renderClines n (_:cells) = "\\cline{" ++ show n ++ "-" ++ show n ++ "}" ++ renderClines (n+1) cells
+
+multiColumnSize str = 1 + (length $ filter (=='⒨') str)
+
+multiColumnAlignment [] = []
+multiColumnAlignment ('⇐':cs) = 'l' : multiColumnAlignment cs
+multiColumnAlignment ('⇔':cs) = 'c' : multiColumnAlignment cs
+multiColumnAlignment ('⇒':cs) = 'r' : multiColumnAlignment cs
+multiColumnAlignment ('¦':cs) = '|' : multiColumnAlignment cs
+multiColumnAlignment (_:cs) = multiColumnAlignment cs
+
+removeAlignment = filter (\c -> c/='⇐' && c/='⇔' && c/='⇒' && c/='¦' && c/='⒨')
 
 ----------------------------------------------------
 
@@ -270,6 +321,15 @@ renderCodeBook sourceType props src =
 
 ----------------------------------------------------
 
+renderH size title props =
+  "\n\n" ++ latex1Prop props ++ "\n\n" ++
+  (if hasCenterProp props then "\\centerline{" else "") ++
+  "\\textbf{" ++ size ++ " " ++ renderText [] title ++ "}" ++
+  (if hasCenterProp props then "}" else "") ++
+  "\n\n" ++ latex2Prop props ++ "\n\n"
+
+----------------------------------------------------
+
 renderSrcSlides (Src _ props content) =
   if hasNoRenderProp props
   then ""
@@ -278,7 +338,7 @@ renderSrcSlides (Src _ props content) =
         height = floor $ 1.1 * fromIntegral (length lns)
         textwidth = maximum $ map (length . filter (\c -> ord c < 256)) lns
         width = foldl (\w o -> case o of
-                              MinWidth v -> v `max` w
+                              Width v -> read v `max` w
                               _ -> w) textwidth props
         block = find (\o -> case o of
                               Block t -> True
@@ -383,6 +443,9 @@ renderText allElements text = renderText' allElements $ map replaceBlank text
 
 renderText' :: [Element] -> String -> String
 renderText' _ "" = ""
+renderText' allElements (a:'-':b:acc)
+  | isDigit a && isDigit b
+  = a : "{\\raise0.2ex\\hbox{-}}" ++ renderText' allElements (b:acc)
 renderText' allElements (c:acc) =
           case (c, break (c ==) acc) of
             ('\n',_) -> renderText' allElements (' ':acc)
@@ -417,6 +480,7 @@ renderText' allElements (c:acc) =
             ('_',_) -> "{\\fontencoding{T1}\\selectfont\\char95}" ++ renderText' allElements acc
             ('>',_) -> "{\\fontencoding{T1}\\selectfont\\char62}" ++ renderText' allElements acc
             ('<',_) -> "{\\fontencoding{T1}\\selectfont\\char60}" ++ renderText' allElements acc
+            ('¶',_) -> "{\\par}" ++ renderText' allElements acc
             ('℃',_) -> "{\\fontencoding{TS1}\\selectfont\\char137}" ++ renderText' allElements acc
             ('Σ',_) -> "{\\fontencoding{QX}\\selectfont\\char6}" ++ renderText' allElements acc
             ('Ω',_) -> "{\\fontencoding{TS1}\\selectfont\\char87}" ++ renderText' allElements acc

@@ -7,6 +7,7 @@ cmd /c "u: && cd u:\github\orgmode && test"
 
 import Data.List (intersperse)
 import Control.Monad.Reader
+import Data.Maybe (fromMaybe)
 
 data Element =
     Part String [Prop] [Element]
@@ -24,16 +25,28 @@ data Element =
   | Skipped
   | Src String [Prop] String
   | Latex String String
-  | Table [Prop] [[String]]
+  | Table [Prop] [TableRow]
   | Header Double String
+  | H1 String [Prop]
+  | H2 String [Prop]
+  | H3 String [Prop]
+  | H4 String [Prop]
+  | H5 String [Prop]
+  | H6 String [Prop]
   | Directive String String
+  deriving (Eq,Show)
+
+data TableRow =
+    HLine
+  | RegularRow [String]
   deriving (Eq,Show)
 
 data Prop =
     Unrecognized
   | Block String
   | ExampleBlock String
-  | MinWidth Int
+  | Width String
+  | Spec String
   | Style String
   | Fragment
   | SlideProp
@@ -49,6 +62,7 @@ data Prop =
   | Latex1Prop String
   | Latex2Prop String
   | HtmlProp String
+  | Center
   | Output
   | Console String
   | Variant String
@@ -75,12 +89,8 @@ getSubEntry (IndexEntry1 _ _ _) = ""
 getSubEntry (IndexEntry2 _ s _ _) = s
 getSubEntry (IndexParentEntry _) = ""
 
-data RenderType =
-    Slides
-  | Article
-  | Book
-  | InNote
-  deriving Eq
+type RenderType = String
+
 inspectElements elements = "[" ++ concat (intersperse "," $ fmap inspectElement elements) ++ "]"
 
 inspectElement element = case element of
@@ -100,6 +110,12 @@ inspectElement element = case element of
   Src srcType props str -> "Src " ++ srcType ++ " ... ..."
   Table prop strs -> "Table ... ..." 
   Header scale str -> "Header " ++ show scale ++ " ..."
+  H1 str _ -> "H1 ..."
+  H2 str _ -> "H2 ..."
+  H3 str _ -> "H3 ..."
+  H4 str _ -> "H4 ..."
+  H5 str _ -> "H5 ..."
+  H6 str _ -> "H6 ..."
   _ -> "(Missing pattern in case)"
 
 takeWhileEnd f = reverse . takeWhile f . reverse
@@ -164,16 +180,25 @@ prependNewLinesProp =
                      PrependNewLines n -> n
                      _ -> acc) 0
 
-minWidthProp :: Int -> [Prop] -> Int
-minWidthProp mw =
+widthPropOpt :: [Prop] -> Maybe String
+widthPropOpt =
   foldl (\acc p -> case p of
-                     MinWidth m -> m
-                     _ -> acc) mw
+                     Width m -> Just m
+                     _ -> acc) Nothing
+
+widthProp :: String -> [Prop] -> String
+widthProp mw = fromMaybe mw . widthPropOpt
 
 styleProp :: [Prop] -> Maybe String
 styleProp =
   foldl (\acc p -> case p of
                      Style s -> Just s
+                     _ -> acc) Nothing
+
+specProp :: [Prop] -> Maybe String
+specProp =
+  foldl (\acc p -> case p of
+                     Spec s -> Just s
                      _ -> acc) Nothing
 
 isConsoleProp :: [Prop] -> Bool
@@ -212,6 +237,12 @@ hasNoVerifyProp =
                      NoVerify -> True
                      _ -> acc) False
 
+hasCenterProp :: [Prop] -> Bool
+hasCenterProp =
+  foldl (\acc p -> case p of
+                     Center -> True
+                     _ -> acc) False
+
 isOutputProp :: [Prop] -> Bool
 isOutputProp =
   foldl (\acc p -> case p of
@@ -229,11 +260,14 @@ labelProp =
                      Label label -> label
                      _ -> acc) ""
 
-typeProp :: [Prop] -> String
-typeProp =
+typePropOpt :: [Prop] -> Maybe String
+typePropOpt =
   foldl (\acc p -> case p of
-                     Type t -> t
-                     _ -> acc) ""
+                     Type t -> Just t
+                     _ -> acc) Nothing
+
+typeProp :: [Prop] -> String
+typeProp = fromMaybe "" . typePropOpt
 
 latex1Prop :: [Prop] -> String
 latex1Prop =
@@ -335,5 +369,5 @@ filterSection' (_:rest) wantedSectionId = filterSection' rest wantedSectionId
 filterSection' [] wantedSectionId = []
 
 isBook :: RenderType -> Bool
-isBook Book = True
+isBook "Book" = True
 isBook _ = False
