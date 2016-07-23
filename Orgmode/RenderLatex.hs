@@ -41,20 +41,6 @@ latexStart "Slides" =
   \\\begin{document}\n\
   \\\Large\n"
 
-latexStart "Article" =
-  "%% -*- coding: utf-8 -*-\n\
-  \\\documentclass[11pt]{article}\n\
-  \\\usepackage[paperwidth=210mm,paperheight=296mm,left=20mm,top=20mm,right=20mm,bottom=20mm]{geometry}\n\
-  \\\usepackage{beamerarticle}\n\
-  \\\usepackage[utf8]{inputenc}\n\
-  \\\usepackage{graphicx}\n\
-  \\\usepackage{tikz}\n\
-  \\\usepackage{lmodern}\n\
-  \\\usepackage{verbatim}\n\
-  \\\usepackage[OT4]{polski}\n\
-  \\\usepackage{color}\n\
-  \\\begin{document}\n"
-
 latexEnd = "\\end{document}\n"
 
 ----------------------------------------------------
@@ -67,9 +53,7 @@ imageHeight 'w' = 34
 
 renderElement :: RenderType -> [Element] -> Element -> String
 renderElement _ _ EmptyElement = ""
-renderElement "Article" _ (Latex "Article" content) = content
-renderElement "Book" _ (Latex "Book" content) = content
-renderElement "Slides" _ (Latex "Slides" content) = content
+renderElement _ _ (Include _ content) = content
 renderElement _ _ Pause = "\\pause\n"
 renderElement _ allElements (Item item) =
   "\\item{" ++ renderText allElements item ++ "}\n"

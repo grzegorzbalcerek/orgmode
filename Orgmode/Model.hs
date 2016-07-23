@@ -5,7 +5,7 @@ cmd /c "u: && cd u:\github\orgmode && make"
 cmd /c "u: && cd u:\github\orgmode && test"
 -}
 
-import Data.List (intersperse)
+import Data.List (intersperse,groupBy)
 import Control.Monad.Reader
 import Data.Maybe (fromMaybe)
 
@@ -24,7 +24,7 @@ data Element =
   | Pause
   | Skipped
   | Src String [Prop] String
-  | Latex String String
+  | Include [Prop] String
   | Table [Prop] [TableRow]
   | Header Double String
   | H1 String [Prop]
@@ -91,33 +91,6 @@ getSubEntry (IndexParentEntry _) = ""
 
 type RenderType = String
 
-inspectElements elements = "[" ++ concat (intersperse "," $ fmap inspectElement elements) ++ "]"
-
-inspectElement element = case element of
-  Part str _ elements -> "Part ... ... " ++ inspectElements elements
-  Chapter str _ elements -> "Chapter ... ... " ++ inspectElements elements
-  Slide str _ elements -> "Slide ... ... " ++ inspectElements elements
-  Section str _ elements -> "Section ... ... " ++ inspectElements elements
-  Note t _ elements -> "Note " ++ t ++ " ... " ++ inspectElements elements
-  EmptyElement -> "EmptyElement"
-  ShowIndex -> "ShowIndex"
-  Items props elements -> "Items ... " ++ inspectElements elements
-  Item str -> "Item ..."
-  Latex str1 str2 -> "Latex ... ..."
-  Paragraph props str -> "Paragraph ..."
-  Pause -> "Pause"
-  Skipped -> "Skipped"
-  Src srcType props str -> "Src " ++ srcType ++ " ... ..."
-  Table prop strs -> "Table ... ..." 
-  Header scale str -> "Header " ++ show scale ++ " ..."
-  H1 str _ -> "H1 ..."
-  H2 str _ -> "H2 ..."
-  H3 str _ -> "H3 ..."
-  H4 str _ -> "H4 ..."
-  H5 str _ -> "H5 ..."
-  H6 str _ -> "H6 ..."
-  _ -> "(Missing pattern in case)"
-
 takeWhileEnd f = reverse . takeWhile f . reverse
 
 pathFileName :: [Prop] -> String
@@ -168,11 +141,14 @@ idProp fallback =
                      Id ident -> ident
                      _ -> acc) (filter (\c -> c `elem` " ") fallback)
 
-variantProp :: [Prop] -> String
+parseVariants :: String -> [String]
+parseVariants = map (filter (/=';')) . filter (/= ";") . groupBy (\a b -> a /= ';' && b /= ';' || a == ';' && b == ';')
+
+variantProp :: [Prop] -> [String]
 variantProp =
   foldl (\acc p -> case p of
-                     Variant v -> v
-                     _ -> acc) "default"
+                     Variant v -> parseVariants v
+                     _ -> acc) [""]
 
 prependNewLinesProp :: [Prop] -> Int
 prependNewLinesProp =

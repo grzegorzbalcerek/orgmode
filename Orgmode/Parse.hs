@@ -129,7 +129,7 @@ contentElement level =
   try (table level) <|>
   try (note level) <|>
   try (asteriskImg level) <|>
-  try (latex level) <|>
+  try (include level) <|>
   try (items level) <|>
   try implicitParagraph
   ) <?> "contentElement"
@@ -275,10 +275,10 @@ img = do
 
 ----------------------------------------------------
 
-latex level = do
-  (blockType,props) <- asteriskLineWithProps level "LATEX"
+include level = do
+  (_,props) <- asteriskLineWithProps level "INCLUDE"
   content <- many1 emptyOrRegularLineWithEol
-  return $ Latex blockType (concat content)
+  return $ Include props (concat content)
 
 directive level = do
   (name,props) <- asteriskLineWithProps level "DIRECTIVE"
