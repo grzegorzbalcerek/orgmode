@@ -15,11 +15,13 @@ import Orgmode.ExtractSrc
 import Orgmode.RenderMultiHtml
 import Orgmode.VerifyOutput
 import Orgmode.Variant
+import Orgmode.Eval
 import System.IO
 import GHC.IO.Encoding
 import Control.Monad.Trans.State
 import Control.Monad.Reader
 import Data.List
+import qualified Data.Map as Map
 
 main = do
   args <- System.Environment.getArgs
@@ -86,6 +88,7 @@ inputToContent input variantsSpec = do
   let variants = parseVariants variantsSpec
   if (null variants) then return () else putStrLn $ "Variants: " ++ (show variants)
   let content = filterVariants contentBeforeFiltering variants
-  putStrLn $ "Content parsed. Length: " ++ show (length content) ++ "."
-  return content
+  let evaluated = evalElements Map.empty content
+  putStrLn $ "Content parsed. Length: " ++ show (length evaluated) ++ "."
+  return evaluated
 

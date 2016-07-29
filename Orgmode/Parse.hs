@@ -31,14 +31,15 @@ entry = do
 
 topLevels :: P [Element]
 topLevels = do
-  results <- many1 (try $ topLevelElement 1)
+  results <- many1 (try $ singleElement 1)
   try (stop >> return ()) <|> eof
   return results
 
-topLevelElement :: Int -> P Element
-topLevelElement level =
+singleElement :: Int -> P Element
+singleElement level =
   (
-  try (comment level) <|>
+  try (arg level) <|>
+  try (def level) <|>
   try (part level) <|>
   try (chapter level) <|>
   try (section level) <|>
@@ -46,20 +47,40 @@ topLevelElement level =
   try (slide level) <|>
   try (showindex level) <|>
   try (directive level) <|>
-  try (contentElement level)
-  ) <?> "topLevelElement"
+  try (contentElement level) <|>
+  try (element level) <|>
+  try (skipLine)
+  ) <?> "singleElement"
 
+----------------------------------------------------
+
+arg :: Int -> P Element
+arg level = do
+  (name) <- simpleAsteriskLine level "ARG"
+  return $ Arg name
+
+----------------------------------------------------
+def :: Int -> P Element
+def level = do
+  name <- simpleAsteriskLine level "DEF"
+  content <- many (singleElement $ level + 1)
+  return $ Def name content
+----------------------------------------------------
+element :: Int -> P Element
+element level = do
+  (name,title,props) <- elementWithProps level
+  content <- many (singleElement $ level + 1)
+  return $ Element name title props content
 ----------------------------------------------------
 
 part :: Int -> P Element
 part level = do
   (title,props) <- asteriskLineWithProps level "PART"
-  content <- many (partElement $ level + 1)
+  content <- many (singleElement $ level + 1)
   return $ Part title props content
 
 partElement level =
   (
-  try (comment level) <|>
   try (chapter level) <|>
   try (section level) <|>
   try (slide level) <|>
@@ -71,12 +92,11 @@ partElement level =
 chapter :: Int -> P Element
 chapter level = do
   (title,props) <- asteriskLineWithProps level "CHAPTER"
-  content <- many (chapterElement $ level + 1)
+  content <- many (singleElement $ level + 1)
   return $ Chapter title props content
 
 chapterElement level =
   (
-  try (comment level) <|>
   try (section level) <|>
   try (slide level)<|>
   try (contentElement level)
@@ -87,14 +107,13 @@ chapterElement level =
 section :: Int -> P Element
 section level = do
   (title,props) <- asteriskLineWithProps level "SECTION"
-  content <- many (sectionElement (level+1))
+  content <- many (singleElement (level+1))
   return $ Section title props content
 
 sectionElement level =
   (
-  try (comment level) <|>
   try (slide level)<|>
-  try (contentElement level)
+  try (singleElement level)
   ) <?> "sectionElement"
 
 ----------------------------------------------------
@@ -102,19 +121,18 @@ sectionElement level =
 page :: Int -> P Element
 page level = do
   (_,props) <- asteriskLineWithProps level "PAGE"
-  content <- many (sectionElement (level+1))
+  content <- many (singleElement (level+1))
   return $ Page props content
 
 ----------------------------------------------------
 
 slide level = do
   (title,props) <- asteriskLineWithProps level "SLIDE"
-  content <- many (slideElement $ level + 1)
+  content <- many (singleElement $ level + 1)
   return $ Slide title props content
 
 slideElement level =
   (
-  try (comment level) <|>
   try (contentElement level) <|>
   try (pause2 level) <|>
   try pause <|>
@@ -125,12 +143,6 @@ slideElement level =
 
 contentElement level =
   (
-  try (h1 level) <|>
-  try (h2 level) <|>
-  try (h3 level) <|>
-  try (h4 level) <|>
-  try (h5 level) <|>
-  try (h6 level) <|>
   try (paragraph level) <|>
   try (src level) <|>
   try header <|>
@@ -140,17 +152,22 @@ contentElement level =
   try (asteriskImg level) <|>
   try (include level) <|>
   try (items level) <|>
+  try (element level) <|>
   try implicitParagraph
   ) <?> "contentElement"
 
 ----------------------------------------------------
 
-comment level = do
-  asteriskLine level "COMMENT"
-  content <- many (topLevelElement $ level + 1)
-  return $ EmptyElement
-
-----------------------------------------------------
+simpleAsteriskLine :: Int -> String -> P String
+simpleAsteriskLine n tag = do
+  try $ string $ take n $ repeat '*'
+  space
+  string tag
+  space
+  content <- many (noneOf " \n\r")
+  many (noneOf "\n\r")
+  eol
+  return $ trim content
 
 asteriskLine :: Int -> String -> P String
 asteriskLine n tag = do
@@ -162,43 +179,29 @@ asteriskLine n tag = do
   eol
   return $ trim content
 
+elementWithProps :: Int -> P (String,String,[Prop])
+elementWithProps n = do
+  string $ take n $ repeat '*'
+  space
+  name <- many (noneOf " ¬:\n\r")
+  content <- many (noneOf "¬:\n\r")
+  props <- singleColonProp `sepBy` (many (noneOf "¬:\n\r"))
+  restOfLine
+  return $ (trim name,trim content,props)
+
 asteriskLineWithProps :: Int -> String -> P (String,[Prop])
 asteriskLineWithProps n tag = do
   string $ take n $ repeat '*'
   space
   try (string tag <|> string ("TODO "++tag))
   content <- many (noneOf "¬:\n\r")
-  props <- colonProp `sepBy` (many (noneOf "¬:\n\r"))
+  props <- singleColonProp `sepBy` (many (noneOf "¬:\n\r"))
   restOfLine
   return $ (trim content,props)
 
 implicitParagraph = do
   content <- many1 regularLineWithEol
   return $ Paragraph [] (concat content)
-
-h1 level = do
-  (title,props) <- asteriskLineWithProps level "H1"
-  return $ H1 title props
-
-h2 level = do
-  (title,props) <- asteriskLineWithProps level "H2"
-  return $ H2 title props
-
-h3 level = do
-  (title,props) <- asteriskLineWithProps level "H3"
-  return $ H3 title props
-
-h4 level = do
-  (title,props) <- asteriskLineWithProps level "H4"
-  return $ H4 title props
-
-h5 level = do
-  (title,props) <- asteriskLineWithProps level "H5"
-  return $ H5 title props
-
-h6 level = do
-  (title,props) <- asteriskLineWithProps level "H6"
-  return $ H6 title props
 
 paragraph level = do
   (_,props) <- asteriskLineWithProps level "PARA"
@@ -278,7 +281,7 @@ header = do
 img = do
   char '⒤'
   file <- many $ noneOf " :\n\r"
-  props <- colonProp `sepBy` (many (noneOf "¬:\n\r"))
+  props <- singleColonProp `sepBy` (many (noneOf "¬:\n\r"))
   restOfLine
   return $ Img props file
 
@@ -299,7 +302,7 @@ src level = do
   content <- many1 emptyOrRegularLineWithEol
   return $ Src description props (concat content)
 
-colonProp =
+singleColonProp =
   try colonPropPauseBefore <|>
   try colonPropConsole <|>
   try colonPropVariant <|>
@@ -331,7 +334,8 @@ colonProp =
   try colonPropWidth <|>
   try colonPropPrependNewLines <|>
   try colonPropPath <|>
-  try colonPropUnrecognized
+  try colonProp <|>
+  try colonPropEmpty
 
 colonPropPauseBefore = do
   string ":pause"
@@ -384,6 +388,17 @@ colonPropBlock = do
   string ":block"
   value <- many (noneOf "¬:\n\r")
   return $ Block value
+
+colonPropEmpty = do
+  char ':'
+  name <- many (noneOf " ¬:\n\r")
+  return $ Prop name ""
+
+colonProp = do
+  char ':'
+  name <- many (noneOf " ")
+  value <- many (noneOf "¬:\n\r")
+  return $ Prop name value
 
 colonPropExampleBlock = do
   string ":exampleblock"
@@ -482,11 +497,6 @@ colonPropWidth = do
   string ":width "
   value <- many (noneOf "¬:\n\r")
   return $ Width $ trim value
-
-colonPropUnrecognized = do
-  string ":"
-  many (noneOf "¬:\n\r")
-  return $ Unrecognized
 
 ----------------------------------------------
 

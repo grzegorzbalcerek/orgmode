@@ -63,12 +63,12 @@ renderElement "Slides" _ (Paragraph _ txt) = ""
 renderElement _ _ Skipped = ""
 renderElement "InNote" allElements (Paragraph props txt) =
   "\n\n" ++ latex1Prop props ++ "\n\n" ++ renderIndexEntries props ++ renderText allElements txt
-renderElement _ _ (H1 title props) = renderH "\\Huge"       title props
-renderElement _ _ (H2 title props) = renderH "\\huge"       title props
-renderElement _ _ (H3 title props) = renderH "\\LARGE"      title props
-renderElement _ _ (H4 title props) = renderH "\\Large"      title props
-renderElement _ _ (H5 title props) = renderH "\\large"      title props
-renderElement _ _ (H6 title props) = renderH "\\normalsize" title props
+renderElement _ _ (Element "H1" title props _) = renderH "\\Huge"       title props
+renderElement _ _ (Element "H2" title props _) = renderH "\\huge"       title props
+renderElement _ _ (Element "H3" title props _) = renderH "\\LARGE"      title props
+renderElement _ _ (Element "H4" title props _) = renderH "\\Large"      title props
+renderElement _ _ (Element "H5" title props _) = renderH "\\large"      title props
+renderElement _ _ (Element "H6" title props _) = renderH "\\normalsize" title props
 renderElement _ allElements (Paragraph props txt) =
   "\n\n" ++ latex1Prop props ++ "\n\n" ++ renderIndexEntries props ++ renderText allElements txt ++ "\n\n" ++ latex2Prop props ++ "\n\n"
 renderElement rt allElements (Slide title props parts) =

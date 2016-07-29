@@ -11,6 +11,9 @@ import Data.Maybe (fromMaybe)
 
 data Element =
     Part String [Prop] [Element]
+  | Def String [Element]
+  | Element String String [Prop] [Element]
+  | Arg String
   | Chapter String [Prop] [Element]
   | Slide String [Prop] [Element]
   | Section String [Prop] [Element]
@@ -28,12 +31,6 @@ data Element =
   | Include [Prop] String
   | Table [Prop] [TableRow]
   | Header Double String
-  | H1 String [Prop]
-  | H2 String [Prop]
-  | H3 String [Prop]
-  | H4 String [Prop]
-  | H5 String [Prop]
-  | H6 String [Prop]
   | Directive String String
   deriving (Eq,Show)
 
@@ -44,6 +41,7 @@ data TableRow =
 
 data Prop =
     Unrecognized
+  | Prop String String
   | Block String
   | ExampleBlock String
   | Width String
