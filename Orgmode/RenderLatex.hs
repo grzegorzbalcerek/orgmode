@@ -110,6 +110,8 @@ renderElement rt allElements (Section title props parts) =
     "{" ++ renderText allElements title ++ "}\n" ++
     (if label == "" then "\\addcontentsline{toc}{section}{" ++ title ++ "}" else "") ++
     concat (map (renderElement rt allElements) parts) ++ latex2Prop props ++ "\n"
+renderElement rt allElements (Page props parts) =
+    concat (map (renderElement rt allElements) parts) ++ "\n\\vfill\\eject\n"
 renderElement rt allElements (Items props items) =
   renderIndexEntries props ++ "\n\\begin{itemize}\n" ++
   (if styleProp props == Just "none" then "\\renewcommand{\\labelitemi}{}\n" else "") ++
@@ -137,7 +139,8 @@ renderElement rt allElements (Table props rows) =
     "\n" ++ latex1Prop props ++
     "\n\\begin{" ++ t ++ "}" ++ w ++ "{" ++ spec ++ "}\n" ++
     concat (map renderRow rows) ++
-    "\\end{" ++ t ++ "}\n"
+    "\\end{" ++ t ++ "}\n" ++
+    "\n" ++ latex2Prop props
 renderElement rt allElements (Img props filename) =
   let label = labelProp props
       latex1 = latex1Prop props
@@ -166,15 +169,15 @@ renderRow HLine = "\\hline\n"
 renderCells n _ [] = ""
 -- koniec wielokomórkowej serii lub jedna komórka z określonym wyrównaniem
 renderCells n sep (cell:cells)
-  | elem '⇐' cell || elem '⇔' cell || elem '⇒' cell =
+  | elem '«' cell || elem '¤' cell || elem '»' cell =
   (if n > 1 then (removeAlignment sep) else "") ++
   "\\multicolumn{" ++ (show $ multiColumnSize sep) ++ "}{" ++ multiColumnAlignment cell ++ "}{" ++
   renderText [] (removeAlignment cell) ++ "}" ++
   renderCells (n+1) (removeAlignment sep) cells
--- jak jest w tekście ⒨ lub w separatorze, to albo zaczyna się albo kontynuuje wielokomórkowa seria
+-- jak jest w tekście ¨ lub w separatorze, to albo zaczyna się albo kontynuuje wielokomórkowa seria
 renderCells n sep (cell:nextcell:cells)
-  | elem '⒨' cell || elem '⒨' sep
-  = renderCells n ('⒨':sep) $ (cell ++ nextcell):cells
+  | elem '¨' cell || elem '¨' sep
+  = renderCells n ('¨':sep) $ (cell ++ nextcell):cells
 -- normalny wiersz
 renderCells n sep (cell:cells) =
   (if n > 1 then sep else "") ++
@@ -184,16 +187,16 @@ renderClines _ [] = ""
 renderClines n ("":cells) = renderClines (n+1) cells
 renderClines n (_:cells) = "\\cline{" ++ show n ++ "-" ++ show n ++ "}" ++ renderClines (n+1) cells
 
-multiColumnSize str = 1 + (length $ filter (=='⒨') str)
+multiColumnSize str = 1 + (length $ filter (=='¨') str)
 
 multiColumnAlignment [] = []
-multiColumnAlignment ('⇐':cs) = 'l' : multiColumnAlignment cs
-multiColumnAlignment ('⇔':cs) = 'c' : multiColumnAlignment cs
-multiColumnAlignment ('⇒':cs) = 'r' : multiColumnAlignment cs
+multiColumnAlignment ('«':cs) = 'l' : multiColumnAlignment cs
+multiColumnAlignment ('¤':cs) = 'c' : multiColumnAlignment cs
+multiColumnAlignment ('»':cs) = 'r' : multiColumnAlignment cs
 multiColumnAlignment ('¦':cs) = '|' : multiColumnAlignment cs
 multiColumnAlignment (_:cs) = multiColumnAlignment cs
 
-removeAlignment = filter (\c -> c/='⇐' && c/='⇔' && c/='⇒' && c/='¦' && c/='⒨')
+removeAlignment = filter (\c -> c/='«' && c/='¤' && c/='»' && c/='¦' && c/='¨')
 
 ----------------------------------------------------
 
@@ -306,11 +309,11 @@ renderCodeBook sourceType props src =
 ----------------------------------------------------
 
 renderH size title props =
-  "\n\n" ++ latex1Prop props ++ "\n\n" ++
+  latex1Prop props ++
   (if hasCenterProp props then "\\centerline{" else "") ++
-  "\\textbf{" ++ size ++ " " ++ renderText [] title ++ "}" ++
+  "{" ++ size ++ " " ++ renderText [] title ++ "}" ++
   (if hasCenterProp props then "}" else "") ++
-  "\n\n" ++ latex2Prop props ++ "\n\n"
+  latex2Prop props
 
 ----------------------------------------------------
 
@@ -449,6 +452,8 @@ renderText' allElements (c:acc) =
             ('⒰',(url,_:acc')) -> "\\textsl{" ++ renderText' allElements url ++ "}" ++ renderText' allElements acc'
             ('⒤',(text,_:acc')) -> "\\textit{" ++ renderText' allElements text ++ "}" ++ renderText' allElements acc'
             ('⒞',(code,_:acc')) -> "\\texttt{" ++ renderText' allElements code ++ "}" ++ renderText' allElements acc'
+            ('⒝',(code,_:acc')) -> "\\textbf{" ++ renderText' allElements code ++ "}" ++ renderText' allElements acc'
+            ('¡',(code,_:acc')) -> "\\textbf{" ++ renderText' allElements code ++ "}" ++ renderText' allElements acc'
             ('⒳',(x,_:acc')) -> "\\index{" ++ renderIndex x ++ "}" ++ renderText' allElements acc'
             ('⒭',(ref,_:acc')) ->
               case break (','==) ref of
@@ -476,6 +481,7 @@ renderText' allElements (c:acc) =
             ('−',_) -> "{\\fontencoding{TS1}\\selectfont\\char61}" ++ renderText' allElements acc
             ('–',_) -> "--" ++ renderText' allElements acc
             ('—',_) -> "---" ++ renderText' allElements acc
+            ('×',_) -> "{\\fontencoding{QX}\\selectfont\\char169}" ++ renderText' allElements acc
             ('∞',_) -> "{\\fontencoding{QX}\\selectfont\\char173}" ++ renderText' allElements acc
             ('^',_) -> "{\\fontencoding{T1}\\selectfont\\char94}" ++ renderText' allElements acc
             ('{',_) -> "{\\fontencoding{T1}\\selectfont\\char123}" ++ renderText' allElements acc

@@ -42,6 +42,7 @@ topLevelElement level =
   try (part level) <|>
   try (chapter level) <|>
   try (section level) <|>
+  try (page level) <|>
   try (slide level) <|>
   try (showindex level) <|>
   try (directive level) <|>
@@ -95,6 +96,14 @@ sectionElement level =
   try (slide level)<|>
   try (contentElement level)
   ) <?> "sectionElement"
+
+----------------------------------------------------
+
+page :: Int -> P Element
+page level = do
+  (_,props) <- asteriskLineWithProps level "PAGE"
+  content <- many (sectionElement (level+1))
+  return $ Page props content
 
 ----------------------------------------------------
 

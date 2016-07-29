@@ -15,6 +15,7 @@ data Element =
   | Slide String [Prop] [Element]
   | Section String [Prop] [Element]
   | Note String [Prop] [Element]
+  | Page [Prop] [Element]
   | EmptyElement
   | ShowIndex
   | Items [Prop] [Element]
