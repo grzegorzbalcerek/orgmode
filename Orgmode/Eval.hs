@@ -25,7 +25,7 @@ evalElements :: Map.Map String [Element] -> [Element] -> [Element]
 evalElements env ((Def name elements):es) =
   evalElements (Map.insert name elements env) es
 
-evalElements env (e@(Element name title props arguments):es) =
+evalElements env (e@(Element name title arguments):es) =
   case (Map.lookup name env) of
     Just elements ->
       let newEnv = Map.union (argumentsAsEnv arguments) env

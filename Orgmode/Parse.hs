@@ -70,7 +70,7 @@ element :: Int -> P Element
 element level = do
   (name,title,props) <- elementWithProps level
   content <- many (singleElement $ level + 1)
-  return $ Element name title props content
+  return $ Element name title (props++content)
 ----------------------------------------------------
 
 part :: Int -> P Element

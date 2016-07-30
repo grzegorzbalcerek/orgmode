@@ -10,37 +10,29 @@ import Control.Monad.Reader
 import Data.Maybe (fromMaybe)
 
 data Element =
-    Part String [Prop] [Element]
+    Part String [Element] [Element]
   | Def String [Element]
-  | Element String String [Prop] [Element]
+  | Element String String [Element]
   | Arg String
-  | Chapter String [Prop] [Element]
-  | Slide String [Prop] [Element]
-  | Section String [Prop] [Element]
-  | Note String [Prop] [Element]
-  | Page [Prop] [Element]
+  | Chapter String [Element] [Element]
+  | Slide String [Element] [Element]
+  | Section String [Element] [Element]
+  | Note String [Element] [Element]
+  | Page [Element] [Element]
   | EmptyElement
   | ShowIndex
-  | Items [Prop] [Element]
+  | Items [Element] [Element]
   | Item String
-  | Img [Prop] String
-  | Paragraph [Prop] String
+  | Img [Element] String
+  | Paragraph [Element] String
   | Pause
   | Skipped
-  | Src String [Prop] String
-  | Include [Prop] String
-  | Table [Prop] [TableRow]
+  | Src String [Element] String
+  | Include [Element] String
+  | Table [Element] [TableRow]
   | Header Double String
   | Directive String String
-  deriving (Eq,Show)
-
-data TableRow =
-    HLine
-  | RegularRow [String]
-  deriving (Eq,Show)
-
-data Prop =
-    Unrecognized
+  | Unrecognized
   | Prop String String
   | Block String
   | ExampleBlock String
@@ -75,6 +67,13 @@ data Prop =
   | ConstantLike [String]
   deriving (Eq,Show)
 
+type Prop = Element
+
+data TableRow =
+    HLine
+  | RegularRow [String]
+  deriving (Eq,Show)
+
 data IndexEntry = IndexEntry1 String String String  -- entry, link, label
                 | IndexEntry2 String String String String  -- entry, subentry, link, label
                 | IndexParentEntry String  -- entry
@@ -92,13 +91,13 @@ type RenderType = String
 
 takeWhileEnd f = reverse . takeWhile f . reverse
 
-pathFileName :: [Prop] -> String
+pathFileName :: [Element] -> String
 pathFileName =
   foldl (\acc p -> case p of
                      Path path -> takeWhileEnd (/= '/') path
                      _ -> acc) ""
 
-pathProp :: [Prop] -> String
+pathProp :: [Element] -> String
 pathProp =
   foldl (\acc p -> case p of
                      Path path -> path
@@ -143,88 +142,88 @@ idProp fallback =
 parseVariants :: String -> [String]
 parseVariants = map (filter (/=';')) . filter (/= ";") . groupBy (\a b -> a /= ';' && b /= ';' || a == ';' && b == ';')
 
-variantProp :: [Prop] -> [String]
+variantProp :: [Element] -> [String]
 variantProp =
   foldl (\acc p -> case p of
                      Variant v -> parseVariants v
                      _ -> acc) [""]
 
-prependNewLinesProp :: [Prop] -> Int
+prependNewLinesProp :: [Element] -> Int
 prependNewLinesProp =
   foldl (\acc p -> case p of
                      PrependNewLines n -> n
                      _ -> acc) 0
 
-widthPropOpt :: [Prop] -> Maybe String
+widthPropOpt :: [Element] -> Maybe String
 widthPropOpt =
   foldl (\acc p -> case p of
                      Width m -> Just m
                      _ -> acc) Nothing
 
-widthProp :: String -> [Prop] -> String
+widthProp :: String -> [Element] -> String
 widthProp mw = fromMaybe mw . widthPropOpt
 
-styleProp :: [Prop] -> Maybe String
+styleProp :: [Element] -> Maybe String
 styleProp =
   foldl (\acc p -> case p of
                      Style s -> Just s
                      _ -> acc) Nothing
 
-specProp :: [Prop] -> Maybe String
+specProp :: [Element] -> Maybe String
 specProp =
   foldl (\acc p -> case p of
                      Spec s -> Just s
                      _ -> acc) Nothing
 
-isConsoleProp :: [Prop] -> Bool
+isConsoleProp :: [Element] -> Bool
 isConsoleProp =
   foldl (\acc p -> case p of
                      Console _ -> True
                      _ -> acc) False
 
-hasFragmentProp :: [Prop] -> Bool
+hasFragmentProp :: [Element] -> Bool
 hasFragmentProp =
   foldl (\acc p -> case p of
                      Fragment -> True
                      _ -> acc) False
 
-hasSlideProp :: [Prop] -> Bool
+hasSlideProp :: [Element] -> Bool
 hasSlideProp =
   foldl (\acc p -> case p of
                      SlideProp -> True
                      _ -> acc) False
 
-hasDoNotExtractSrcProp :: [Prop] -> Bool
+hasDoNotExtractSrcProp :: [Element] -> Bool
 hasDoNotExtractSrcProp =
   foldl (\acc p -> case p of
                      DoNotExtractSrc -> True
                      _ -> acc) False
 
-hasNoRenderProp :: [Prop] -> Bool
+hasNoRenderProp :: [Element] -> Bool
 hasNoRenderProp =
   foldl (\acc p -> case p of
                      NoRender -> True
                      _ -> acc) False
 
-hasNoVerifyProp :: [Prop] -> Bool
+hasNoVerifyProp :: [Element] -> Bool
 hasNoVerifyProp =
   foldl (\acc p -> case p of
                      NoVerify -> True
                      _ -> acc) False
 
-hasCenterProp :: [Prop] -> Bool
+hasCenterProp :: [Element] -> Bool
 hasCenterProp =
   foldl (\acc p -> case p of
                      Center -> True
                      _ -> acc) False
 
-isOutputProp :: [Prop] -> Bool
+isOutputProp :: [Element] -> Bool
 isOutputProp =
   foldl (\acc p -> case p of
                      Output -> True
                      _ -> acc) False
 
-isPauseBeforeProp :: [Prop] -> Bool
+isPauseBeforeProp :: [Element] -> Bool
 isPauseBeforeProp =
   foldl (\acc p -> case p of
                      PauseBefore -> True
@@ -235,28 +234,28 @@ labelProp =
                      Label label -> label
                      _ -> acc) ""
 
-typePropOpt :: [Prop] -> Maybe String
+typePropOpt :: [Element] -> Maybe String
 typePropOpt =
   foldl (\acc p -> case p of
                      Type t -> Just t
                      _ -> acc) Nothing
 
-typeProp :: [Prop] -> String
+typeProp :: [Element] -> String
 typeProp = fromMaybe "" . typePropOpt
 
-latex1Prop :: [Prop] -> String
+latex1Prop :: [Element] -> String
 latex1Prop =
   foldl (\acc p -> case p of
                      Latex1Prop lp -> lp
                      _ -> acc) ""
 
-latex2Prop :: [Prop] -> String
+latex2Prop :: [Element] -> String
 latex2Prop =
   foldl (\acc p -> case p of
                      Latex2Prop lp -> lp
                      _ -> acc) ""
 
-htmlProp :: [Prop] -> String
+htmlProp :: [Element] -> String
 htmlProp =
   foldl (\acc p -> case p of
                      HtmlProp hp -> hp
@@ -269,31 +268,31 @@ indexEntriesFromProps ident label =
                      _ -> acc) []
 
 
-keywordLikeProp :: [Prop] -> [String]
+keywordLikeProp :: [Element] -> [String]
 keywordLikeProp =
   foldl (\acc p -> case p of
                      KeywordLike ks -> ks
                      _ -> acc) []
 
-typeLikeProp :: [Prop] -> [String]
+typeLikeProp :: [Element] -> [String]
 typeLikeProp =
   foldl (\acc p -> case p of
                      TypeLike ks -> ks
                      _ -> acc) []
 
-identifierLikeProp :: [Prop] -> [String]
+identifierLikeProp :: [Element] -> [String]
 identifierLikeProp =
   foldl (\acc p -> case p of
                      IdentifierLike ks -> ks
                      _ -> acc) []
 
-symbolLikeProp :: [Prop] -> [String]
+symbolLikeProp :: [Element] -> [String]
 symbolLikeProp =
   foldl (\acc p -> case p of
                      SymbolLike ks -> ks
                      _ -> acc) []
 
-constantLikeProp :: [Prop] -> [String]
+constantLikeProp :: [Element] -> [String]
 constantLikeProp =
   foldl (\acc p -> case p of
                      ConstantLike ks -> ks
