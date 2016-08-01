@@ -20,30 +20,30 @@ import Orgmode.Model
 import Control.Monad.Reader
 import qualified Data.Map as Map
 
-evalElements :: Map.Map String [Element] -> [Element] -> [Element]
+evalElements :: Map.Map String [Element] -> String -> [Element] -> [Element]
 
-evalElements env ((Def name elements):es) =
-  evalElements (Map.insert name elements env) es
+evalElements env variant ((Def name elements):es) =
+  evalElements (Map.insert name elements env) variant es
 
-evalElements env (e@(Element name title arguments):es) =
+evalElements env variant (e@(Element name title subelements):es)
+  | name == variant
+  = evalElements env variant (subelements ++ es)
+
+evalElements env variant (e@(Element name title arguments):es) =
   case (Map.lookup name env) of
     Just elements ->
       let newEnv = Map.union (argumentsAsEnv arguments) env
-      in evalElements newEnv elements ++ evalElements env es
-    _ -> e : evalElements env es
+      in evalElements newEnv variant elements ++ evalElements env variant es
+    _ -> e : evalElements env variant es
 
---  = let newEnv = env
---        definition = Map.findWithDefault name 
---    in (evalElements newEnv elements) ++ evalElements env es
-
-evalElements env (e@(Arg name):es) =
+evalElements env variant (e@(Arg name):es) =
   case (Map.lookup name env) of
-    Just elements -> elements ++ evalElements env es
-    _ -> e : evalElements env es
+    Just elements -> elements ++ evalElements env variant es
+    _ -> e : evalElements env variant es
 
-evalElements env (e:es) = e : evalElements env es
+evalElements env variant (e:es) = e : evalElements env variant es
 
-evalElements env [] = [] --[Directive "env" (show env)]
+evalElements env _ [] = [] --[Directive "env" (show env)]
 
 argumentsAsEnv = argumentsAsEnv' 1 (Map.empty)
 

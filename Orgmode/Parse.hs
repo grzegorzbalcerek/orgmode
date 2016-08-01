@@ -32,7 +32,7 @@ entry = do
 topLevels :: P [Element]
 topLevels = do
   results <- many1 (try $ singleElement 1)
-  try (stop >> return ()) <|> eof
+  try eof
   return results
 
 singleElement :: Int -> P Element
@@ -45,7 +45,6 @@ singleElement level =
   try (section level) <|>
   try (page level) <|>
   try (slide level) <|>
-  try (showindex level) <|>
   try (directive level) <|>
   try (contentElement level) <|>
   try (element level) <|>
@@ -134,8 +133,6 @@ slide level = do
 slideElement level =
   (
   try (contentElement level) <|>
-  try (pause2 level) <|>
-  try pause <|>
   skipLine
   ) <?> "slideElement"
 
@@ -144,6 +141,7 @@ slideElement level =
 contentElement level =
   (
   try (paragraph level) <|>
+  try (text level) <|>
   try (src level) <|>
   try header <|>
   try img <|>
@@ -153,7 +151,7 @@ contentElement level =
   try (include level) <|>
   try (items level) <|>
   try (element level) <|>
-  try implicitParagraph
+  try implicitText
   ) <?> "contentElement"
 
 ----------------------------------------------------
@@ -199,9 +197,14 @@ asteriskLineWithProps n tag = do
   restOfLine
   return $ (trim content,props)
 
-implicitParagraph = do
+implicitText = do
   content <- many1 regularLineWithEol
-  return $ Paragraph [] (concat content)
+  return $ Text (concat content)
+
+text level = do
+  asteriskLineWithProps level "TEXT"
+  content <- many regularLineWithEol
+  return $ Text (concat content)
 
 paragraph level = do
   (_,props) <- asteriskLineWithProps level "PARA"
@@ -219,7 +222,7 @@ asteriskImg level = do
 
 items level = do
   (_,props) <- asteriskLineWithProps level "ITEMS"
-  content <- many1 (item <|> pause)
+  content <- many1 (item)
   return $ Items props content
 
 item = try $ Item <$> (char '•' >> restOfLine)
@@ -252,21 +255,6 @@ tableCell = do
   content <- many (noneOf "|\n\r")
   char '|'
   return (trim content)
-
-pause2 level = do
-  asteriskLine level "PAUSE"
-  return $ Pause
-
-pause = do
-  char '‖'
-  eol
-  return Pause
-
-stop = asteriskLine 1 "STOP"
-
-showindex level = do
-  asteriskLine level "SHOWINDEX"
-  return ShowIndex
 
 ----------------------------------------------------
 

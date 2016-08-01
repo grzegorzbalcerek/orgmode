@@ -11,6 +11,7 @@ import Control.Monad.Trans.State
 import Control.Monad
 import Data.List
 import Data.Char
+import qualified Data.Map as Map
 import Debug.Trace
 import Data.Maybe (fromMaybe,maybe)
 
@@ -54,7 +55,6 @@ imageHeight 'w' = 34
 renderElement :: RenderType -> [Element] -> Element -> String
 renderElement _ _ EmptyElement = ""
 renderElement _ _ (Include _ content) = content
-renderElement _ _ Pause = "\\pause\n"
 renderElement _ allElements (Item item) =
   "\\item{" ++ renderText allElements item ++ "}\n"
 renderElement _ _ (Header scale content) =
@@ -69,6 +69,7 @@ renderElement _ _ (Element "H3" title props) = renderH "\\LARGE"      title prop
 renderElement _ _ (Element "H4" title props) = renderH "\\Large"      title props
 renderElement _ _ (Element "H5" title props) = renderH "\\large"      title props
 renderElement _ _ (Element "H6" title props) = renderH "\\normalsize" title props
+renderElement _ allElements (Text txt) = renderText allElements txt
 renderElement _ allElements (Paragraph props txt) =
   "\n\n" ++ latex1Prop props ++ "\n\n" ++ renderIndexEntries props ++ renderText allElements txt ++ "\n\n" ++ latex2Prop props ++ "\n\n"
 renderElement rt allElements (Slide title props parts) =
@@ -469,6 +470,7 @@ renderText' allElements (c:acc) =
             ('_',_) -> "{\\fontencoding{T1}\\selectfont\\char95}" ++ renderText' allElements acc
             ('>',_) -> "{\\fontencoding{T1}\\selectfont\\char62}" ++ renderText' allElements acc
             ('<',_) -> "{\\fontencoding{T1}\\selectfont\\char60}" ++ renderText' allElements acc
+            ('‖',_) -> "\\pause\n" ++ renderText' allElements acc
             ('¶',_) -> "{\\par}" ++ renderText' allElements acc
             ('℃',_) -> "{\\fontencoding{TS1}\\selectfont\\char137}" ++ renderText' allElements acc
             ('Σ',_) -> "{\\fontencoding{QX}\\selectfont\\char6}" ++ renderText' allElements acc
@@ -609,3 +611,10 @@ checkPrefixes prefixes str =
       if isPrefixOf p str
       then (col,p,drop (length p) str)
       else checkPrefixes ((col,ps):rest) str
+
+----------------------------------------------------
+
+latexEnv :: Map.Map String [Element]
+latexEnv = Map.fromList
+  [ ("PAUSE",[Include [] "\\pause\n"])
+  ]

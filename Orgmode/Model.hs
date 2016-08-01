@@ -24,8 +24,8 @@ data Element =
   | Items [Element] [Element]
   | Item String
   | Img [Element] String
+  | Text String
   | Paragraph [Element] String
-  | Pause
   | Skipped
   | Src String [Element] String
   | Include [Element] String
