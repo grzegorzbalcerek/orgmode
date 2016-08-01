@@ -115,7 +115,7 @@ renderElement rt allElements (Page props parts) =
     concat (map (renderElement rt allElements) parts) ++ "\n\\vfill\\eject\n"
 renderElement rt allElements (Items props items) =
   renderIndexEntries props ++ "\n\\begin{itemize}\n" ++
-  (if styleProp props == Just "none" then "\\renewcommand{\\labelitemi}{}\n" else "") ++
+  (if maybeProp "style" props == Just "none" then "\\renewcommand{\\labelitemi}{}\n" else "") ++
   concat (map (renderElement rt allElements) items) ++  "\\end{itemize}\n"
 renderElement rt allElements (Note noteType props parts) =
   "\n\n" ++ latex1Prop props ++ "\n\n" ++ renderIndexEntries props ++ "\\begin{tabular}{lp{1cm}p{11.2cm}}\n" ++

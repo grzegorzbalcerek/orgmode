@@ -38,7 +38,6 @@ data Element =
   | ExampleBlock String
   | Width String
   | Spec String
-  | Style String
   | Fragment
   | SlideProp
   | DoNotExtractSrc
@@ -163,10 +162,10 @@ widthPropOpt =
 widthProp :: String -> [Element] -> String
 widthProp mw = fromMaybe mw . widthPropOpt
 
-styleProp :: [Element] -> Maybe String
-styleProp =
+maybeProp :: String -> [Element] -> Maybe String
+maybeProp name =
   foldl (\acc p -> case p of
-                     Style s -> Just s
+                     Prop n s | n == name -> Just s
                      _ -> acc) Nothing
 
 specProp :: [Element] -> Maybe String

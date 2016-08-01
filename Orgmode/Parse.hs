@@ -303,7 +303,6 @@ singleColonProp =
   try colonPropCenter <|>
   try colonPropBlock <|>
   try colonPropExampleBlock <|>
-  try colonPropStyle <|>
   try colonPropSpec <|>
   try colonPropId <|>
   try colonPropLabel <|>
@@ -397,11 +396,6 @@ colonPropId = do
   string ":id"
   value <- many (noneOf "¬:\n\r")
   return $ Id (trim value)
-
-colonPropStyle = do
-  string ":style"
-  value <- many (noneOf "¬:\n\r")
-  return $ Style (trim value)
 
 colonPropSpec = do
   string ":spec"

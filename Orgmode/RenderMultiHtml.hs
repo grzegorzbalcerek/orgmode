@@ -207,10 +207,10 @@ renderElement allElements (Src srcType props src) =
              (if fileName == ""
                 then ""
                 else "<img class='filesign' src='filesign.png'/><b>" ++ fileLabel ++ " " ++ fileName ++
-                  (if srcType=="fragment" then " (fragment)" else "") ++ ":</b>\n") ++
+                  (if srcType == "fragment" then " (fragment)" else "") ++ ":</b>\n") ++
               renderSource srcType props src ++ "</pre>\n"
 renderElement allElements (Items props items) =
-  let style = maybe "list" id $ styleProp props
+  let style = maybe "list" id $ maybeProp "style" props
   in  "<ul class='" ++ style ++ "'>\n" ++ concat (map (renderItem allElements) items) ++  "</ul>\n"
 renderElement allElements (Img props file) =
   "<div><img src='" ++ file ++ htmlProp props ++ "'></img><div class='caption'>" ++ (renderText allElements $ labelProp props) ++ "</div></div>\n"

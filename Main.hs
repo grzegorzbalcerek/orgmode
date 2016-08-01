@@ -37,7 +37,7 @@ mainWithArgs ["multihtml",path,outputPath]                              = multih
 mainWithArgs ["verifyoutput",path,actualOutputFile]                     = verifyoutputCommand path actualOutputFile "" ""
 mainWithArgs ["verifyoutput",path,actualOutputFile,chapterId]           = verifyoutputCommand path actualOutputFile chapterId ""
 mainWithArgs ["verifyoutput",path,actualOutputFile,chapterId,sectionId] = verifyoutputCommand path actualOutputFile chapterId sectionId
-mainWithArgs _                                                          = putStrLn "Input arguments not recognized. Nothing to do." 
+mainWithArgs _                                                          = putStrLn "Input arguments not recognized. Nothing to do."
 
 parseCommand variant path = processFile path $ \input -> do
   content <- inputToContent Map.empty variant input
