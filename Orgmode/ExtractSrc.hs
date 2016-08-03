@@ -35,7 +35,6 @@ truncateFiles :: [Element] -> IO ()
 truncateFiles elements =
   forM_ elements $ \element ->
     case element of
-      Part _ _ elements -> truncateFiles elements
       Element _ elements -> truncateFiles elements
       Note _  _ elements -> truncateFiles elements
       Src srcType props _ ->
@@ -56,8 +55,6 @@ extractSrcFromElements' :: [Element] -> String -> IO ()
 extractSrcFromElements' elements defaultfile = do
   forM_ elements $ \element ->
     case element of
-      Part title props elements ->
-        extractSrcFromElements' elements defaultfile
       Element _ elements -> extractSrcFromElements' elements defaultfile
       Note _ _ elements -> extractSrcFromElements' elements defaultfile
       Src srcType props str ->

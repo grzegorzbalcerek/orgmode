@@ -10,8 +10,7 @@ import Control.Monad.Reader
 import Data.Maybe (fromMaybe)
 
 data Element =
-    Part String [Element] [Element]
-  | Def String [Element]
+    Def String [Element]
   | Element String [Element]
   | Arg String
   | Args
@@ -295,7 +294,7 @@ filterChapter (ch@(Element "CHAPTER" elements) : rest) wantedChapterId =
   if idProp "" elements == wantedChapterId
   then [ch]
   else filterChapter rest wantedChapterId
-filterChapter (p@(Part _ _ elems) : rest) wantedChapterId =
+filterChapter (p@(Element "PART" elems) : rest) wantedChapterId =
   filterChapter elems wantedChapterId ++ filterChapter rest wantedChapterId
 filterChapter (_:rest) wantedChapterId = filterChapter rest wantedChapterId
 filterChapter [] wantedChapterId = []

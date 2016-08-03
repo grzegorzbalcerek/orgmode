@@ -42,7 +42,6 @@ singleElement level =
   try (args level) <|>
   try (arg level) <|>
   try (def level) <|>
-  try (part level) <|>
   try (directive level) <|>
   try (contentElement level) <|>
   try (element level) <|>
@@ -80,19 +79,6 @@ element level = do
   let titleProp = if title == "" then [] else [Prop "title" title]
   content <- many (singleElement $ level + 1)
   return $ Element name (titleProp ++ props ++ content)
-----------------------------------------------------
-
-part :: Int -> P Element
-part level = do
-  (title,props) <- asteriskLineWithProps level "PART"
-  content <- many (singleElement $ level + 1)
-  return $ Part title props content
-
-partElement level =
-  (
-  try (contentElement level)
-  ) <?> "partElement"
-
 ----------------------------------------------------
 
 contentElement level =
