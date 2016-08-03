@@ -12,13 +12,13 @@ import Data.Maybe (fromMaybe)
 data Element =
     Part String [Element] [Element]
   | Def String [Element]
-  | Element String String [Element]
+  | Element String [Element]
   | Arg String
+  | Args
+  | IfArg String [Element]
   | Chapter String [Element] [Element]
-  | Slide String [Element] [Element]
   | Section String [Element] [Element]
   | Note String [Element] [Element]
-  | Page [Element] [Element]
   | EmptyElement
   | ShowIndex
   | Items [Element] [Element]
@@ -28,7 +28,7 @@ data Element =
   | Paragraph [Element] String
   | Skipped
   | Src String [Element] String
-  | Include [Element] String
+  | Include String
   | Table [Element] [TableRow]
   | Header Double String
   | Directive String String
@@ -49,13 +49,8 @@ data Element =
   | Type String
   | Ie1 String
   | Ie2 String String
-  | Latex1Prop String
-  | Latex2Prop String
-  | HtmlProp String
-  | Center
   | Output
   | Console String
-  | Variant String
   | PrependNewLines Int
   | PauseBefore
   | Label String
@@ -138,15 +133,6 @@ idProp fallback =
                      Id ident -> ident
                      _ -> acc) (filter (\c -> c `elem` " ") fallback)
 
-parseVariants :: String -> [String]
-parseVariants = map (filter (/=';')) . filter (/= ";") . groupBy (\a b -> a /= ';' && b /= ';' || a == ';' && b == ';')
-
-variantProp :: [Element] -> [String]
-variantProp =
-  foldl (\acc p -> case p of
-                     Variant v -> parseVariants v
-                     _ -> acc) [""]
-
 prependNewLinesProp :: [Element] -> Int
 prependNewLinesProp =
   foldl (\acc p -> case p of
@@ -210,10 +196,10 @@ hasNoVerifyProp =
                      NoVerify -> True
                      _ -> acc) False
 
-hasCenterProp :: [Element] -> Bool
-hasCenterProp =
+elemProp :: String -> [Element] -> Bool
+elemProp name =
   foldl (\acc p -> case p of
-                     Center -> True
+                     Prop n _ | n == name -> True
                      _ -> acc) False
 
 isOutputProp :: [Element] -> Bool
@@ -242,22 +228,10 @@ typePropOpt =
 typeProp :: [Element] -> String
 typeProp = fromMaybe "" . typePropOpt
 
-latex1Prop :: [Element] -> String
-latex1Prop =
+stringProp :: String -> [Element] -> String
+stringProp name =
   foldl (\acc p -> case p of
-                     Latex1Prop lp -> lp
-                     _ -> acc) ""
-
-latex2Prop :: [Element] -> String
-latex2Prop =
-  foldl (\acc p -> case p of
-                     Latex2Prop lp -> lp
-                     _ -> acc) ""
-
-htmlProp :: [Element] -> String
-htmlProp =
-  foldl (\acc p -> case p of
-                     HtmlProp hp -> hp
+                     Prop n hp | n == name -> hp
                      _ -> acc) ""
 
 indexEntriesFromProps ident label =

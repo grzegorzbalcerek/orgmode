@@ -213,7 +213,7 @@ renderElement allElements (Items props items) =
   let style = maybe "list" id $ maybeProp "style" props
   in  "<ul class='" ++ style ++ "'>\n" ++ concat (map (renderItem allElements) items) ++  "</ul>\n"
 renderElement allElements (Img props file) =
-  "<div><img src='" ++ file ++ htmlProp props ++ "'></img><div class='caption'>" ++ (renderText allElements $ labelProp props) ++ "</div></div>\n"
+  "<div><img src='" ++ file ++ stringProp "html" props ++ "'></img><div class='caption'>" ++ (renderText allElements $ labelProp props) ++ "</div></div>\n"
 renderElement allElements (Table props rows) =
   "<table>" ++ concat (map renderTableRow rows) ++ "</table>\n"
 renderElement allElements ShowIndex = renderIndex allElements

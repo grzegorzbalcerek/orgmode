@@ -27,6 +27,7 @@ main = do
   mainWithArgs args
 
 mainWithArgs ["parse",variant,path]                                     = parseCommand variant path
+mainWithArgs ["eval",variant,path]                                      = evalCommand variant path
 mainWithArgs ["latex",variant,path]                                     = latexCommand variant path ""
 mainWithArgs ["latex",variant,path,outputPath]                          = latexCommand variant path outputPath
 mainWithArgs ["extractsrc",path]                                        = extractsrcCommand path "" "" ""
@@ -40,6 +41,10 @@ mainWithArgs ["verifyoutput",path,actualOutputFile,chapterId,sectionId] = verify
 mainWithArgs _                                                          = putStrLn "Input arguments not recognized. Nothing to do."
 
 parseCommand variant path = processFile path $ \input -> do
+  let content = parseInput input
+  putStrLn (show content)
+
+evalCommand variant path = processFile path $ \input -> do
   content <- inputToContent Map.empty variant input
   putStrLn (show content)
 

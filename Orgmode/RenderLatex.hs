@@ -54,29 +54,17 @@ imageHeight 'w' = 34
 
 renderElement :: RenderType -> [Element] -> Element -> String
 renderElement _ _ EmptyElement = ""
-renderElement _ _ (Include _ content) = content
+renderElement _ _ (Include content) = content
 renderElement _ allElements (Item item) =
   "\\item{" ++ renderText allElements item ++ "}\n"
 renderElement _ _ (Header scale content) =
   "\\centerline{\\tikz{\\node[scale=" ++ show scale ++ "]{" ++ content ++ "};}}\n"
-renderElement "Slides" _ (Paragraph _ txt) = ""
 renderElement _ _ Skipped = ""
 renderElement "InNote" allElements (Paragraph props txt) =
-  "\n\n" ++ latex1Prop props ++ "\n\n" ++ renderIndexEntries props ++ renderText allElements txt
-renderElement _ _ (Element "H1" title props) = renderH "\\Huge"       title props
-renderElement _ _ (Element "H2" title props) = renderH "\\huge"       title props
-renderElement _ _ (Element "H3" title props) = renderH "\\LARGE"      title props
-renderElement _ _ (Element "H4" title props) = renderH "\\Large"      title props
-renderElement _ _ (Element "H5" title props) = renderH "\\large"      title props
-renderElement _ _ (Element "H6" title props) = renderH "\\normalsize" title props
+  "\n\n" ++ stringProp "latex1" props ++ "\n\n" ++ renderIndexEntries props ++ renderText allElements txt
 renderElement _ allElements (Text txt) = renderText allElements txt
 renderElement _ allElements (Paragraph props txt) =
-  "\n\n" ++ latex1Prop props ++ "\n\n" ++ renderIndexEntries props ++ renderText allElements txt ++ "\n\n" ++ latex2Prop props ++ "\n\n"
-renderElement rt allElements (Slide title props parts) =
-  "\\begin{frame}[fragile]\n" ++
-  (if title == "" then "" else "\\frametitle{" ++ title ++ "}\n") ++
-  concat (renderElement rt allElements `fmap` parts) ++
-  "\\end{frame}\n"
+  "\n\n" ++ stringProp "latex1" props ++ "\n\n" ++ renderIndexEntries props ++ renderText allElements txt ++ "\n\n" ++ stringProp "latex2" props ++ "\n\n"
 renderElement "Slides" allElements (Chapter title props parts) =
   concat (map (renderElement "Slides" allElements) parts) ++ "\n"
 renderElement "Article" allElements (Chapter title props parts) =
@@ -102,7 +90,7 @@ renderElement rt allElements (Chapter title props parts) =
 renderElement rt allElements (Section title props parts) =
   let label = labelProp props
   in
-    latex1Prop props ++
+    stringProp "latex1" props ++
     (if label == ""
      then ""
      else "\\setcounter{section}{" ++ label ++ "}\\addtocounter{section}{-1}") ++
@@ -110,22 +98,22 @@ renderElement rt allElements (Section title props parts) =
     (if label == "" then "*" else "") ++
     "{" ++ renderText allElements title ++ "}\n" ++
     (if label == "" then "\\addcontentsline{toc}{section}{" ++ title ++ "}" else "") ++
-    concat (map (renderElement rt allElements) parts) ++ latex2Prop props ++ "\n"
-renderElement rt allElements (Page props parts) =
+    concat (map (renderElement rt allElements) parts) ++ stringProp "latex2" props ++ "\n"
+renderElement rt allElements (Element name parts) | name == "PAGE" =
     concat (map (renderElement rt allElements) parts) ++ "\n\\vfill\\eject\n"
 renderElement rt allElements (Items props items) =
   renderIndexEntries props ++ "\n\\begin{itemize}\n" ++
   (if maybeProp "style" props == Just "none" then "\\renewcommand{\\labelitemi}{}\n" else "") ++
   concat (map (renderElement rt allElements) items) ++  "\\end{itemize}\n"
 renderElement rt allElements (Note noteType props parts) =
-  "\n\n" ++ latex1Prop props ++ "\n\n" ++ renderIndexEntries props ++ "\\begin{tabular}{lp{1cm}p{11.2cm}}\n" ++
+  "\n\n" ++ stringProp "latex1" props ++ "\n\n" ++ renderIndexEntries props ++ "\\begin{tabular}{lp{1cm}p{11.2cm}}\n" ++
   "\\cline{2-3}\\noalign{\\smallskip}\n" ++
   "&\\raisebox{-" ++ (show $ (imageHeight $ head noteType) - 10) ++
   "pt}{\\includegraphics[height=" ++ (show.imageHeight $ head noteType) ++ "pt]{" ++
   [head noteType] ++ "sign.png" ++ -- (if head noteType == 'r' then ".png" else ".eps") ++
   "}}&\\small\\setlength{\\parskip}{2mm}" ++
   concat (map (renderElement "InNote" allElements) parts) ++
-  "\\\\ \\noalign{\\smallskip}\\cline{2-3}\n\\end{tabular}\n\n" ++ latex2Prop props
+  "\\\\ \\noalign{\\smallskip}\\cline{2-3}\n\\end{tabular}\n\n" ++ stringProp "latex2" props
 renderElement "Slides" allElements (Src description props src) =
   if hasSlideProp props
   then "\\begin{frame}[fragile]\n" ++ renderSrcSlides (Src description props src) ++ "\\end{frame}\n"
@@ -137,15 +125,15 @@ renderElement rt allElements (Table props rows) =
       w = maybe "" (\x -> "{" ++ x ++ "}") $ widthPropOpt props
       spec = fromMaybe "" $ specProp props
   in
-    "\n" ++ latex1Prop props ++
+    "\n" ++ stringProp "latex1" props ++
     "\n\\begin{" ++ t ++ "}" ++ w ++ "{" ++ spec ++ "}\n" ++
     concat (map renderRow rows) ++
     "\\end{" ++ t ++ "}\n" ++
-    "\n" ++ latex2Prop props
+    "\n" ++ stringProp "latex2" props
 renderElement rt allElements (Img props filename) =
   let label = labelProp props
-      latex1 = latex1Prop props
-      latex2 = latex2Prop props
+      latex1 = stringProp "latex1" props
+      latex2 = stringProp "latex2" props
   in if label == ""
      then
        "\n\n\\begin{center}\n\\includegraphics" ++ latex2 ++ "{" ++ filename ++ latex1 ++ "}\n\\end{center}\n"
@@ -231,7 +219,7 @@ renderSrcBook rt description props src =
     if hasNoRenderProp props
     then ""
     else 
-      latex1Prop props ++ "\n\\begin{alltt}\\footnotesize\\leftskip10pt\n" ++ render ++ "\\end{alltt}\n\n" ++ latex2Prop props
+      stringProp "latex1" props ++ "\n\\begin{alltt}\\footnotesize\\leftskip10pt\n" ++ render ++ "\\end{alltt}\n\n" ++ stringProp "latex2" props
 
 renderCodeBook :: String -> [Prop] -> String -> String
 renderCodeBook sourceType props src =
@@ -306,15 +294,6 @@ renderCodeBook sourceType props src =
           _ -> c:acc
   in
     foldr f "" src
-
-----------------------------------------------------
-
-renderH size title props =
-  latex1Prop props ++
-  (if hasCenterProp props then "\\centerline{" else "") ++
-  "{" ++ size ++ " " ++ renderText [] title ++ "}" ++
-  (if hasCenterProp props then "}" else "") ++
-  latex2Prop props
 
 ----------------------------------------------------
 
@@ -616,5 +595,22 @@ checkPrefixes prefixes str =
 
 latexEnv :: Map.Map String [Element]
 latexEnv = Map.fromList
-  [ ("PAUSE",[Include [] "\\pause\n"])
+  [ ("PAUSE",[Include "\\pause\n"])
+  , ("CENTER", [Include "\\centerline{", Arg "title", Arg "1", Include "}"])
+  , ("H1", [Include "\\textbf{\\Huge ", Arg "title", Arg "1", Include "}\\par "])
+  , ("H2", [Include "\\textbf{\\huge ", Arg "title", Arg "1", Include "}\\par "])
+  , ("H3", [Include "\\textbf{\\LARGE ", Arg "title", Arg "1", Include "}\\par "])
+  , ("H4", [Include "\\textbf{\\Large ", Arg "title", Arg "1", Include "}\\par "])
+  , ("H5", [Include "\\textbf{\\large ", Arg "title", Arg "1", Include "}\\par "])
+  , ("H6", [Include "\\textbf{\\normalsize ", Arg "title", Arg "1", Include "}\\par "])
+  , ("C1", [Include "\\textbf{\\centerline{\\Huge ", Arg "title", Arg "1", Include "}}\\par "])
+  , ("C2", [Include "\\textbf{\\centerline{\\huge ", Arg "title", Arg "1", Include "}}\\par "])
+  , ("C3", [Include "\\textbf{\\centerline{\\LARGE ", Arg "title", Arg "1", Include "}}\\par "])
+  , ("C4", [Include "\\textbf{\\centerline{\\Large ", Arg "title", Arg "1", Include "}}\\par "])
+  , ("C5", [Include "\\textbf{\\centerline{\\large ", Arg "title", Arg "1", Include "}}\\par "])
+  , ("C6", [Include "\\textbf{\\centerline{\\normalsize ", Arg "title", Arg "1", Include "}}\\par "])
+  , ("SLIDE", [Include "\\begin{frame}[fragile]\n", IfArg "title" [Include "\\frametitle{", Arg "title", Include "}\n"], Args, Include "\\end{frame}\n"])
   ]
+
+----------------------------------------------------
+

@@ -38,13 +38,13 @@ topLevels = do
 singleElement :: Int -> P Element
 singleElement level =
   (
+  try (ifarg level) <|>
+  try (args level) <|>
   try (arg level) <|>
   try (def level) <|>
   try (part level) <|>
   try (chapter level) <|>
   try (section level) <|>
-  try (page level) <|>
-  try (slide level) <|>
   try (directive level) <|>
   try (contentElement level) <|>
   try (element level) <|>
@@ -53,10 +53,21 @@ singleElement level =
 
 ----------------------------------------------------
 
+args :: Int -> P Element
+args level = do
+  asteriskLine level "ARGS"
+  return $ Args
+
 arg :: Int -> P Element
 arg level = do
   (name) <- simpleAsteriskLine level "ARG"
   return $ Arg name
+
+ifarg :: Int -> P Element
+ifarg level = do
+  (name) <- simpleAsteriskLine level "IFARG"
+  content <- many (singleElement $ level + 1)
+  return $ IfArg name content
 
 ----------------------------------------------------
 def :: Int -> P Element
@@ -68,8 +79,9 @@ def level = do
 element :: Int -> P Element
 element level = do
   (name,title,props) <- elementWithProps level
+  let titleProp = if title == "" then [] else [Prop "title" title]
   content <- many (singleElement $ level + 1)
-  return $ Element name title (props++content)
+  return $ Element name (titleProp ++ props ++ content)
 ----------------------------------------------------
 
 part :: Int -> P Element
@@ -82,7 +94,6 @@ partElement level =
   (
   try (chapter level) <|>
   try (section level) <|>
-  try (slide level) <|>
   try (contentElement level)
   ) <?> "partElement"
 
@@ -97,7 +108,6 @@ chapter level = do
 chapterElement level =
   (
   try (section level) <|>
-  try (slide level)<|>
   try (contentElement level)
   ) <?> "chapterElement"
 
@@ -111,30 +121,8 @@ section level = do
 
 sectionElement level =
   (
-  try (slide level)<|>
   try (singleElement level)
   ) <?> "sectionElement"
-
-----------------------------------------------------
-
-page :: Int -> P Element
-page level = do
-  (_,props) <- asteriskLineWithProps level "PAGE"
-  content <- many (singleElement (level+1))
-  return $ Page props content
-
-----------------------------------------------------
-
-slide level = do
-  (title,props) <- asteriskLineWithProps level "SLIDE"
-  content <- many (singleElement $ level + 1)
-  return $ Slide title props content
-
-slideElement level =
-  (
-  try (contentElement level) <|>
-  skipLine
-  ) <?> "slideElement"
 
 ----------------------------------------------------
 
@@ -172,7 +160,7 @@ asteriskLine n tag = do
   try $ string $ take n $ repeat '*'
   space
   string tag
-  content <- many (noneOf "¬\n\r")
+  content <- many (noneOf "\n\r")
   many (noneOf "\n\r")
   eol
   return $ trim content
@@ -276,9 +264,9 @@ img = do
 ----------------------------------------------------
 
 include level = do
-  (_,props) <- asteriskLineWithProps level "INCLUDE"
+  (_,_) <- asteriskLineWithProps level "INCLUDE"
   content <- many1 emptyOrRegularLineWithEol
-  return $ Include props (concat content)
+  return $ Include (concat content)
 
 directive level = do
   (name,props) <- asteriskLineWithProps level "DIRECTIVE"
@@ -293,22 +281,17 @@ src level = do
 singleColonProp =
   try colonPropPauseBefore <|>
   try colonPropConsole <|>
-  try colonPropVariant <|>
   try colonPropFragment <|>
   try colonPropSlide <|>
   try colonPropDoNotExtractSrc <|>
   try colonPropNoRender <|>
   try colonPropNoVerify <|>
   try colonPropOutput <|>
-  try colonPropCenter <|>
   try colonPropBlock <|>
   try colonPropExampleBlock <|>
   try colonPropSpec <|>
   try colonPropId <|>
   try colonPropLabel <|>
-  try colonPropLatex1 <|>
-  try colonPropLatex2 <|>
-  try colonPropHtml <|>
   try colonPropX <|>
   try colonPropType <|>
   try colonPropIe1 <|>
@@ -333,11 +316,6 @@ colonPropConsole = do
   consoleType <- many (noneOf "¬:\n\r")
   return $ Console consoleType
 
-colonPropVariant = do
-  string ":variant"
-  name <- many (noneOf "¬:\n\r")
-  return $ Variant (trim name)
-
 colonPropFragment = do
   string ":fragment"
   return Fragment
@@ -357,10 +335,6 @@ colonPropNoVerify = do
 colonPropOutput = do
   string ":output"
   return Output
-
-colonPropCenter = do
-  string ":center"
-  return Center
 
 colonPropPath = do
   string ":path "
@@ -384,7 +358,7 @@ colonPropEmpty = do
 colonProp = do
   char ':'
   name <- many (noneOf " ")
-  value <- many (noneOf "¬:\n\r")
+  value <- many (noneOf ":\n\r")
   return $ Prop name value
 
 colonPropExampleBlock = do
@@ -406,21 +380,6 @@ colonPropLabel = do
   string ":label"
   value <- many (noneOf "¬:\n\r")
   return $ Label (trim value)
-
-colonPropLatex1 = do
-  string ":latex1"
-  value <- many (noneOf "¬:\n\r")
-  return $ Latex1Prop (trim value)
-
-colonPropLatex2 = do
-  string ":latex2"
-  value <- many (noneOf "¬:\n\r")
-  return $ Latex2Prop (trim value)
-
-colonPropHtml = do
-  string ":html"
-  value <- many (noneOf "¬:\n\r")
-  return $ HtmlProp (trim value)
 
 colonPropIe1 = do
   string ":ie1"
