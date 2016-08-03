@@ -36,7 +36,6 @@ truncateFiles elements =
   forM_ elements $ \element ->
     case element of
       Part _ _ elements -> truncateFiles elements
-      Chapter _ _ elements -> truncateFiles elements
       Section _ _ elements -> truncateFiles elements
       Element _ elements -> truncateFiles elements
       Note _  _ elements -> truncateFiles elements
@@ -59,8 +58,6 @@ extractSrcFromElements' elements defaultfile = do
   forM_ elements $ \element ->
     case element of
       Part title props elements ->
-        extractSrcFromElements' elements defaultfile
-      Chapter title props elements ->
         extractSrcFromElements' elements defaultfile
       Section title props elements ->
         do

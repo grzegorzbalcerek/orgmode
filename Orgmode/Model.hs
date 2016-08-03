@@ -16,7 +16,6 @@ data Element =
   | Arg String
   | Args
   | IfArg String [Element]
-  | Chapter String [Element] [Element]
   | Section String [Element] [Element]
   | Note String [Element] [Element]
   | EmptyElement
@@ -103,7 +102,7 @@ sectionsOnly = filter $ \p ->
     Section _ _ _ -> True
     _ -> False
 
-isChapter (Chapter _ _ _) = True
+isChapter (Element "CHAPTER" _) = True
 isChapter _ = False
 
 directiveValue :: (Monad a) => String -> ReaderT [Element] a String
@@ -272,11 +271,12 @@ constantLikeProp =
                      _ -> acc) []
 
 extractIndexEntries :: String -> String -> Element -> [IndexEntry]
-extractIndexEntries _ _ (Chapter title props elements) =
-  let chId = idProp title props
-      chLabel = labelProp props
+extractIndexEntries _ _ (Element "CHAPTER" elements) =
+  let title = stringProp "title" elements
+      chId = idProp title elements
+      chLabel = labelProp elements
   in
-      indexEntriesFromProps chId chLabel props ++ (elements >>= extractIndexEntries chId chLabel)
+      indexEntriesFromProps chId chLabel elements ++ (elements >>= extractIndexEntries chId chLabel)
 extractIndexEntries chId chLabel (Section title props elements) =
   let secId = idProp title props
       secLabel = labelProp props
@@ -292,8 +292,8 @@ extractIndexEntries elementId elementLabel (Table props _) = indexEntriesFromPro
 extractIndexEntries elementId elementLabel _ = []
 
 filterChapter :: [Element] -> String -> [Element]
-filterChapter (ch@(Chapter _ props _) : rest) wantedChapterId =
-  if idProp "" props == wantedChapterId
+filterChapter (ch@(Element "CHAPTER" elements) : rest) wantedChapterId =
+  if idProp "" elements == wantedChapterId
   then [ch]
   else filterChapter rest wantedChapterId
 filterChapter (p@(Part _ _ elems) : rest) wantedChapterId =
@@ -304,7 +304,7 @@ filterChapter [] wantedChapterId = []
 filterSection :: [Element] -> String -> String -> [Element]
 filterSection elements chapterId sectionId =
   case filterChapter elements chapterId of
-    [Chapter _ _ chapterElements] -> filterSection' chapterElements sectionId
+    [Element "CHAPTER" chapterElements] -> filterSection' chapterElements sectionId
     _ -> []
 
 filterSection' :: [Element] -> String -> [Element]

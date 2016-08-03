@@ -65,12 +65,9 @@ renderElement "InNote" allElements (Paragraph props txt) =
 renderElement _ allElements (Text txt) = renderText allElements txt
 renderElement _ allElements (Paragraph props txt) =
   "\n\n" ++ stringProp "latex1" props ++ "\n\n" ++ renderIndexEntries props ++ renderText allElements txt ++ "\n\n" ++ stringProp "latex2" props ++ "\n\n"
-renderElement "Slides" allElements (Chapter title props parts) =
-  concat (map (renderElement "Slides" allElements) parts) ++ "\n"
-renderElement "Article" allElements (Chapter title props parts) =
-  concat (map (renderElement "Article" allElements) parts) ++ "\n"
-renderElement rt allElements (Chapter title props parts) =
-  let label = labelProp props
+renderElement rt allElements (Element "CHAPTER" parts) =
+  let title = stringProp "title" parts
+      label = labelProp parts
       firstSectionTitle (Section title _ _ : _) = title
       firstSectionTitle (_:rest) = firstSectionTitle rest
       firstSectionTitle [] = ""
@@ -536,8 +533,8 @@ renderText' allElements (c:acc) =
 chapterReference :: [Element] -> String -> (String)
 chapterReference parts chapterId =
   case parts of
-    (Chapter title props _):tailElements ->
-      let chId = idProp title props
+    (Element "CHAPTER" props):tailElements ->
+      let chId = idProp (stringProp "title" props) props
           chLabel = labelProp props
       in
           if chId == chapterId
@@ -549,9 +546,9 @@ chapterReference parts chapterId =
 sectionReference :: [Element] -> String -> String -> (String)
 sectionReference parts chapterId sectionId =
   case parts of
-    (Chapter title props chapterElements):tailElements ->
-      let chId = idProp title props
-          chLabel = labelProp props
+    (Element "CHAPTER" chapterElements):tailElements ->
+      let chId = idProp (stringProp "title" chapterElements) chapterElements
+          chLabel = labelProp chapterElements
       in
           if chId == chapterId
           then sectionReference' chapterElements chId chLabel sectionId

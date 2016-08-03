@@ -37,8 +37,8 @@ writeToc outputPath chapters = do
   tableOfContents <- directiveValueNoNewLines "TableOfContents"
   let chapterLinks = chapters >>= (\chapter -> runReader (renderChapterLink chapter) allElements)
   let content = "<h1>" ++ tableOfContents ++ "</h1>\n<ul class='toc'>\n" ++ chapterLinks ++ "</ul>\n"
-  let (Chapter title props _) = head chapters
-  let right = idProp title props
+  let (Element _ props) = head chapters
+  let right = idProp (stringProp "title" props) props
   footer <- directiveValue "MultiHtmlFooter"
   let output = page "Spis treści" content "index" "index" right footer
   liftIO $ putStrLn $ "Generating " ++ path
@@ -46,21 +46,22 @@ writeToc outputPath chapters = do
   liftIO $ hClose houtput
 
 renderChapterLink :: Element -> Reader [Element] String
-renderChapterLink (Chapter title props _) = do
-  chTitle <- chapterTitle title props
-  return $ "<li><a href='" ++ (idProp title props) ++ ".html'>" ++ chTitle ++ "</a>\n"
+renderChapterLink (Element "CHAPTER" elements) = do
+  let title = stringProp "title" elements
+  chTitle <- chapterTitle title elements
+  return $ "<li><a href='" ++ (idProp title elements) ++ ".html'>" ++ chTitle ++ "</a>\n"
 renderChapterLink _ = return ""
 
 writeChapters :: String -> [Element] -> String -> [Element] -> IO ()
 writeChapters outputPath allElements previousId chapters =
   case chapters of
-    ch@(Chapter title props sections):nextChapters -> do
-      writeChapter outputPath allElements title props sections previousId nextChapters
+    ch@(Element "CHAPTER" sections):nextChapters -> do
+      writeChapter outputPath allElements (stringProp "title" sections) sections sections previousId nextChapters
       writeChapters outputPath allElements (getLastId ch sections) nextChapters
     _ -> return ()
 
-getLastId (Chapter title props _) [] = idProp title props
-getLastId (Chapter title props _) ((Section sTitle sProps _):[]) = (idProp title props) ++ "_" ++ (idProp sTitle sProps)
+getLastId (Element "CHAPTER" props) [] = idProp (stringProp "title" props) props
+getLastId (Element "CHAPTER" props) ((Section sTitle sProps _):[]) = (idProp (stringProp "title" props) props) ++ "_" ++ (idProp sTitle sProps)
 getLastId ch (_:sections) = getLastId ch sections
 
 writeChapter :: String -> [Element] -> String -> [Prop] -> [Element] -> String -> [Element] -> IO ()
@@ -86,7 +87,7 @@ writePage outputPath name title content left up right = do
 headElementId chId parts =
   case parts of
     (Section title props _):_ -> chId ++ "_" ++ idProp title props
-    (Chapter title props _):_ -> idProp title props
+    (Element "CHAPTER" props):_ -> idProp (stringProp "title" props) props
     _:next -> headElementId chId next
     [] -> ""
 
@@ -131,7 +132,7 @@ page title content prev up next footer =
   \</html>\n"
 
 containerElement :: Element -> Bool
-containerElement (Chapter _ _ _) = True
+containerElement (Element "CHAPTER" _) = True
 containerElement (Section _ _ _) = True
 containerElement _ = False
 
@@ -177,7 +178,7 @@ renderElements :: [Element] -> [Element] -> String
 renderElements allElements parts = concat (fmap (renderElement allElements) parts)
 
 renderElement :: [Element] -> Element -> String
-renderElement _ (Chapter title props parts) = ""
+renderElement _ (Element "CHAPTER" parts) = ""
 renderElement allElements (Section title props parts) =
   "<h2 class='section'>" ++ title ++ "</h2>\n" ++
   renderElements allElements parts
@@ -414,8 +415,8 @@ renderSource sourceType props src =
 chapterReference :: [Element] -> String -> (String)
 chapterReference parts chapterId =
   case parts of
-    (Chapter title props _):tailElements ->
-      let chId = idProp title props
+    (Element "CHAPTER" props):tailElements ->
+      let chId = idProp (stringProp "title" props) props
           chLabel = labelProp props
       in
           if chId == chapterId
@@ -426,9 +427,9 @@ chapterReference parts chapterId =
 sectionReference :: [Element] -> String -> String -> (String)
 sectionReference parts chapterId sectionId = --"xxxx"++chapterId++"cccc"++sectionId++"vvvv"
   case parts of
-    (Chapter title props chapterElements):tailElements ->
-      let chId = idProp title props
-          chLabel = labelProp props
+    (Element "CHAPTER" chapterElements):tailElements ->
+      let chId = idProp (stringProp "title" chapterElements) chapterElements
+          chLabel = labelProp chapterElements
       in
           if chId == chapterId
           then sectionReference' chapterElements chId chLabel sectionId

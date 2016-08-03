@@ -43,7 +43,6 @@ singleElement level =
   try (arg level) <|>
   try (def level) <|>
   try (part level) <|>
-  try (chapter level) <|>
   try (section level) <|>
   try (directive level) <|>
   try (contentElement level) <|>
@@ -92,24 +91,9 @@ part level = do
 
 partElement level =
   (
-  try (chapter level) <|>
   try (section level) <|>
   try (contentElement level)
   ) <?> "partElement"
-
-----------------------------------------------------
-
-chapter :: Int -> P Element
-chapter level = do
-  (title,props) <- asteriskLineWithProps level "CHAPTER"
-  content <- many (singleElement $ level + 1)
-  return $ Chapter title props content
-
-chapterElement level =
-  (
-  try (section level) <|>
-  try (contentElement level)
-  ) <?> "chapterElement"
 
 ----------------------------------------------------
 

@@ -18,8 +18,8 @@ verifyOutput :: [Element] -> String -> String -> String -> IO ()
 verifyOutput parts actualOutputFile chapterId sectionId = do
   forM_ parts $ \part ->
     case part of
-      Chapter title props chapterElements ->
-        let chId = idProp title props
+      Element "CHAPTER" chapterElements ->
+        let chId = idProp (stringProp "title" chapterElements) chapterElements
         in if chId == chapterId
            then (if sectionId == "" then verifySection chapterElements actualOutputFile
                                     else verifyOutput chapterElements actualOutputFile chapterId sectionId)
