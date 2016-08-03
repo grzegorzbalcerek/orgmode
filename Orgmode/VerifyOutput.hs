@@ -24,8 +24,8 @@ verifyOutput parts actualOutputFile chapterId sectionId = do
            then (if sectionId == "" then verifySection chapterElements actualOutputFile
                                     else verifyOutput chapterElements actualOutputFile chapterId sectionId)
            else return ()
-      Section title props sectionElements ->
-        let secId = idProp title props
+      Element "SECTION" sectionElements ->
+        let secId = idProp (stringProp "title" sectionElements) sectionElements
         in if secId == sectionId
            then verifySection sectionElements actualOutputFile
            else return ()

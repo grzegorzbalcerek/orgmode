@@ -36,7 +36,6 @@ truncateFiles elements =
   forM_ elements $ \element ->
     case element of
       Part _ _ elements -> truncateFiles elements
-      Section _ _ elements -> truncateFiles elements
       Element _ elements -> truncateFiles elements
       Note _  _ elements -> truncateFiles elements
       Src srcType props _ ->
@@ -59,10 +58,6 @@ extractSrcFromElements' elements defaultfile = do
     case element of
       Part title props elements ->
         extractSrcFromElements' elements defaultfile
-      Section title props elements ->
-        do
-          let secId = idProp title props
-          extractSrcFromElements' elements defaultfile
       Element _ elements -> extractSrcFromElements' elements defaultfile
       Note _ _ elements -> extractSrcFromElements' elements defaultfile
       Src srcType props str ->

@@ -16,7 +16,6 @@ data Element =
   | Arg String
   | Args
   | IfArg String [Element]
-  | Section String [Element] [Element]
   | Note String [Element] [Element]
   | EmptyElement
   | ShowIndex
@@ -99,7 +98,7 @@ pathProp =
 sectionsOnly :: [Element] -> [Element]
 sectionsOnly = filter $ \p ->
   case p of
-    Section _ _ _ -> True
+    Element "SECTION" _ -> True
     _ -> False
 
 isChapter (Element "CHAPTER" _) = True
@@ -277,13 +276,13 @@ extractIndexEntries _ _ (Element "CHAPTER" elements) =
       chLabel = labelProp elements
   in
       indexEntriesFromProps chId chLabel elements ++ (elements >>= extractIndexEntries chId chLabel)
-extractIndexEntries chId chLabel (Section title props elements) =
-  let secId = idProp title props
-      secLabel = labelProp props
+extractIndexEntries chId chLabel (Element "SECTION" elements) =
+  let secId = idProp (stringProp "title" elements) elements
+      secLabel = labelProp elements
       elementId = chId ++ "_" ++ secId
       elementLabel = chLabel ++ "." ++ secLabel
   in
-      indexEntriesFromProps elementId elementLabel props ++ (elements >>= extractIndexEntries elementId elementLabel)
+      indexEntriesFromProps elementId elementLabel elements ++ (elements >>= extractIndexEntries elementId elementLabel)
 extractIndexEntries elementId elementLabel (Paragraph props _) = indexEntriesFromProps elementId elementLabel props
 extractIndexEntries elementId elementLabel (Items props _) = indexEntriesFromProps elementId elementLabel props
 extractIndexEntries elementId elementLabel (Img props _) = indexEntriesFromProps elementId elementLabel props
@@ -308,7 +307,7 @@ filterSection elements chapterId sectionId =
     _ -> []
 
 filterSection' :: [Element] -> String -> [Element]
-filterSection' (sec@(Section _ props _) : rest) wantedSectionId =
+filterSection' (sec@(Element "SECTION" props) : rest) wantedSectionId =
   if idProp "" props == wantedSectionId
   then [sec]
   else filterSection' rest wantedSectionId

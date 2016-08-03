@@ -43,7 +43,6 @@ singleElement level =
   try (arg level) <|>
   try (def level) <|>
   try (part level) <|>
-  try (section level) <|>
   try (directive level) <|>
   try (contentElement level) <|>
   try (element level) <|>
@@ -91,22 +90,8 @@ part level = do
 
 partElement level =
   (
-  try (section level) <|>
   try (contentElement level)
   ) <?> "partElement"
-
-----------------------------------------------------
-
-section :: Int -> P Element
-section level = do
-  (title,props) <- asteriskLineWithProps level "SECTION"
-  content <- many (singleElement (level+1))
-  return $ Section title props content
-
-sectionElement level =
-  (
-  try (singleElement level)
-  ) <?> "sectionElement"
 
 ----------------------------------------------------
 
@@ -185,7 +170,7 @@ paragraph level = do
 
 note level = do
   (noteType,props) <- asteriskLineWithProps level "NOTE"
-  content <- many (sectionElement $ level + 1)
+  content <- many (contentElement $ level + 1)
   return $ Note noteType props content
 
 asteriskImg level = do

@@ -68,7 +68,7 @@ renderElement _ allElements (Paragraph props txt) =
 renderElement rt allElements (Element "CHAPTER" parts) =
   let title = stringProp "title" parts
       label = labelProp parts
-      firstSectionTitle (Section title _ _ : _) = title
+      firstSectionTitle (Element "SECTION" elements : _) = stringProp "title" elements
       firstSectionTitle (_:rest) = firstSectionTitle rest
       firstSectionTitle [] = ""
   in
@@ -84,18 +84,18 @@ renderElement rt allElements (Element "CHAPTER" parts) =
           "\\markboth{" ++ title ++ "}{" ++ firstSectionTitle parts ++ "}"
      else "") ++
     concat (map (renderElement rt allElements) parts) ++ "\n"
-renderElement rt allElements (Section title props parts) =
-  let label = labelProp props
+renderElement rt allElements (Element "SECTION" parts) =
+  let label = labelProp parts
   in
-    stringProp "latex1" props ++
+    stringProp "latex1" parts ++
     (if label == ""
      then ""
      else "\\setcounter{section}{" ++ label ++ "}\\addtocounter{section}{-1}") ++
     "\n\\section" ++
     (if label == "" then "*" else "") ++
-    "{" ++ renderText allElements title ++ "}\n" ++
-    (if label == "" then "\\addcontentsline{toc}{section}{" ++ title ++ "}" else "") ++
-    concat (map (renderElement rt allElements) parts) ++ stringProp "latex2" props ++ "\n"
+    "{" ++ renderText allElements (stringProp "title" parts) ++ "}\n" ++
+    (if label == "" then "\\addcontentsline{toc}{section}{" ++ (stringProp "title" parts) ++ "}" else "") ++
+    concat (map (renderElement rt allElements) parts) ++ stringProp "latex2" parts ++ "\n"
 renderElement rt allElements (Element name parts) | name == "PAGE" =
     concat (map (renderElement rt allElements) parts) ++ "\n\\vfill\\eject\n"
 renderElement rt allElements (Items props items) =
@@ -559,8 +559,8 @@ sectionReference parts chapterId sectionId =
 sectionReference' :: [Element] -> String -> String -> String -> (String)
 sectionReference' parts chapterId chapterLabel sectionId =
   case parts of
-    (Section title props _):tailElements ->
-      let secId = idProp title props
+    (Element "SECTION" props):tailElements ->
+      let secId = idProp (stringProp "title" props) props
           secLabel = labelProp props
       in
           if secId == sectionId

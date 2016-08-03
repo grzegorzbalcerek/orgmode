@@ -61,7 +61,7 @@ writeChapters outputPath allElements previousId chapters =
     _ -> return ()
 
 getLastId (Element "CHAPTER" props) [] = idProp (stringProp "title" props) props
-getLastId (Element "CHAPTER" props) ((Section sTitle sProps _):[]) = (idProp (stringProp "title" props) props) ++ "_" ++ (idProp sTitle sProps)
+getLastId (Element "CHAPTER" props) ((Element "SECTION" sProps):[]) = (idProp (stringProp "title" props) props) ++ "_" ++ (idProp (stringProp "title" sProps) sProps)
 getLastId ch (_:sections) = getLastId ch sections
 
 writeChapter :: String -> [Element] -> String -> [Prop] -> [Element] -> String -> [Element] -> IO ()
@@ -86,7 +86,7 @@ writePage outputPath name title content left up right = do
 
 headElementId chId parts =
   case parts of
-    (Section title props _):_ -> chId ++ "_" ++ idProp title props
+    (Element "SECTION" props):_ -> chId ++ "_" ++ idProp (stringProp "title" props) props
     (Element "CHAPTER" props):_ -> idProp (stringProp "title" props) props
     _:next -> headElementId chId next
     [] -> ""
@@ -94,9 +94,9 @@ headElementId chId parts =
 writeSections :: String -> [Element] -> String -> String -> String -> [Element] -> [Element] -> IO ()
 writeSections outputPath allElements chId chLabel previousId sections nextChapters = do
   case sections of
-    sec@(Section title props parts):nextSections -> do
-      writeSection outputPath allElements chId chLabel title props parts previousId nextSections nextChapters
-      writeSections outputPath allElements chId chLabel (chId ++ "_" ++ idProp title props) nextSections nextChapters
+    sec@(Element "SECTION" parts):nextSections -> do
+      writeSection outputPath allElements chId chLabel (stringProp "title" parts) parts parts previousId nextSections nextChapters
+      writeSections outputPath allElements chId chLabel (chId ++ "_" ++ idProp (stringProp "title" parts) parts) nextSections nextChapters
     (_:nextSections) ->
       writeSections outputPath allElements chId chLabel previousId nextSections nextChapters
     [] -> return ()
@@ -105,7 +105,7 @@ writeSection :: String -> [Element] -> String -> String -> String -> [Prop] -> [
 writeSection outputPath allElements chId chLabel title props parts previousId nextSections nextChapters = do
   let path = outputPath ++ "/" ++ chId ++ "_" ++ (idProp title props) ++ ".html"
   houtput <- safeOpenFileForWriting path
-  let content = renderElement allElements (Section (sectionTitle chLabel title props) props parts)
+  let content = renderElement allElements (Element "SECTION" (parts ++ [Prop "title" (sectionTitle chLabel title props)]))
   let left = previousId
   let right = headElementId chId $ nextSections++nextChapters
   let footer = runReader (directiveValue "MultiHtmlFooter") allElements
@@ -133,7 +133,7 @@ page title content prev up next footer =
 
 containerElement :: Element -> Bool
 containerElement (Element "CHAPTER" _) = True
-containerElement (Section _ _ _) = True
+containerElement (Element "SECTION" _) = True
 containerElement _ = False
 
 nonContainerElement = not . containerElement
@@ -170,8 +170,8 @@ renderChapterContent title props parts = do
     concat (fmap (renderSectionLink chId chLabel) parts) ++
     "</ul>\n"
 
-renderSectionLink chId chLabel (Section title props _) =
-  "<li><a href='" ++ chId ++ "_" ++ (idProp title props) ++ ".html'>" ++ sectionTitle chLabel title props ++ "</a>\n"
+renderSectionLink chId chLabel (Element "SECTION" props) =
+  "<li><a href='" ++ chId ++ "_" ++ (idProp (stringProp "title" props) props) ++ ".html'>" ++ sectionTitle chLabel (stringProp "title" props) props ++ "</a>\n"
 renderSectionLink _ _ _ = ""
 
 renderElements :: [Element] -> [Element] -> String
@@ -179,8 +179,8 @@ renderElements allElements parts = concat (fmap (renderElement allElements) part
 
 renderElement :: [Element] -> Element -> String
 renderElement _ (Element "CHAPTER" parts) = ""
-renderElement allElements (Section title props parts) =
-  "<h2 class='section'>" ++ title ++ "</h2>\n" ++
+renderElement allElements (Element "SECTION" parts) =
+  "<h2 class='section'>" ++ (stringProp "title" parts) ++ "</h2>\n" ++
   renderElements allElements parts
 renderElement allElements (Note noteType _ parts) =
   "<table class='remark'><tr><td class='remarksymbol'><img src='" ++
@@ -439,8 +439,8 @@ sectionReference parts chapterId sectionId = --"xxxx"++chapterId++"cccc"++sectio
 sectionReference' :: [Element] -> String -> String -> String -> (String)
 sectionReference' parts chapterId chapterLabel sectionId =
   case parts of
-    (Section title props _):tailElements ->
-      let secId = idProp title props
+    (Element "SECTION" props):tailElements ->
+      let secId = idProp (stringProp "title" props) props
           secLabel = labelProp props
       in
           if secId == sectionId
