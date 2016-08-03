@@ -16,6 +16,8 @@ import System.Directory
 import System.IO
 import GHC.IO.Encoding
 import Data.Char
+import Debug.Trace
+
 
 extractSrcFromElements :: [Element] -> String -> String -> String -> IO ()
 extractSrcFromElements elements defaultfile chapterId sectionId =
@@ -38,7 +40,7 @@ truncateFiles elements =
       Element _ elements -> truncateFiles elements
       Note _  _ elements -> truncateFiles elements
       Src srcType props _ ->
-        let file = pathProp props
+        let file = stringProp "path" props
         in if file == ""
            then return ()
            else truncateFile file
@@ -48,6 +50,7 @@ truncateFile :: String -> IO ()
 truncateFile "" = return ()
 truncateFile "-" = return ()
 truncateFile file = do
+  putStrLn $ "truncating " ++ file
   houtput <- safeOpenFileForWriting file
   hClose houtput
 
@@ -58,7 +61,7 @@ extractSrcFromElements' elements defaultfile = do
       Element _ elements -> extractSrcFromElements' elements defaultfile
       Note _ _ elements -> extractSrcFromElements' elements defaultfile
       Src srcType props str ->
-        let file = pathProp props
+        let file = stringProp "path" props
         in case (hasDoNotExtractSrcProp props,file,defaultfile) of
              (True,_,_) -> return ()
              (_,"","") -> return ()

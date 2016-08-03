@@ -36,11 +36,9 @@ data Element =
   | Width String
   | Spec String
   | Fragment
-  | SlideProp
   | DoNotExtractSrc
   | NoRender
   | NoVerify
-  | Path String
   | Id String
   | X String
   | Type String
@@ -85,13 +83,7 @@ takeWhileEnd f = reverse . takeWhile f . reverse
 pathFileName :: [Element] -> String
 pathFileName =
   foldl (\acc p -> case p of
-                     Path path -> takeWhileEnd (/= '/') path
-                     _ -> acc) ""
-
-pathProp :: [Element] -> String
-pathProp =
-  foldl (\acc p -> case p of
-                     Path path -> path
+                     Prop "path" path -> takeWhileEnd (/= '/') path
                      _ -> acc) ""
 
 sectionsOnly :: [Element] -> [Element]
@@ -167,12 +159,6 @@ hasFragmentProp :: [Element] -> Bool
 hasFragmentProp =
   foldl (\acc p -> case p of
                      Fragment -> True
-                     _ -> acc) False
-
-hasSlideProp :: [Element] -> Bool
-hasSlideProp =
-  foldl (\acc p -> case p of
-                     SlideProp -> True
                      _ -> acc) False
 
 hasDoNotExtractSrcProp :: [Element] -> Bool

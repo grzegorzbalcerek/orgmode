@@ -65,7 +65,7 @@ renderElement "InNote" allElements (Paragraph props txt) =
 renderElement _ allElements (Text txt) = renderText allElements txt
 renderElement _ allElements (Paragraph props txt) =
   "\n\n" ++ stringProp "latex1" props ++ "\n\n" ++ renderIndexEntries props ++ renderText allElements txt ++ "\n\n" ++ stringProp "latex2" props ++ "\n\n"
-renderElement rt allElements (Element "CHAPTER" parts) =
+renderElement "Book" allElements (Element "CHAPTER" parts) =
   let title = stringProp "title" parts
       label = labelProp parts
       firstSectionTitle (Element "SECTION" elements : _) = stringProp "title" elements
@@ -83,7 +83,7 @@ renderElement rt allElements (Element "CHAPTER" parts) =
      then "\\addcontentsline{toc}{chapter}{" ++ title ++ "}" ++
           "\\markboth{" ++ title ++ "}{" ++ firstSectionTitle parts ++ "}"
      else "") ++
-    concat (map (renderElement rt allElements) parts) ++ "\n"
+    concat (map (renderElement "Book" allElements) parts) ++ "\n"
 renderElement rt allElements (Element "SECTION" parts) =
   let label = labelProp parts
   in
@@ -96,8 +96,6 @@ renderElement rt allElements (Element "SECTION" parts) =
     "{" ++ renderText allElements (stringProp "title" parts) ++ "}\n" ++
     (if label == "" then "\\addcontentsline{toc}{section}{" ++ (stringProp "title" parts) ++ "}" else "") ++
     concat (map (renderElement rt allElements) parts) ++ stringProp "latex2" parts ++ "\n"
-renderElement rt allElements (Element name parts) | name == "PAGE" =
-    concat (map (renderElement rt allElements) parts) ++ "\n\\vfill\\eject\n"
 renderElement rt allElements (Items props items) =
   renderIndexEntries props ++ "\n\\begin{itemize}\n" ++
   (if maybeProp "style" props == Just "none" then "\\renewcommand{\\labelitemi}{}\n" else "") ++
@@ -112,9 +110,7 @@ renderElement rt allElements (Note noteType props parts) =
   concat (map (renderElement "InNote" allElements) parts) ++
   "\\\\ \\noalign{\\smallskip}\\cline{2-3}\n\\end{tabular}\n\n" ++ stringProp "latex2" props
 renderElement "Slides" allElements (Src description props src) =
-  if hasSlideProp props
-  then "\\begin{frame}[fragile]\n" ++ renderSrcSlides (Src description props src) ++ "\\end{frame}\n"
-  else renderSrcSlides (Src description props src)
+  renderSrcSlides (Src description props src)
 renderElement rt allElements (Src description props src) =
   renderSrcBook rt description props src
 renderElement rt allElements (Table props rows) =
@@ -140,6 +136,11 @@ renderElement rt allElements (Img props filename) =
        renderText allElements label ++
        "\n\\end{center}\n"
 renderElement _ _ ShowIndex = "\\printindex\n"
+renderElement rt allElements (Element "COMMENT" parts) = ""
+renderElement rt allElements (Element "PAGE" parts) =
+    concat (map (renderElement rt allElements) parts) ++ "\n\\vfill\\eject\n"
+renderElement rt allElements (Element name parts) =
+    concat (map (renderElement rt allElements) parts)
 renderElement _ _ _ = ""
 
 ----------------------------------------------------
@@ -606,6 +607,7 @@ latexEnv = Map.fromList
   , ("C4", [Include "\\textbf{\\centerline{\\Large ", Arg "title", Arg "1", Include "}}\\par "])
   , ("C5", [Include "\\textbf{\\centerline{\\large ", Arg "title", Arg "1", Include "}}\\par "])
   , ("C6", [Include "\\textbf{\\centerline{\\normalsize ", Arg "title", Arg "1", Include "}}\\par "])
+  , ("PARA", [Args, Include "\\par\n"])
   , ("SLIDE", [Include "\\begin{frame}[fragile]\n", IfArg "title" [Include "\\frametitle{", Arg "title", Include "}\n"], Args, Include "\\end{frame}\n"])
   ]
 

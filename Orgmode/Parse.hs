@@ -83,7 +83,6 @@ element level = do
 
 contentElement level =
   (
-  try (paragraph level) <|>
   try (text level) <|>
   try (src level) <|>
   try header <|>
@@ -148,11 +147,6 @@ text level = do
   asteriskLineWithProps level "TEXT"
   content <- many regularLineWithEol
   return $ Text (concat content)
-
-paragraph level = do
-  (_,props) <- asteriskLineWithProps level "PARA"
-  content <- many regularLineWithEol
-  return $ Paragraph props (concat content)
 
 note level = do
   (noteType,props) <- asteriskLineWithProps level "NOTE"
@@ -237,7 +231,6 @@ singleColonProp =
   try colonPropPauseBefore <|>
   try colonPropConsole <|>
   try colonPropFragment <|>
-  try colonPropSlide <|>
   try colonPropDoNotExtractSrc <|>
   try colonPropNoRender <|>
   try colonPropNoVerify <|>
@@ -258,7 +251,6 @@ singleColonProp =
   try colonPropConstantLike <|>
   try colonPropWidth <|>
   try colonPropPrependNewLines <|>
-  try colonPropPath <|>
   try colonProp <|>
   try colonPropEmpty
 
@@ -275,10 +267,6 @@ colonPropFragment = do
   string ":fragment"
   return Fragment
 
-colonPropSlide = do
-  string ":slide"
-  return SlideProp
-
 colonPropNoRender = do
   string ":norender"
   return NoRender
@@ -290,11 +278,6 @@ colonPropNoVerify = do
 colonPropOutput = do
   string ":output"
   return Output
-
-colonPropPath = do
-  string ":path "
-  fileName <- many1 (char '.' <|> char '_' <|> char '-' <|> char '/' <|> alphaNum)
-  return $ Path fileName
 
 colonPropDoNotExtractSrc = do
   try (string ":donotextractsrc " >> many1 (char '.' <|> char '_' <|> char '-' <|> char '/' <|> alphaNum)) <|> try (string ":donotextractsrc")
@@ -314,7 +297,7 @@ colonProp = do
   char ':'
   name <- many (noneOf " ")
   value <- many (noneOf ":\n\r")
-  return $ Prop name value
+  return $ Prop name (trim value)
 
 colonPropExampleBlock = do
   string ":exampleblock"
