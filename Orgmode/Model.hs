@@ -29,7 +29,6 @@ data Element =
   | Table [Element] [TableRow]
   | Header Double String
   | Directive String String
-  | Unrecognized
   | Prop1 String
   | Prop2 String String
   deriving (Eq,Show)
