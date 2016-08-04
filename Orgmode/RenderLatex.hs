@@ -19,30 +19,7 @@ import Data.Maybe (fromMaybe,maybe)
 
 renderLatex :: RenderType -> [Element] -> String
 renderLatex rt parts =
-  (concat $ renderElement rt parts `fmap` parts) ++
-  latexEnd
-
-----------------------------------------------------
-
-latexStart "Slides" =
-  "%% -*- coding: utf-8 -*-\n\
-  \\\documentclass[smaller]{beamer}\n\
-  \\\usetheme{Madrid}\n\
-  \\\setbeamertemplate{footline}[default]\n\
-  \\\usepackage[utf8]{inputenc}\n\
-  \\\usepackage{graphicx}\n\
-  \\\usepackage{epstopdf}\n\
-  \\\usepackage{tikz}\n\
-  \\\usepackage{lmodern}\n\
-  \\\usepackage{verbatim}\n\
-  \\\usepackage[OT4]{polski}\n\
-  \\\usepackage{color}\n\
-  \\\newcommand{\\sectiontitle}[2]{\\centerline{\\tikz{\\node[scale=#1]{#2};}}}\n\
-  \\\definecolor{brown}{RGB}{150,75,0}\n\
-  \\\begin{document}\n\
-  \\\Large\n"
-
-latexEnd = "\\end{document}\n"
+  (concat $ renderElement rt parts `fmap` (parts ++ [Include "\\end{document}\n"]))
 
 ----------------------------------------------------
 
@@ -594,6 +571,7 @@ latexEnv = Map.fromList
   , ("BLOCK", [Include "\\begin{block}{", Arg "title", Include "}\n", Args, Include "\\end{block}\n"])
   , ("EXAMPLEBLOCK", [Include "\\begin{exampleblock}{", Arg "title", Include "}\n", Args, Include "\\end{exampleblock}\n"])
   , ("SHOWINDEX", [Include "\\printindex\n"])
+  , ("DOCUMENTEND", [Include "\\end{document}\n"])
   , ("HEADER1", [Include "\\centerline{\\tikz{\\node[scale=1]{", Arg "title", Arg "1", Include "};}}\n"])
   ]
 
