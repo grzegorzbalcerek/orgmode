@@ -31,9 +31,14 @@ entry = do
 
 topLevels :: P [Element]
 topLevels = do
-  results <- many1 (try $ singleElement 1)
+  results <- many (try (many1 (try $ singleElement 1)) <|> try skipLines)
   try eof
-  return results
+  return $ concat results
+
+skipLines = many1 (eol <|> do
+  noneOf ['*']
+  many (noneOf "\r\n")
+  eol) >> return []
 
 singleElement :: Int -> P Element
 singleElement level =
@@ -44,8 +49,7 @@ singleElement level =
   try (def level) <|>
   try (directive level) <|>
   try (contentElement level) <|>
-  try (element level) <|>
-  try (skipLine)
+  try (element level)
   ) <?> "singleElement"
 
 ----------------------------------------------------
@@ -253,11 +257,6 @@ restOfLine = do
   content <- many (noneOf "\n\r")
   eol
   return content
-
-skipLine = (eol <|> do
-  noneOf ['*']
-  many (noneOf "\r\n")
-  eol) >> return Skipped
 
 eol = try (string "\r\n") <|> string "\n"
 

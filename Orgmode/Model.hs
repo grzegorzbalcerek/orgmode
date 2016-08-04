@@ -16,14 +16,12 @@ data Element =
   | Args
   | IfArg String [Element]
   | Note String [Element] [Element]
-  | EmptyElement
   | ShowIndex
   | Items [Element] [Element]
   | Item String
   | Img [Element] String
   | Text String
   | Paragraph [Element] String
-  | Skipped
   | Src String [Element] String
   | Include String
   | Table [Element] [TableRow]

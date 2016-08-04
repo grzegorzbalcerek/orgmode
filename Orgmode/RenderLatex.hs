@@ -53,13 +53,11 @@ imageHeight 'w' = 34
 ----------------------------------------------------
 
 renderElement :: RenderType -> [Element] -> Element -> String
-renderElement _ _ EmptyElement = ""
 renderElement _ _ (Include content) = content
 renderElement _ allElements (Item item) =
   "\\item{" ++ renderText allElements item ++ "}\n"
 renderElement _ _ (Header scale content) =
   "\\centerline{\\tikz{\\node[scale=" ++ show scale ++ "]{" ++ content ++ "};}}\n"
-renderElement _ _ Skipped = ""
 renderElement "InNote" allElements (Paragraph props txt) =
   "\n\n" ++ stringProp "latex1" props ++ "\n\n" ++ renderIndexEntries props ++ renderText allElements txt
 renderElement _ allElements (Text txt) = renderText allElements txt
