@@ -89,7 +89,6 @@ contentElement level =
   (
   try (text level) <|>
   try (src level) <|>
-  try header <|>
   try img <|>
   try (table level) <|>
   try (note level) <|>
@@ -198,14 +197,6 @@ tableCell = do
   return (trim content)
 
 ----------------------------------------------------
-
-header = do
-  char '⒣'
-  scaleStr <- many1 $ oneOf "0123456789."
-  let scale = read scaleStr :: Double
-  char ':'
-  content <- restOfLine
-  return $ Header scale content
 
 img = do
   char '⒤'

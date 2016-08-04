@@ -56,8 +56,6 @@ renderElement :: RenderType -> [Element] -> Element -> String
 renderElement _ _ (Include content) = content
 renderElement _ allElements (Item item) =
   "\\item{" ++ renderText allElements item ++ "}\n"
-renderElement _ _ (Header scale content) =
-  "\\centerline{\\tikz{\\node[scale=" ++ show scale ++ "]{" ++ content ++ "};}}\n"
 renderElement "InNote" allElements (Paragraph props txt) =
   "\n\n" ++ stringProp "latex1" props ++ "\n\n" ++ renderIndexEntries props ++ renderText allElements txt
 renderElement _ allElements (Text txt) = renderText allElements txt
@@ -133,7 +131,6 @@ renderElement rt allElements (Img props filename) =
        "\\includegraphics" ++ latex2 ++ "{" ++ filename ++ latex1 ++ "}\\par\n" ++
        renderText allElements label ++
        "\n\\end{center}\n"
-renderElement _ _ ShowIndex = "\\printindex\n"
 renderElement rt allElements (Element "COMMENT" parts) = ""
 renderElement rt allElements (Element "PAGE" parts) =
     concat (map (renderElement rt allElements) parts) ++ "\n\\vfill\\eject\n"
@@ -596,6 +593,8 @@ latexEnv = Map.fromList
   , ("SLIDE", [Include "\\begin{frame}[fragile]\n", IfArg "title" [Include "\\frametitle{", Arg "title", Include "}\n"], Args, Include "\\end{frame}\n"])
   , ("BLOCK", [Include "\\begin{block}{", Arg "title", Include "}\n", Args, Include "\\end{block}\n"])
   , ("EXAMPLEBLOCK", [Include "\\begin{exampleblock}{", Arg "title", Include "}\n", Args, Include "\\end{exampleblock}\n"])
+  , ("SHOWINDEX", [Include "\\printindex\n"])
+  , ("HEADER1", [Include "\\centerline{\\tikz{\\node[scale=1]{", Arg "title", Arg "1", Include "};}}\n"])
   ]
 
 ----------------------------------------------------

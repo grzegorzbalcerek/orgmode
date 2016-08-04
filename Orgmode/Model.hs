@@ -16,7 +16,6 @@ data Element =
   | Args
   | IfArg String [Element]
   | Note String [Element] [Element]
-  | ShowIndex
   | Items [Element] [Element]
   | Item String
   | Img [Element] String
@@ -25,7 +24,6 @@ data Element =
   | Src String [Element] String
   | Include String
   | Table [Element] [TableRow]
-  | Header Double String
   | Directive String String
   | Prop1 String
   | Prop2 String String
