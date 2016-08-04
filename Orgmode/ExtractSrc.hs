@@ -18,20 +18,20 @@ import GHC.IO.Encoding
 import Data.Char
 import Debug.Trace
 
+data ExtractMode = WriteFilePaths | ShowMinusPaths
 
-extractSrcFromElements :: [Element] -> String -> String -> String -> IO ()
-extractSrcFromElements elements defaultfile chapterId sectionId =
+extractSrcFromElements :: [Element] -> ExtractMode -> String -> String -> IO ()
+extractSrcFromElements elements mode chapterId sectionId =
   let doWork actualElements = do
-        truncateFile defaultfile
-        if defaultfile /= "-"
-        then truncateFiles actualElements
-        else return ()
-        extractSrcFromElements' actualElements defaultfile
+        case mode of
+          WriteFilePaths -> truncateFiles actualElements
+          ShowMinusPaths -> return ()
+        extractSrcFromElements' actualElements mode
   in
-    case (defaultfile,chapterId,sectionId) of
-      (_,"","") -> doWork elements
-      (_,_,"") -> doWork (filterChapter elements chapterId)
-      (_,_,_) -> doWork (filterSection elements chapterId sectionId)
+    case (chapterId,sectionId) of
+      ("","") -> doWork elements
+      (_,"") -> doWork (filterChapter elements chapterId)
+      (_,_) -> doWork (filterSection elements chapterId sectionId)
 
 truncateFiles :: [Element] -> IO ()
 truncateFiles elements =
@@ -39,11 +39,7 @@ truncateFiles elements =
     case element of
       Element _ elements -> truncateFiles elements
       Note _  _ elements -> truncateFiles elements
-      Src srcType props _ ->
-        let file = stringProp "path" props
-        in if file == ""
-           then return ()
-           else truncateFile file
+      Src srcType props _ -> truncateFile $ stringProp "path" props
       _ -> return ()
 
 truncateFile :: String -> IO ()
@@ -54,23 +50,19 @@ truncateFile file = do
   houtput <- safeOpenFileForWriting file
   hClose houtput
 
-extractSrcFromElements' :: [Element] -> String -> IO ()
-extractSrcFromElements' elements defaultfile = do
+extractSrcFromElements' :: [Element] -> ExtractMode -> IO ()
+extractSrcFromElements' elements mode = do
   forM_ elements $ \element ->
     case element of
-      Element _ elements -> extractSrcFromElements' elements defaultfile
-      Note _ _ elements -> extractSrcFromElements' elements defaultfile
+      Element _ elements -> extractSrcFromElements' elements mode
+      Note _ _ elements -> extractSrcFromElements' elements mode
       Src srcType props str ->
-        let file = stringProp "path" props
-        in case (hasDoNotExtractSrcProp props,file,defaultfile) of
-             (True,_,_) -> return ()
-             (_,"","") -> return ()
-             (_,"","-") -> putStrLn $ getSrcContent srcType props str
-             (_,_,"-") -> return ()
-             (_,"","+") -> return ()
-             (_,"",_) -> do writeToFile defaultfile $ getSrcContent srcType props str
-                            writeToFile defaultfile "\n"
-             _ -> writeToFile file $ getSrcContent srcType props str
+        case (mode,stringProp "path" props) of
+             (WriteFilePaths,"")   -> return ()
+             (WriteFilePaths,"-")  -> return ()
+             (WriteFilePaths,file) -> writeToFile file $ getSrcContent srcType props str
+             (ShowMinusPaths,"-")  -> putStrLn $ getSrcContent srcType props str
+             (ShowMinusPaths,_)    -> return ()
       _ -> return ()
 
 writeToFile :: String -> String -> IO ()
@@ -88,11 +80,11 @@ getSrcContent srcType props src =
       filterDollarOrGtPrompts xs = filter (\x -> take 2 x == "$ " || take 2 x == "> ") xs
       filterGtPrompts xs = filter (\x -> take 2 x == "> " || take 2 x == "| ") xs
       filteredSrc =
-        case (srcType, isConsoleProp props) of
-         ("scala", True) -> unlines . map (drop 7) . filterScalaPrompts . lines $ filteredHighUnicodes
-         ("cmd", True) -> unlines . map (drop 2) . filterDollarPrompts . lines $ filteredHighUnicodes
-         ("elm", True) -> unlines . map (drop 2) . filterGtPrompts . lines $ filteredHighUnicodes
-         ("sbt", True) -> unlines . map (drop 2) . filterDollarOrGtPrompts . lines $ filteredHighUnicodes
+        case stringProp "console" props of
+         "scala" -> unlines . map (drop 7) . filterScalaPrompts . lines $ filteredHighUnicodes
+         "cmd" -> unlines . map (drop 2) . filterDollarPrompts . lines $ filteredHighUnicodes
+         "elm" -> unlines . map (drop 2) . filterGtPrompts . lines $ filteredHighUnicodes
+         "sbt" -> unlines . map (drop 2) . filterDollarOrGtPrompts . lines $ filteredHighUnicodes
          _ -> filteredHighUnicodes
   in (take (prependNewLinesProp props) (repeat '\n')) ++ filteredSrc
 

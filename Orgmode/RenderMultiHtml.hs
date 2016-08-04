@@ -67,7 +67,7 @@ getLastId ch (_:sections) = getLastId ch sections
 writeChapter :: String -> [Element] -> String -> [Prop] -> [Element] -> String -> [Element] -> IO ()
 writeChapter outputPath allElements title props chapterElements previousId nextChapters = do
   let chId = idProp title props
-  let chLabel = labelProp props
+  let chLabel = stringProp "label" props
   let content = runReader (renderChapterContent title props chapterElements) allElements
   let left = previousId
   let right = headElementId chId $ (sectionsOnly chapterElements) ++ nextChapters
@@ -105,7 +105,7 @@ writeSection :: String -> [Element] -> String -> String -> String -> [Prop] -> [
 writeSection outputPath allElements chId chLabel title props parts previousId nextSections nextChapters = do
   let path = outputPath ++ "/" ++ chId ++ "_" ++ (idProp title props) ++ ".html"
   houtput <- safeOpenFileForWriting path
-  let content = renderElement allElements (Element "SECTION" (parts ++ [Prop "title" (sectionTitle chLabel title props)]))
+  let content = renderElement allElements (Element "SECTION" (parts ++ [Prop2 "title" (sectionTitle chLabel title props)]))
   let left = previousId
   let right = headElementId chId $ nextSections++nextChapters
   let footer = runReader (directiveValue "MultiHtmlFooter") allElements
@@ -140,7 +140,7 @@ nonContainerElement = not . containerElement
 
 chapterTitle :: [Char] -> [Prop] -> Reader [Element] [Char]
 chapterTitle title props = do
-  let label = labelProp props
+  let label = stringProp "label" props
   chapterName <- directiveValue "Chapter"
   appendixName <- directiveValue "Apendix"
   let prefix =
@@ -151,7 +151,7 @@ chapterTitle title props = do
 
 
 sectionTitle chapterLabel title props =
-  let label = labelProp props
+  let label = stringProp "label" props
       prefix =
         if label == "" || chapterLabel == "" then ""
         else chapterLabel ++ "." ++ label ++ ". "
@@ -162,7 +162,7 @@ renderChapterContent :: String -> [Prop] -> [Element] -> Reader [Element] String
 renderChapterContent title props parts = do
   allElements <- ask
   let chId = idProp title props
-  let chLabel = labelProp props
+  let chLabel = stringProp "label" props
   chTitle <- chapterTitle title props
   return $ "<h1 class='chapter'>" ++ chTitle ++ "</h1>\n" ++
     renderElements allElements (filter nonContainerElement parts) ++
@@ -197,24 +197,24 @@ renderElement allElements (Src srcType props src) =
       fileName = pathFileName props
       fileLabel = runReader (directiveValueNoNewLines "File") allElements
   in 
-    if hasNoRenderProp props
+    if hasProp1 "norender" props
     then ""
-    else case (isConsoleProp props, srcType) of
-           (True,"cmd") -> "<pre>" ++ boldCommands "$ " (renderSource srcType props src) ++ "</pre>\n"
-           (True,"elm") -> "<pre>" ++ boldCommands "&gt; " (renderSource srcType props src) ++ "</pre>\n"
-           (True,"scala") -> "<pre>" ++ boldCommands "scala&gt; " (renderSource srcType props src) ++ "</pre>\n"
+    else case stringProp "console" props of
+           "cmd" -> "<pre>" ++ boldCommands "$ " (renderSource srcType props src) ++ "</pre>\n"
+           "elm" -> "<pre>" ++ boldCommands "&gt; " (renderSource srcType props src) ++ "</pre>\n"
+           "scala" -> "<pre>" ++ boldCommands "scala&gt; " (renderSource srcType props src) ++ "</pre>\n"
            _ ->
              "<pre>" ++
              (if fileName == ""
                 then ""
                 else "<img class='filesign' src='filesign.png'/><b>" ++ fileLabel ++ " " ++ fileName ++
-                  (if srcType == "fragment" then " (fragment)" else "") ++ ":</b>\n") ++
+                  (if hasProp1 "fragment" props then " (fragment)" else "") ++ ":</b>\n") ++
               renderSource srcType props src ++ "</pre>\n"
 renderElement allElements (Items props items) =
   let style = maybe "list" id $ maybeProp "style" props
   in  "<ul class='" ++ style ++ "'>\n" ++ concat (map (renderItem allElements) items) ++  "</ul>\n"
 renderElement allElements (Img props file) =
-  "<div><img src='" ++ file ++ stringProp "html" props ++ "'></img><div class='caption'>" ++ (renderText allElements $ labelProp props) ++ "</div></div>\n"
+  "<div><img src='" ++ file ++ stringProp "html" props ++ "'></img><div class='caption'>" ++ (renderText allElements $ stringProp "label" props) ++ "</div></div>\n"
 renderElement allElements (Table props rows) =
   "<table>" ++ concat (map renderTableRow rows) ++ "</table>\n"
 renderElement allElements ShowIndex = renderIndex allElements
@@ -417,7 +417,7 @@ chapterReference parts chapterId =
   case parts of
     (Element "CHAPTER" props):tailElements ->
       let chId = idProp (stringProp "title" props) props
-          chLabel = labelProp props
+          chLabel = stringProp "label" props
       in
           if chId == chapterId
           then "<a href='" ++ chId ++".html'>" ++ chLabel ++ "</a>"
@@ -429,7 +429,7 @@ sectionReference parts chapterId sectionId = --"xxxx"++chapterId++"cccc"++sectio
   case parts of
     (Element "CHAPTER" chapterElements):tailElements ->
       let chId = idProp (stringProp "title" chapterElements) chapterElements
-          chLabel = labelProp chapterElements
+          chLabel = stringProp "label" chapterElements
       in
           if chId == chapterId
           then sectionReference' chapterElements chId chLabel sectionId
@@ -441,7 +441,7 @@ sectionReference' parts chapterId chapterLabel sectionId =
   case parts of
     (Element "SECTION" props):tailElements ->
       let secId = idProp (stringProp "title" props) props
-          secLabel = labelProp props
+          secLabel = stringProp "label" props
       in
           if secId == sectionId
           then "<a href='" ++ chapterId ++ "_" ++ secId ++".html'>" ++ chapterLabel ++ "." ++ secLabel ++ "</a>"

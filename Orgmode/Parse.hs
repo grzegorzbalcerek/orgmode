@@ -76,7 +76,7 @@ def level = do
 element :: Int -> P Element
 element level = do
   (name,title,props) <- elementWithProps level
-  let titleProp = if title == "" then [] else [Prop "title" title]
+  let titleProp = if title == "" then [] else [Prop2 "title" title]
   content <- many (singleElement $ level + 1)
   return $ Element name (titleProp ++ props ++ content)
 ----------------------------------------------------
@@ -228,18 +228,6 @@ src level = do
   return $ Src description props (concat content)
 
 singleColonProp =
-  try colonPropPauseBefore <|>
-  try colonPropConsole <|>
-  try colonPropFragment <|>
-  try colonPropDoNotExtractSrc <|>
-  try colonPropNoRender <|>
-  try colonPropNoVerify <|>
-  try colonPropOutput <|>
-  try colonPropBlock <|>
-  try colonPropExampleBlock <|>
-  try colonPropSpec <|>
-  try colonPropId <|>
-  try colonPropLabel <|>
   try colonPropX <|>
   try colonPropType <|>
   try colonPropIe1 <|>
@@ -251,73 +239,22 @@ singleColonProp =
   try colonPropConstantLike <|>
   try colonPropWidth <|>
   try colonPropPrependNewLines <|>
-  try colonProp <|>
-  try colonPropEmpty
+  try colonProp2 <|>
+  try colonProp1
 
-colonPropPauseBefore = do
-  string ":pause"
-  return PauseBefore
-
-colonPropConsole = do
-  string ":console"
-  consoleType <- many (noneOf "¬:\n\r")
-  return $ Console consoleType
-
-colonPropFragment = do
-  string ":fragment"
-  return Fragment
-
-colonPropNoRender = do
-  string ":norender"
-  return NoRender
-
-colonPropNoVerify = do
-  string ":noverify"
-  return NoVerify
-
-colonPropOutput = do
-  string ":output"
-  return Output
-
-colonPropDoNotExtractSrc = do
-  try (string ":donotextractsrc " >> many1 (char '.' <|> char '_' <|> char '-' <|> char '/' <|> alphaNum)) <|> try (string ":donotextractsrc")
-  return DoNotExtractSrc
-
-colonPropBlock = do
-  string ":block"
-  value <- many (noneOf "¬:\n\r")
-  return $ Block value
-
-colonPropEmpty = do
+colonProp1 = do
   char ':'
-  name <- many (noneOf " ¬:\n\r")
-  return $ Prop name ""
+  name <- many (noneOf " :\n\r")
+  return $ Prop1 name
 
-colonProp = do
+colonProp2 = do
   char ':'
-  name <- many (noneOf " ")
+  name <- many (noneOf " :\n\r")
+  char ' '
   value <- many (noneOf ":\n\r")
-  return $ Prop name (trim value)
-
-colonPropExampleBlock = do
-  string ":exampleblock"
-  value <- many (noneOf "¬:\n\r")
-  return $ ExampleBlock value
-
-colonPropId = do
-  string ":id"
-  value <- many (noneOf "¬:\n\r")
-  return $ Id (trim value)
-
-colonPropSpec = do
-  string ":spec"
-  value <- many (noneOf "¬:\n\r")
-  return $ Spec (trim value)
-
-colonPropLabel = do
-  string ":label"
-  value <- many (noneOf "¬:\n\r")
-  return $ Label (trim value)
+  if trim value == ""
+  then return (Prop1 name)
+  else return $ Prop2 name (trim value)
 
 colonPropIe1 = do
   string ":ie1"

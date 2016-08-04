@@ -30,10 +30,12 @@ mainWithArgs ["parse",variant,path]                                     = parseC
 mainWithArgs ["eval",variant,path]                                      = evalCommand variant path
 mainWithArgs ["latex",variant,path]                                     = latexCommand variant path ""
 mainWithArgs ["latex",variant,path,outputPath]                          = latexCommand variant path outputPath
-mainWithArgs ["extractsrc",path]                                        = extractsrcCommand path "" "" ""
-mainWithArgs ["extractsrc",path,defaultfile]                            = extractsrcCommand path defaultfile "" ""
-mainWithArgs ["extractsrc",path,defaultfile,chapterId]                  = extractsrcCommand path defaultfile chapterId ""
-mainWithArgs ["extractsrc",path,defaultfile,chapterId,sectionId]        = extractsrcCommand path defaultfile chapterId sectionId
+mainWithArgs ["showsrc",path]                                           = extractsrcCommand path ShowMinusPaths "" ""
+mainWithArgs ["showsrc",path,chapterId]                                 = extractsrcCommand path ShowMinusPaths chapterId ""
+mainWithArgs ["showsrc",path,chapterId,sectionId]                       = extractsrcCommand path ShowMinusPaths chapterId sectionId
+mainWithArgs ["extractsrc",path]                                        = extractsrcCommand path WriteFilePaths "" ""
+mainWithArgs ["extractsrc",path,chapterId]                              = extractsrcCommand path WriteFilePaths chapterId ""
+mainWithArgs ["extractsrc",path,chapterId,sectionId]                    = extractsrcCommand path WriteFilePaths chapterId sectionId
 mainWithArgs ["multihtml",path,outputPath]                              = multihtmlCommand path outputPath
 mainWithArgs ["verifyoutput",path,actualOutputFile]                     = verifyoutputCommand path actualOutputFile "" ""
 mainWithArgs ["verifyoutput",path,actualOutputFile,chapterId]           = verifyoutputCommand path actualOutputFile chapterId ""
@@ -90,4 +92,3 @@ inputToContent env variant input = do
   let evaluated = evalElements env variant content
   putStrLn $ "Content parsed. Length: " ++ show (length evaluated) ++ "."
   return evaluated
-

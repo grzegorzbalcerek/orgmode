@@ -56,7 +56,7 @@ getSrcFromElements =
   where getSrc part acc =
           case part of
             Src srcType props src
-              | isConsoleProp props && not (hasNoVerifyProp props) -> (filter (\c -> ord c < 9216) src) : acc
+              | stringProp "console" props /= "" && not (hasProp1 "noverify" props) -> (filter (\c -> ord c < 9216) src) : acc
             _ -> acc
 
 

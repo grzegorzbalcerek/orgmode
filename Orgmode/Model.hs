@@ -30,25 +30,14 @@ data Element =
   | Header Double String
   | Directive String String
   | Unrecognized
-  | Prop String String
-  | Block String
-  | ExampleBlock String
+  | Prop1 String
+  | Prop2 String String
   | Width String
-  | Spec String
-  | Fragment
-  | DoNotExtractSrc
-  | NoRender
-  | NoVerify
-  | Id String
   | X String
   | Type String
   | Ie1 String
   | Ie2 String String
-  | Output
-  | Console String
   | PrependNewLines Int
-  | PauseBefore
-  | Label String
   | KeywordLike [String]
   | TypeLike [String]
   | IdentifierLike [String]
@@ -83,7 +72,7 @@ takeWhileEnd f = reverse . takeWhile f . reverse
 pathFileName :: [Element] -> String
 pathFileName =
   foldl (\acc p -> case p of
-                     Prop "path" path -> takeWhileEnd (/= '/') path
+                     Prop2 "path" path -> takeWhileEnd (/= '/') path
                      _ -> acc) ""
 
 sectionsOnly :: [Element] -> [Element]
@@ -119,7 +108,7 @@ directiveValueNoNewLines name = do
 
 idProp fallback =
   foldl (\acc p -> case p of
-                     Id ident -> ident
+                     Prop2 "id" ident -> ident
                      _ -> acc) (filter (\c -> c `elem` " ") fallback)
 
 prependNewLinesProp :: [Element] -> Int
@@ -140,67 +129,20 @@ widthProp mw = fromMaybe mw . widthPropOpt
 maybeProp :: String -> [Element] -> Maybe String
 maybeProp name =
   foldl (\acc p -> case p of
-                     Prop n s | n == name -> Just s
+                     Prop2 n s | n == name -> Just s
                      _ -> acc) Nothing
 
-specProp :: [Element] -> Maybe String
-specProp =
+hasProp1 :: String -> [Element] -> Bool
+hasProp1 name =
   foldl (\acc p -> case p of
-                     Spec s -> Just s
-                     _ -> acc) Nothing
-
-isConsoleProp :: [Element] -> Bool
-isConsoleProp =
-  foldl (\acc p -> case p of
-                     Console _ -> True
-                     _ -> acc) False
-
-hasFragmentProp :: [Element] -> Bool
-hasFragmentProp =
-  foldl (\acc p -> case p of
-                     Fragment -> True
-                     _ -> acc) False
-
-hasDoNotExtractSrcProp :: [Element] -> Bool
-hasDoNotExtractSrcProp =
-  foldl (\acc p -> case p of
-                     DoNotExtractSrc -> True
-                     _ -> acc) False
-
-hasNoRenderProp :: [Element] -> Bool
-hasNoRenderProp =
-  foldl (\acc p -> case p of
-                     NoRender -> True
-                     _ -> acc) False
-
-hasNoVerifyProp :: [Element] -> Bool
-hasNoVerifyProp =
-  foldl (\acc p -> case p of
-                     NoVerify -> True
+                     Prop1 n | n == name -> True
                      _ -> acc) False
 
 elemProp :: String -> [Element] -> Bool
 elemProp name =
   foldl (\acc p -> case p of
-                     Prop n _ | n == name -> True
+                     Prop2 n _ | n == name -> True
                      _ -> acc) False
-
-isOutputProp :: [Element] -> Bool
-isOutputProp =
-  foldl (\acc p -> case p of
-                     Output -> True
-                     _ -> acc) False
-
-isPauseBeforeProp :: [Element] -> Bool
-isPauseBeforeProp =
-  foldl (\acc p -> case p of
-                     PauseBefore -> True
-                     _ -> acc) False
-
-labelProp =
-  foldl (\acc p -> case p of
-                     Label label -> label
-                     _ -> acc) ""
 
 typePropOpt :: [Element] -> Maybe String
 typePropOpt =
@@ -214,7 +156,7 @@ typeProp = fromMaybe "" . typePropOpt
 stringProp :: String -> [Element] -> String
 stringProp name =
   foldl (\acc p -> case p of
-                     Prop n hp | n == name -> hp
+                     Prop2 n hp | n == name -> hp
                      _ -> acc) ""
 
 indexEntriesFromProps ident label =
@@ -258,12 +200,12 @@ extractIndexEntries :: String -> String -> Element -> [IndexEntry]
 extractIndexEntries _ _ (Element "CHAPTER" elements) =
   let title = stringProp "title" elements
       chId = idProp title elements
-      chLabel = labelProp elements
+      chLabel = stringProp "label" elements
   in
       indexEntriesFromProps chId chLabel elements ++ (elements >>= extractIndexEntries chId chLabel)
 extractIndexEntries chId chLabel (Element "SECTION" elements) =
   let secId = idProp (stringProp "title" elements) elements
-      secLabel = labelProp elements
+      secLabel = stringProp "label" elements
       elementId = chId ++ "_" ++ secId
       elementLabel = chLabel ++ "." ++ secLabel
   in

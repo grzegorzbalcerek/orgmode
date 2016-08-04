@@ -67,7 +67,7 @@ renderElement _ allElements (Paragraph props txt) =
   "\n\n" ++ stringProp "latex1" props ++ "\n\n" ++ renderIndexEntries props ++ renderText allElements txt ++ "\n\n" ++ stringProp "latex2" props ++ "\n\n"
 renderElement "Book" allElements (Element "CHAPTER" parts) =
   let title = stringProp "title" parts
-      label = labelProp parts
+      label = stringProp "label" parts
       firstSectionTitle (Element "SECTION" elements : _) = stringProp "title" elements
       firstSectionTitle (_:rest) = firstSectionTitle rest
       firstSectionTitle [] = ""
@@ -85,7 +85,7 @@ renderElement "Book" allElements (Element "CHAPTER" parts) =
      else "") ++
     concat (map (renderElement "Book" allElements) parts) ++ "\n"
 renderElement rt allElements (Element "SECTION" parts) =
-  let label = labelProp parts
+  let label = stringProp "label" parts
   in
     stringProp "latex1" parts ++
     (if label == ""
@@ -116,7 +116,7 @@ renderElement rt allElements (Src description props src) =
 renderElement rt allElements (Table props rows) =
   let t = fromMaybe "tabular" $ typePropOpt props
       w = maybe "" (\x -> "{" ++ x ++ "}") $ widthPropOpt props
-      spec = fromMaybe "" $ specProp props
+      spec = stringProp "spec" props
   in
     "\n" ++ stringProp "latex1" props ++
     "\n\\begin{" ++ t ++ "}" ++ w ++ "{" ++ spec ++ "}\n" ++
@@ -124,7 +124,7 @@ renderElement rt allElements (Table props rows) =
     "\\end{" ++ t ++ "}\n" ++
     "\n" ++ stringProp "latex2" props
 renderElement rt allElements (Img props filename) =
-  let label = labelProp props
+  let label = stringProp "label" props
       latex1 = stringProp "latex1" props
       latex2 = stringProp "latex2" props
   in if label == ""
@@ -207,14 +207,14 @@ renderSrcBook rt description props src =
              (if fileName == ""
               then ""
               else "\\includegraphics[width=7pt]{filesign.png} \\textbf{Plik " ++ fileName ++
-                (if hasFragmentProp props then " (fragment)" else "") ++ ":}\n") ++
+                (if hasProp1 "fragment" props then " (fragment)" else "") ++ ":}\n") ++
              renderCodeBook description props (divideLongLines 89 src)
       render =
-        if isConsoleProp props || description == "cmd"
+        if stringProp "console" props /= ""
         then renderConsoleLike
         else renderFile
   in 
-    if hasNoRenderProp props
+    if hasProp1 "norender" props
     then ""
     else 
       stringProp "latex1" props ++ "\n\\begin{alltt}\\footnotesize\\leftskip10pt\n" ++ render ++ "\\end{alltt}\n\n" ++ stringProp "latex2" props
@@ -296,7 +296,7 @@ renderCodeBook sourceType props src =
 ----------------------------------------------------
 
 renderSrcSlides (Src _ props content) =
-  if hasNoRenderProp props
+  if hasProp1 "norender" props
   then ""
   else 
     let lns = lines content
@@ -305,10 +305,6 @@ renderSrcSlides (Src _ props content) =
         width = foldl (\w o -> case o of
                               Width v -> read v `max` w
                               _ -> w) textwidth props
-        block = find (\o -> case o of
-                              Block t -> True
-                              ExampleBlock t -> True
-                              _ -> False) props 
         textsize =
           if width <= 45 && height <= 15 then "Large"
           else if width <= 55 && height <= 18 then "large"
@@ -321,13 +317,9 @@ renderSrcSlides (Src _ props content) =
           "\\begin{semiverbatim}\n" ++
           renderCodeSlides props content ++
           "\\end{semiverbatim}\n"
-        pauseBeforeCmd = if isPauseBeforeProp props then "\\pause\n" else ""
     in
-        pauseBeforeCmd ++ "\\" ++ textsize ++ "\n" ++
-        (case block of
-           Just (Block t) -> "\\begin{block}{" ++ t ++ "}\n" ++ verbatimContent content ++ "\\end{block}\n"
-           Just (ExampleBlock t) -> "\\begin{exampleblock}{" ++ t ++ "}\n" ++ verbatimContent content ++ "\\end{exampleblock}\n"
-           _ -> verbatimContent content)
+        "\\" ++ textsize ++ "\n" ++
+        verbatimContent content
 
 renderCodeSlides :: [Prop] -> String -> String
 renderCodeSlides props src =
@@ -536,7 +528,7 @@ chapterReference parts chapterId =
   case parts of
     (Element "CHAPTER" props):tailElements ->
       let chId = idProp (stringProp "title" props) props
-          chLabel = labelProp props
+          chLabel = stringProp "label" props
       in
           if chId == chapterId
           then chLabel
@@ -549,7 +541,7 @@ sectionReference parts chapterId sectionId =
   case parts of
     (Element "CHAPTER" chapterElements):tailElements ->
       let chId = idProp (stringProp "title" chapterElements) chapterElements
-          chLabel = labelProp chapterElements
+          chLabel = stringProp "label" chapterElements
       in
           if chId == chapterId
           then sectionReference' chapterElements chId chLabel sectionId
@@ -562,7 +554,7 @@ sectionReference' parts chapterId chapterLabel sectionId =
   case parts of
     (Element "SECTION" props):tailElements ->
       let secId = idProp (stringProp "title" props) props
-          secLabel = labelProp props
+          secLabel = stringProp "label" props
       in
           if secId == sectionId
           then chapterLabel ++ "." ++ secLabel
@@ -594,21 +586,23 @@ checkPrefixes prefixes str =
 latexEnv :: Map.Map String [Element]
 latexEnv = Map.fromList
   [ ("PAUSE",[Include "\\pause\n"])
-  , ("CENTER", [Include "\\centerline{", Arg "title", Arg "1", Include "}"])
-  , ("H1", [Include "\\textbf{\\Huge ", Arg "title", Arg "1", Include "}\\par "])
-  , ("H2", [Include "\\textbf{\\huge ", Arg "title", Arg "1", Include "}\\par "])
-  , ("H3", [Include "\\textbf{\\LARGE ", Arg "title", Arg "1", Include "}\\par "])
-  , ("H4", [Include "\\textbf{\\Large ", Arg "title", Arg "1", Include "}\\par "])
-  , ("H5", [Include "\\textbf{\\large ", Arg "title", Arg "1", Include "}\\par "])
-  , ("H6", [Include "\\textbf{\\normalsize ", Arg "title", Arg "1", Include "}\\par "])
-  , ("C1", [Include "\\textbf{\\centerline{\\Huge ", Arg "title", Arg "1", Include "}}\\par "])
-  , ("C2", [Include "\\textbf{\\centerline{\\huge ", Arg "title", Arg "1", Include "}}\\par "])
-  , ("C3", [Include "\\textbf{\\centerline{\\LARGE ", Arg "title", Arg "1", Include "}}\\par "])
-  , ("C4", [Include "\\textbf{\\centerline{\\Large ", Arg "title", Arg "1", Include "}}\\par "])
-  , ("C5", [Include "\\textbf{\\centerline{\\large ", Arg "title", Arg "1", Include "}}\\par "])
-  , ("C6", [Include "\\textbf{\\centerline{\\normalsize ", Arg "title", Arg "1", Include "}}\\par "])
+  , ("CENTER", [Include "\\centerline{", Arg "title", Arg "1", Include "}\n"])
+  , ("H1", [Include "\\textbf{\\Huge ", Arg "title", Arg "1", Include "}\\par\n"])
+  , ("H2", [Include "\\textbf{\\huge ", Arg "title", Arg "1", Include "}\\par\n"])
+  , ("H3", [Include "\\textbf{\\LARGE ", Arg "title", Arg "1", Include "}\\par\n"])
+  , ("H4", [Include "\\textbf{\\Large ", Arg "title", Arg "1", Include "}\\par\n"])
+  , ("H5", [Include "\\textbf{\\large ", Arg "title", Arg "1", Include "}\\par\n"])
+  , ("H6", [Include "\\textbf{\\normalsize ", Arg "title", Arg "1", Include "}\\par\n"])
+  , ("C1", [Include "\\textbf{\\centerline{\\Huge ", Arg "title", Arg "1", Include "}}\\par\n"])
+  , ("C2", [Include "\\textbf{\\centerline{\\huge ", Arg "title", Arg "1", Include "}}\\par\n"])
+  , ("C3", [Include "\\textbf{\\centerline{\\LARGE ", Arg "title", Arg "1", Include "}}\\par\n"])
+  , ("C4", [Include "\\textbf{\\centerline{\\Large ", Arg "title", Arg "1", Include "}}\\par\n"])
+  , ("C5", [Include "\\textbf{\\centerline{\\large ", Arg "title", Arg "1", Include "}}\\par\n"])
+  , ("C6", [Include "\\textbf{\\centerline{\\normalsize ", Arg "title", Arg "1", Include "}}\\par\n"])
   , ("PARA", [Args, Include "\\par\n"])
   , ("SLIDE", [Include "\\begin{frame}[fragile]\n", IfArg "title" [Include "\\frametitle{", Arg "title", Include "}\n"], Args, Include "\\end{frame}\n"])
+  , ("BLOCK", [Include "\\begin{block}{", Arg "title", Include "}\n", Args, Include "\\end{block}\n"])
+  , ("EXAMPLEBLOCK", [Include "\\begin{exampleblock}{", Arg "title", Include "}\n", Args, Include "\\end{exampleblock}\n"])
   ]
 
 ----------------------------------------------------

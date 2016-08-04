@@ -55,7 +55,7 @@ evalElements env _ [] =
 argumentsAsEnv = argumentsAsEnv' 1 (Map.empty)
 
 argumentsAsEnv' :: Int -> Map.Map String [Element] -> [Element] -> Map.Map String [Element]
-argumentsAsEnv' n env ((Prop name value):es) = argumentsAsEnv' n (Map.insert name [Include value] env) es
+argumentsAsEnv' n env ((Prop2 name value):es) = argumentsAsEnv' n (Map.insert name [Include value] env) es
 argumentsAsEnv' n env (e:es) = argumentsAsEnv' (n+1) (Map.insert (show n) [e] env) es
 argumentsAsEnv' _ env [] = env
 
