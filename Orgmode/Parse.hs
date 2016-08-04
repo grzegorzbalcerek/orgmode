@@ -228,10 +228,6 @@ src level = do
   return $ Src description props (concat content)
 
 singleColonProp =
-  try colonPropX <|>
-  try colonPropType <|>
-  try colonPropIe1 <|>
-  try colonPropIe2 <|>
   try colonPropKeywordLike <|>
   try colonPropTypeLike <|>
   try colonPropIdentifierLike <|>
@@ -255,29 +251,6 @@ colonProp2 = do
   if trim value == ""
   then return (Prop1 name)
   else return $ Prop2 name (trim value)
-
-colonPropIe1 = do
-  string ":ie1"
-  value <- many (noneOf "¬:\n\r")
-  return $ if (trim value == "") then Unrecognized else Ie1 (trim value)
-
-colonPropX = do
-  string ":x"
-  value <- many (noneOf "¬:\n\r")
-  return $ X (trim value)
-
-colonPropType = do
-  string ":type"
-  value <- many (noneOf "¬:\n\r")
-  return $ Type (trim value)
-
-colonPropIe2 = do
-  string ":ie2"
-  value <- many (noneOf "¬:\n\r")
-  return $ if (trim value == "")
-           then Unrecognized
-           else let (entry,subentry) = break (=='¡') (trim value)
-                in if length subentry > 1 then Ie2 entry (tail subentry) else Unrecognized
 
 colonPropKeywordLike = do
   string ":keywordlike"

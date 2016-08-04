@@ -114,7 +114,7 @@ renderElement "Slides" allElements (Src description props src) =
 renderElement rt allElements (Src description props src) =
   renderSrcBook rt description props src
 renderElement rt allElements (Table props rows) =
-  let t = fromMaybe "tabular" $ typePropOpt props
+  let t = fromMaybe "tabular" $ stringPropMaybe "type" props
       w = maybe "" (\x -> "{" ++ x ++ "}") $ widthPropOpt props
       spec = stringProp "spec" props
   in
@@ -189,7 +189,7 @@ removeAlignment = filter (\c -> c/='«' && c/='¤' && c/='»' && c/='¦' && c/='
 
 renderIndexEntries =
   foldl (\acc p -> case p of
-                     X entry -> "\\index{" ++ renderIndex entry ++ "}" ++ acc
+                     Prop2 "x" entry -> "\\index{" ++ renderIndex entry ++ "}" ++ acc
                      _ -> acc) ""
 
 ----------------------------------------------------
@@ -323,7 +323,7 @@ renderSrcSlides (Src _ props content) =
 
 renderCodeSlides :: [Prop] -> String -> String
 renderCodeSlides props src =
-  let sourceType = typeProp props
+  let sourceType = stringProp "type" props
       keywordlike =
         keywordLikeProp props ++
         if sourceType == "java" then ["interface", "abstract", "final", "match", "private", "public", "protected", "implements", "return", "static"

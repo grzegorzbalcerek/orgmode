@@ -33,10 +33,6 @@ data Element =
   | Prop1 String
   | Prop2 String String
   | Width String
-  | X String
-  | Type String
-  | Ie1 String
-  | Ie2 String String
   | PrependNewLines Int
   | KeywordLike [String]
   | TypeLike [String]
@@ -144,14 +140,11 @@ elemProp name =
                      Prop2 n _ | n == name -> True
                      _ -> acc) False
 
-typePropOpt :: [Element] -> Maybe String
-typePropOpt =
+stringPropMaybe :: String -> [Element] -> Maybe String
+stringPropMaybe name =
   foldl (\acc p -> case p of
-                     Type t -> Just t
+                     Prop2 n t | n == name -> Just t
                      _ -> acc) Nothing
-
-typeProp :: [Element] -> String
-typeProp = fromMaybe "" . typePropOpt
 
 stringProp :: String -> [Element] -> String
 stringProp name =
@@ -159,11 +152,11 @@ stringProp name =
                      Prop2 n hp | n == name -> hp
                      _ -> acc) ""
 
-indexEntriesFromProps ident label =
-  foldl (\acc p -> case p of
-                     Ie1 entry -> (IndexEntry1 entry ident label):acc
-                     Ie2 entry subentry -> (IndexEntry2 entry subentry ident label):acc
-                     _ -> acc) []
+--indexEntriesFromProps ident label =
+--  foldl (\acc p -> case p of
+--                     Prop2 "ie1" entry -> (IndexEntry1 entry ident label):acc
+--                     Ie2 entry subentry -> (IndexEntry2 entry subentry ident label):acc
+--                     _ -> acc) []
 
 
 keywordLikeProp :: [Element] -> [String]
@@ -195,27 +188,6 @@ constantLikeProp =
   foldl (\acc p -> case p of
                      ConstantLike ks -> ks
                      _ -> acc) []
-
-extractIndexEntries :: String -> String -> Element -> [IndexEntry]
-extractIndexEntries _ _ (Element "CHAPTER" elements) =
-  let title = stringProp "title" elements
-      chId = idProp title elements
-      chLabel = stringProp "label" elements
-  in
-      indexEntriesFromProps chId chLabel elements ++ (elements >>= extractIndexEntries chId chLabel)
-extractIndexEntries chId chLabel (Element "SECTION" elements) =
-  let secId = idProp (stringProp "title" elements) elements
-      secLabel = stringProp "label" elements
-      elementId = chId ++ "_" ++ secId
-      elementLabel = chLabel ++ "." ++ secLabel
-  in
-      indexEntriesFromProps elementId elementLabel elements ++ (elements >>= extractIndexEntries elementId elementLabel)
-extractIndexEntries elementId elementLabel (Paragraph props _) = indexEntriesFromProps elementId elementLabel props
-extractIndexEntries elementId elementLabel (Items props _) = indexEntriesFromProps elementId elementLabel props
-extractIndexEntries elementId elementLabel (Img props _) = indexEntriesFromProps elementId elementLabel props
-extractIndexEntries elementId elementLabel (Src _ props _) = indexEntriesFromProps elementId elementLabel props
-extractIndexEntries elementId elementLabel (Table props _) = indexEntriesFromProps elementId elementLabel props
-extractIndexEntries elementId elementLabel _ = []
 
 filterChapter :: [Element] -> String -> [Element]
 filterChapter (ch@(Element "CHAPTER" elements) : rest) wantedChapterId =
