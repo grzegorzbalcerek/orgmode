@@ -86,5 +86,5 @@ getSrcContent srcType props src =
          "elm" -> unlines . map (drop 2) . filterGtPrompts . lines $ filteredHighUnicodes
          "sbt" -> unlines . map (drop 2) . filterDollarOrGtPrompts . lines $ filteredHighUnicodes
          _ -> filteredHighUnicodes
-  in (take (prependNewLinesProp props) (repeat '\n')) ++ filteredSrc
+  in (take (intProp "prependnl" props) (repeat '\n')) ++ filteredSrc
 

@@ -98,7 +98,7 @@ renderElement rt allElements (Element "SECTION" parts) =
     concat (map (renderElement rt allElements) parts) ++ stringProp "latex2" parts ++ "\n"
 renderElement rt allElements (Items props items) =
   renderIndexEntries props ++ "\n\\begin{itemize}\n" ++
-  (if maybeProp "style" props == Just "none" then "\\renewcommand{\\labelitemi}{}\n" else "") ++
+  (if stringPropMaybe "style" props == Just "none" then "\\renewcommand{\\labelitemi}{}\n" else "") ++
   concat (map (renderElement rt allElements) items) ++  "\\end{itemize}\n"
 renderElement rt allElements (Note noteType props parts) =
   "\n\n" ++ stringProp "latex1" props ++ "\n\n" ++ renderIndexEntries props ++ "\\begin{tabular}{lp{1cm}p{11.2cm}}\n" ++
@@ -115,7 +115,7 @@ renderElement rt allElements (Src description props src) =
   renderSrcBook rt description props src
 renderElement rt allElements (Table props rows) =
   let t = fromMaybe "tabular" $ stringPropMaybe "type" props
-      w = maybe "" (\x -> "{" ++ x ++ "}") $ widthPropOpt props
+      w = maybe "" (\x -> "{" ++ x ++ "}") $ stringPropMaybe "width" props
       spec = stringProp "spec" props
   in
     "\n" ++ stringProp "latex1" props ++
@@ -303,7 +303,7 @@ renderSrcSlides (Src _ props content) =
         height = floor $ 1.1 * fromIntegral (length lns)
         textwidth = maximum $ map (length . filter (\c -> ord c < 256)) lns
         width = foldl (\w o -> case o of
-                              Width v -> read v `max` w
+                              Prop2 "width" v -> read v `max` w
                               _ -> w) textwidth props
         textsize =
           if width <= 45 && height <= 15 then "Large"
@@ -325,28 +325,23 @@ renderCodeSlides :: [Prop] -> String -> String
 renderCodeSlides props src =
   let sourceType = stringProp "type" props
       keywordlike =
-        keywordLikeProp props ++
         if sourceType == "java" then ["interface", "abstract", "final", "match", "private", "public", "protected", "implements", "return", "static"
                                       ,"if", "else", "case", "class", "extends", "new", "instanceof", "import"]
         else if sourceType == "scala" then ["val", "var", "def", "type", "trait", "abstract", "final", "match", "return", "sealed", "final"
                                       ,"if", "else", "case", "class", "object", "extends", "with", "implicit", "new", "import"]
         else if sourceType == "elm" then ["module", "where", "import", "type", "alias", "if", "then", "else", "case", "of", "let", " in "]
         else []
-      typelike =
-        typeLikeProp props
+      typelike = []
       identifierlike =
-        identifierLikeProp props ++
         if sourceType == "scala" then ["implicitly"]
         else if sourceType == "elm" then []
         else []
       symbollike =
-        symbolLikeProp props ++
         if sourceType == "java" then ["{\\raise-3pt\\hbox{~}}","{\\char92}", "\\{", "\\}", "(", ")", "[", "]", ".", ";", "|", "&", ":", ",", "\"", "++", "==", "=>", "+", "-", ">", "<", "*", "/", "=", "%", "@"]
         else if sourceType == "scala" then ["{\\raise-3pt\\hbox{~}}","{\\char92}", "\\{", "\\}", "(", ")", "[", "]", ".", ";", "|", "&", ":", ",", "\"", "++", "==", "=>", "+", "-", ">", "<", "*", "/", "=", "%", "@"]
         else if sourceType == "elm" then ["{\\raise-3pt\\hbox{~}}","{\\char92}", "\\{", "\\}", "(", ")", "[", "]", ".", ";", "|", "&", ":", ",", "\"", "++", "==", "=>", "+", "-", ">", "<", "*", "/", "=", "%"]
         else []
-      constantlike =
-        constantLikeProp props
+      constantlike = []
       prefixes str =
              case checkPrefixes [("black",identifierlike),("blue",keywordlike),("brown",symbollike)] str of
                (_,[],_) -> str

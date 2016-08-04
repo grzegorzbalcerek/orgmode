@@ -32,13 +32,6 @@ data Element =
   | Unrecognized
   | Prop1 String
   | Prop2 String String
-  | Width String
-  | PrependNewLines Int
-  | KeywordLike [String]
-  | TypeLike [String]
-  | IdentifierLike [String]
-  | SymbolLike [String]
-  | ConstantLike [String]
   deriving (Eq,Show)
 
 type Prop = Element
@@ -47,19 +40,6 @@ data TableRow =
     HLine
   | RegularRow [String]
   deriving (Eq,Show)
-
-data IndexEntry = IndexEntry1 String String String  -- entry, link, label
-                | IndexEntry2 String String String String  -- entry, subentry, link, label
-                | IndexParentEntry String  -- entry
-  deriving (Eq,Show)
-
-getEntry (IndexEntry1 e _ _) = e
-getEntry (IndexEntry2 e _ _ _) = e
-getEntry (IndexParentEntry e) = e
-
-getSubEntry (IndexEntry1 _ _ _) = ""
-getSubEntry (IndexEntry2 _ s _ _) = s
-getSubEntry (IndexParentEntry _) = ""
 
 type RenderType = String
 
@@ -107,26 +87,11 @@ idProp fallback =
                      Prop2 "id" ident -> ident
                      _ -> acc) (filter (\c -> c `elem` " ") fallback)
 
-prependNewLinesProp :: [Element] -> Int
-prependNewLinesProp =
+intProp :: String -> [Element] -> Int
+intProp name =
   foldl (\acc p -> case p of
-                     PrependNewLines n -> n
+                     Prop2 n x | n == name -> read x
                      _ -> acc) 0
-
-widthPropOpt :: [Element] -> Maybe String
-widthPropOpt =
-  foldl (\acc p -> case p of
-                     Width m -> Just m
-                     _ -> acc) Nothing
-
-widthProp :: String -> [Element] -> String
-widthProp mw = fromMaybe mw . widthPropOpt
-
-maybeProp :: String -> [Element] -> Maybe String
-maybeProp name =
-  foldl (\acc p -> case p of
-                     Prop2 n s | n == name -> Just s
-                     _ -> acc) Nothing
 
 hasProp1 :: String -> [Element] -> Bool
 hasProp1 name =
@@ -151,43 +116,6 @@ stringProp name =
   foldl (\acc p -> case p of
                      Prop2 n hp | n == name -> hp
                      _ -> acc) ""
-
---indexEntriesFromProps ident label =
---  foldl (\acc p -> case p of
---                     Prop2 "ie1" entry -> (IndexEntry1 entry ident label):acc
---                     Ie2 entry subentry -> (IndexEntry2 entry subentry ident label):acc
---                     _ -> acc) []
-
-
-keywordLikeProp :: [Element] -> [String]
-keywordLikeProp =
-  foldl (\acc p -> case p of
-                     KeywordLike ks -> ks
-                     _ -> acc) []
-
-typeLikeProp :: [Element] -> [String]
-typeLikeProp =
-  foldl (\acc p -> case p of
-                     TypeLike ks -> ks
-                     _ -> acc) []
-
-identifierLikeProp :: [Element] -> [String]
-identifierLikeProp =
-  foldl (\acc p -> case p of
-                     IdentifierLike ks -> ks
-                     _ -> acc) []
-
-symbolLikeProp :: [Element] -> [String]
-symbolLikeProp =
-  foldl (\acc p -> case p of
-                     SymbolLike ks -> ks
-                     _ -> acc) []
-
-constantLikeProp :: [Element] -> [String]
-constantLikeProp =
-  foldl (\acc p -> case p of
-                     ConstantLike ks -> ks
-                     _ -> acc) []
 
 filterChapter :: [Element] -> String -> [Element]
 filterChapter (ch@(Element "CHAPTER" elements) : rest) wantedChapterId =

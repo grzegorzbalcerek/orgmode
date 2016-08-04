@@ -211,7 +211,7 @@ renderElement allElements (Src srcType props src) =
                   (if hasProp1 "fragment" props then " (fragment)" else "") ++ ":</b>\n") ++
               renderSource srcType props src ++ "</pre>\n"
 renderElement allElements (Items props items) =
-  let style = maybe "list" id $ maybeProp "style" props
+  let style = maybe "list" id $ stringPropMaybe "style" props
   in  "<ul class='" ++ style ++ "'>\n" ++ concat (map (renderItem allElements) items) ++  "</ul>\n"
 renderElement allElements (Img props file) =
   "<div><img src='" ++ file ++ stringProp "html" props ++ "'></img><div class='caption'>" ++ (renderText allElements $ stringProp "label" props) ++ "</div></div>\n"

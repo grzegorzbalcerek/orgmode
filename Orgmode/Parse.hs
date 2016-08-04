@@ -228,13 +228,6 @@ src level = do
   return $ Src description props (concat content)
 
 singleColonProp =
-  try colonPropKeywordLike <|>
-  try colonPropTypeLike <|>
-  try colonPropIdentifierLike <|>
-  try colonPropSymbolLike <|>
-  try colonPropConstantLike <|>
-  try colonPropWidth <|>
-  try colonPropPrependNewLines <|>
   try colonProp2 <|>
   try colonProp1
 
@@ -251,41 +244,6 @@ colonProp2 = do
   if trim value == ""
   then return (Prop1 name)
   else return $ Prop2 name (trim value)
-
-colonPropKeywordLike = do
-  string ":keywordlike"
-  value <- many (noneOf "¬:\n\r")
-  return $ KeywordLike (words value)
-
-colonPropTypeLike = do
-  string ":typelike"
-  value <- many (noneOf "¬:\n\r")
-  return $ TypeLike (words value)
-
-colonPropIdentifierLike = do
-  string ":identifierlike"
-  value <- many (noneOf "¬:\n\r")
-  return $ IdentifierLike (words value)
-
-colonPropSymbolLike = do
-  string ":symbollike"
-  value <- many (noneOf "¬:\n\r")
-  return $ SymbolLike (words value)
-
-colonPropConstantLike = do
-  string ":constantlike"
-  value <- many (noneOf "¬:\n\r")
-  return $ ConstantLike (words value)
-
-colonPropPrependNewLines = do
-  string ":prependnl "
-  value <- many1 digit
-  return $ PrependNewLines (read value :: Int)
-
-colonPropWidth = do
-  string ":width "
-  value <- many (noneOf "¬:\n\r")
-  return $ Width $ trim value
 
 ----------------------------------------------
 
