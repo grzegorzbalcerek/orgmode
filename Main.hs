@@ -47,11 +47,11 @@ parseCommand variant path = processFile path $ \input -> do
   putStrLn (show content)
 
 evalCommand variant path = processFile path $ \input -> do
-  content <- inputToContent Map.empty variant input
+  (_,content) <- inputToEnvAndContent Map.empty variant input
   putStrLn (show content)
 
 latexCommand variant path outputPath = processFile path $ \input -> do
-  content <- inputToContent latexEnv variant input
+  (_,content) <- inputToEnvAndContent latexEnv variant input
   let outputFile =
        if outputPath == "" && isSuffixOf ".org" path
        then (init.init.init.init $ path) ++ ".tex"
@@ -68,15 +68,15 @@ latexCommand variant path outputPath = processFile path $ \input -> do
     hClose houtput
 
 extractsrcCommand path defaultfile chapterId sectionId = processFile path $ \input -> do
-  content <- inputToContent Map.empty "" input
+  (_,content) <- inputToEnvAndContent Map.empty "" input
   extractSrcFromElements content defaultfile chapterId sectionId
 
 multihtmlCommand path outputPath = processFile path $ \input -> do
-  content <- inputToContent Map.empty "" input
-  runReaderT (writeMultiHtml outputPath) content
+  (env,content) <- inputToEnvAndContent Map.empty "" input
+  runReaderT (writeMultiHtml env outputPath) content
 
 verifyoutputCommand path actualOutputFile chapterId sectionId = processFile path $ \input -> do
-  content <- inputToContent Map.empty "" input
+  (_,content) <- inputToEnvAndContent Map.empty "" input
   verifyOutput content actualOutputFile chapterId sectionId
 
 processFile :: String -> (String -> IO ()) -> IO ()
@@ -87,8 +87,9 @@ processFile path action = do
   action input
   hClose hinput
 
-inputToContent env variant input = do
+inputToEnvAndContent initialEnv variant input = do
   let content = parseInput input
-  let evaluated = evalElements env variant content
+  let (env,contentWithoutDefs) = evaluateDefs variant content
+  let evaluated = evalElements (Map.union env initialEnv) contentWithoutDefs
   putStrLn $ "Content parsed. Length: " ++ show (length evaluated) ++ "."
-  return evaluated
+  return (env,evaluated)

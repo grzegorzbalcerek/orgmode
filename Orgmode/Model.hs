@@ -24,7 +24,6 @@ data Element =
   | Src String [Element] String
   | Include String
   | Table [Element] [TableRow]
-  | Directive String String
   | Prop1 String
   | Prop2 String String
   deriving (Eq,Show)
@@ -54,28 +53,6 @@ sectionsOnly = filter $ \p ->
 
 isChapter (Element "CHAPTER" _) = True
 isChapter _ = False
-
-directiveValue :: (Monad a) => String -> ReaderT [Element] a String
-directiveValue name = do
-  allElements <- ask
-  let isRightDirective directive =
-        case directive of
-          (Directive n c) -> n == name
-          _ -> False
-  let filteredElements = filter isRightDirective allElements
-  if null filteredElements
-  then return ""
-  else let (Directive _ content) = head filteredElements in return content
-
-directiveValueAsList :: (Monad a) => String -> ReaderT [Element] a [String]
-directiveValueAsList name = do
-  dv <- directiveValue name
-  return $ lines dv
-
-directiveValueNoNewLines :: (Monad a) => String -> ReaderT [Element] a String
-directiveValueNoNewLines name = do
-  n <- directiveValue name
-  return $ filter (\c -> not (c == '\n')) n
 
 idProp fallback =
   foldl (\acc p -> case p of

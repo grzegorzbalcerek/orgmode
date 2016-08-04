@@ -47,7 +47,6 @@ singleElement level =
   try (args level) <|>
   try (arg level) <|>
   try (def level) <|>
-  try (directive level) <|>
   try (contentElement level) <|>
   try (element level)
   ) <?> "singleElement"
@@ -211,11 +210,6 @@ include level = do
   (_,_) <- asteriskLineWithProps level "INCLUDE"
   content <- many1 emptyOrRegularLineWithEol
   return $ Include (concat content)
-
-directive level = do
-  (name,props) <- asteriskLineWithProps level "DIRECTIVE"
-  content <- many1 emptyOrRegularLineWithEol
-  return $ Directive name (concat content)
 
 src level = do
   (description,props) <- asteriskLineWithProps level "SRC"

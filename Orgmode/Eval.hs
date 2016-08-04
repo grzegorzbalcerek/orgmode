@@ -12,36 +12,37 @@ import Control.Monad.Reader
 import qualified Data.Map as Map
 import Debug.Trace
 
-evalElements :: Map.Map String [Element] -> String -> [Element] -> [Element]
+evaluateDefs :: String -> [Element] -> (Map.Map String [Element],[Element])
+evaluateDefs variant e@((Def name elements):es) =
+  let (env, content) = evaluateDefs variant es
+  in (Map.insert name elements env, content)
+evaluateDefs variant (e@(Element name subelements):es) | name == variant =
+  evaluateDefs variant (subelements ++ es)
+evaluateDefs variant (e:es) =
+  let (env, content) = evaluateDefs variant es
+  in (env, e:content)
+evaluateDefs _ [] = (Map.empty,[])
 
-evalElements env variant e@((Def name elements):es) =
-  let r = evalElements (Map.insert name elements env) variant es
-  in -- trace ("evalElements1 " ++ show e ++ "     ====>    " ++ show r) $ r
-        r
+evalElements :: Map.Map String [Element] -> [Element] -> [Element]
 
-evalElements env variant (e@(Element name subelements):es) | name == variant =
-  evalElements env variant (subelements ++ es)
-
-evalElements env variant e@((Element name arguments):es) =
+evalElements env e@((Element name arguments):es) =
   let r = case (Map.lookup name env) of
             Just defElements ->
               let newEnv = Map.union (argumentsAsEnv arguments) env
                   defApplied = applyArguments arguments newEnv defElements
               in
-                 evalElements env variant defApplied ++ evalElements env variant es
+                 evalElements env defApplied ++ evalElements env es
             _ ->
-                 (Element name $ evalElements env variant arguments) : evalElements env variant es
+                 (Element name $ evalElements env arguments) : evalElements env es
   in --trace ("evalElements3 " ++ show e ++ "     ====>    " ++ show r) $ r
        r
 
-evalElements env variant x@(e:es) =
-  let r =  e : evalElements env variant es
+evalElements env x@(e:es) =
+  let r =  e : evalElements env es
   in  -- trace ("evalElements4 " ++ show x ++ "     ====>    " ++ show r) $ r
        r
 
-evalElements env _ [] =
---  trace ("evalElements5 ") $
-   [] --[Directive "env" (show env)]
+evalElements env [] = []
 
 argumentsAsEnv = argumentsAsEnv' 1 (Map.empty)
 

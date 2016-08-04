@@ -8,6 +8,7 @@ cmd /c "u: && cd u:\github\orgmode && test"
 
 import Orgmode.Model
 import Orgmode.Util
+import Orgmode.Eval
 import Control.Monad.Trans.State
 import Control.Monad
 import Data.List
@@ -17,68 +18,70 @@ import GHC.IO.Encoding
 import Data.Char
 import Debug.Trace
 import Control.Monad.Reader
+import qualified Data.Map as Map
 
-writeMultiHtml :: String -> ReaderT [Element] IO ()
-writeMultiHtml outputPath = do
+writeMultiHtml :: Map.Map String [Element] -> String -> ReaderT [Element] IO ()
+writeMultiHtml env outputPath = do
   allElements <- ask
   let chapters = filter isChapter allElements
-  outputCss outputPath
-  writeToc outputPath chapters
-  liftIO $ writeChapters outputPath allElements "toc" chapters
-  title <- directiveValueNoNewLines "Title"
-  indexPageContent <- directiveValue "IndexHtmlPage"
-  writePage outputPath "index" title indexPageContent "" "index" "toc"
+  outputCss env outputPath
+  writeToc env outputPath chapters
+  liftIO $ writeChapters env outputPath allElements "toc" chapters
+  let title = init $ renderElements env allElements $ evalElements env [Element "Title" []]
+  let indexPageContent = renderElements env allElements $ evalElements env [Element "IndexHtmlPageContent" []]
+  writePage env outputPath "index" title indexPageContent "" "index" "toc"
 
-writeToc :: String -> [Element] -> ReaderT [Element] IO ()
-writeToc outputPath chapters = do
+writeToc :: Map.Map String [Element] -> String -> [Element] -> ReaderT [Element] IO ()
+writeToc env outputPath chapters = do
   allElements <- ask
   let path = outputPath ++ "/toc.html"
   houtput <- liftIO $ safeOpenFileForWriting path
-  tableOfContents <- directiveValueNoNewLines "TableOfContents"
-  let chapterLinks = chapters >>= (\chapter -> runReader (renderChapterLink chapter) allElements)
+  let tableOfContents = init $ renderElements env allElements $ evalElements env [Element "TableOfContents" []]
+  let chapterLinks = chapters >>= (\chapter -> runReader (renderChapterLink env chapter) allElements)
   let content = "<h1>" ++ tableOfContents ++ "</h1>\n<ul class='toc'>\n" ++ chapterLinks ++ "</ul>\n"
   let (Element _ props) = head chapters
   let right = idProp (stringProp "title" props) props
-  footer <- directiveValue "MultiHtmlFooter"
+  let footer = renderElements env allElements $ evalElements env [Element "MultiHtmlFooter" []]
   let output = page "Spis treści" content "index" "index" right footer
   liftIO $ putStrLn $ "Generating " ++ path
   liftIO $ hPutStr houtput output
   liftIO $ hClose houtput
 
-renderChapterLink :: Element -> Reader [Element] String
-renderChapterLink (Element "CHAPTER" elements) = do
+renderChapterLink :: Map.Map String [Element] -> Element -> Reader [Element] String
+renderChapterLink env (Element "CHAPTER" elements) = do
   let title = stringProp "title" elements
-  chTitle <- chapterTitle title elements
+  chTitle <- chapterTitle env title elements
   return $ "<li><a href='" ++ (idProp title elements) ++ ".html'>" ++ chTitle ++ "</a>\n"
-renderChapterLink _ = return ""
+renderChapterLink _ _ = return ""
 
-writeChapters :: String -> [Element] -> String -> [Element] -> IO ()
-writeChapters outputPath allElements previousId chapters =
+writeChapters :: Map.Map String [Element] -> String -> [Element] -> String -> [Element] -> IO ()
+writeChapters env outputPath allElements previousId chapters =
   case chapters of
     ch@(Element "CHAPTER" sections):nextChapters -> do
-      writeChapter outputPath allElements (stringProp "title" sections) sections sections previousId nextChapters
-      writeChapters outputPath allElements (getLastId ch sections) nextChapters
+      writeChapter env outputPath allElements (stringProp "title" sections) sections sections previousId nextChapters
+      writeChapters env outputPath allElements (getLastId ch sections) nextChapters
     _ -> return ()
 
 getLastId (Element "CHAPTER" props) [] = idProp (stringProp "title" props) props
 getLastId (Element "CHAPTER" props) ((Element "SECTION" sProps):[]) = (idProp (stringProp "title" props) props) ++ "_" ++ (idProp (stringProp "title" sProps) sProps)
 getLastId ch (_:sections) = getLastId ch sections
 
-writeChapter :: String -> [Element] -> String -> [Prop] -> [Element] -> String -> [Element] -> IO ()
-writeChapter outputPath allElements title props chapterElements previousId nextChapters = do
+writeChapter :: Map.Map String [Element] -> String -> [Element] -> String -> [Prop] -> [Element] -> String -> [Element] -> IO ()
+writeChapter env outputPath allElements title props chapterElements previousId nextChapters = do
   let chId = idProp title props
   let chLabel = stringProp "label" props
-  let content = runReader (renderChapterContent title props chapterElements) allElements
+  let content = runReader (renderChapterContent env title props chapterElements) allElements
   let left = previousId
   let right = headElementId chId $ (sectionsOnly chapterElements) ++ nextChapters
-  runReaderT (writePage outputPath chId title content left "toc" right) allElements
-  writeSections outputPath allElements chId chLabel chId chapterElements nextChapters
+  runReaderT (writePage env outputPath chId title content left "toc" right) allElements
+  writeSections env outputPath allElements chId chLabel chId chapterElements nextChapters
 
-writePage :: String -> String -> String -> String -> String -> String -> String -> ReaderT [Element] IO ()
-writePage outputPath name title content left up right = do
+writePage :: Map.Map String [Element] -> String -> String -> String -> String -> String -> String -> String -> ReaderT [Element] IO ()
+writePage env outputPath name title content left up right = do
+  allElements <- ask
   let path = outputPath ++ "/" ++ name ++ ".html"
   houtput <- liftIO $ safeOpenFileForWriting path
-  footer <- directiveValue "MultiHtmlFooter"
+  let footer = renderElements env allElements $ evalElements env [Element "MultiHtmlFooter" []]
   let output = page title content left up right footer
   liftIO $ putStrLn $ "Generating file " ++ path ++ " left: " ++ left ++ " right: " ++ right
   liftIO $ hPutStr houtput output
@@ -91,24 +94,24 @@ headElementId chId parts =
     _:next -> headElementId chId next
     [] -> ""
 
-writeSections :: String -> [Element] -> String -> String -> String -> [Element] -> [Element] -> IO ()
-writeSections outputPath allElements chId chLabel previousId sections nextChapters = do
+writeSections :: Map.Map String [Element] -> String -> [Element] -> String -> String -> String -> [Element] -> [Element] -> IO ()
+writeSections env outputPath allElements chId chLabel previousId sections nextChapters = do
   case sections of
     sec@(Element "SECTION" parts):nextSections -> do
-      writeSection outputPath allElements chId chLabel (stringProp "title" parts) parts parts previousId nextSections nextChapters
-      writeSections outputPath allElements chId chLabel (chId ++ "_" ++ idProp (stringProp "title" parts) parts) nextSections nextChapters
+      writeSection env outputPath allElements chId chLabel (stringProp "title" parts) parts parts previousId nextSections nextChapters
+      writeSections env outputPath allElements chId chLabel (chId ++ "_" ++ idProp (stringProp "title" parts) parts) nextSections nextChapters
     (_:nextSections) ->
-      writeSections outputPath allElements chId chLabel previousId nextSections nextChapters
+      writeSections env outputPath allElements chId chLabel previousId nextSections nextChapters
     [] -> return ()
 
-writeSection :: String -> [Element] -> String -> String -> String -> [Prop] -> [Element] -> String -> [Element] -> [Element] -> IO ()
-writeSection outputPath allElements chId chLabel title props parts previousId nextSections nextChapters = do
+writeSection :: Map.Map String [Element] -> String -> [Element] -> String -> String -> String -> [Prop] -> [Element] -> String -> [Element] -> [Element] -> IO ()
+writeSection env outputPath allElements chId chLabel title props parts previousId nextSections nextChapters = do
   let path = outputPath ++ "/" ++ chId ++ "_" ++ (idProp title props) ++ ".html"
   houtput <- safeOpenFileForWriting path
-  let content = renderElement allElements (Element "SECTION" (parts ++ [Prop2 "title" (sectionTitle chLabel title props)]))
+  let content = renderElement env allElements (Element "SECTION" (parts ++ [Prop2 "title" (sectionTitle chLabel title props)]))
   let left = previousId
   let right = headElementId chId $ nextSections++nextChapters
-  let footer = runReader (directiveValue "MultiHtmlFooter") allElements
+  let footer = renderElements env allElements $ evalElements env [Element "MultiHtmlFooter" []]
   let output = page title content left chId right footer
   putStrLn $ "Generating section " ++ path ++ " left: " ++ left ++ " right: " ++ right
   hPutStr houtput output
@@ -138,11 +141,12 @@ containerElement _ = False
 
 nonContainerElement = not . containerElement
 
-chapterTitle :: [Char] -> [Prop] -> Reader [Element] [Char]
-chapterTitle title props = do
+chapterTitle :: Map.Map String [Element] -> [Char] -> [Prop] -> Reader [Element] [Char]
+chapterTitle env title props = do
+  allElements <- ask
   let label = stringProp "label" props
-  chapterName <- directiveValue "Chapter"
-  appendixName <- directiveValue "Apendix"
+  let chapterName = init $ renderElements env allElements $ evalElements env [Element "Chapter" []]
+  let appendixName = init $ renderElements env allElements $ evalElements env [Element "Appendix" []]
   let prefix =
         if label == "" then ""
         else if isDigit (head label) then chapterName ++ " " ++ label ++ ". "
@@ -158,14 +162,14 @@ sectionTitle chapterLabel title props =
   in
     prefix ++ title
 
-renderChapterContent :: String -> [Prop] -> [Element] -> Reader [Element] String
-renderChapterContent title props parts = do
+renderChapterContent :: Map.Map String [Element] -> String -> [Prop] -> [Element] -> Reader [Element] String
+renderChapterContent env title props parts = do
   allElements <- ask
   let chId = idProp title props
   let chLabel = stringProp "label" props
-  chTitle <- chapterTitle title props
+  chTitle <- chapterTitle env title props
   return $ "<h1 class='chapter'>" ++ chTitle ++ "</h1>\n" ++
-    renderElements allElements (filter nonContainerElement parts) ++
+    renderElements env allElements (filter nonContainerElement parts) ++
     "<ul class='toc'>\n" ++
     concat (fmap (renderSectionLink chId chLabel) parts) ++
     "</ul>\n"
@@ -174,28 +178,29 @@ renderSectionLink chId chLabel (Element "SECTION" props) =
   "<li><a href='" ++ chId ++ "_" ++ (idProp (stringProp "title" props) props) ++ ".html'>" ++ sectionTitle chLabel (stringProp "title" props) props ++ "</a>\n"
 renderSectionLink _ _ _ = ""
 
-renderElements :: [Element] -> [Element] -> String
-renderElements allElements parts = concat (fmap (renderElement allElements) parts)
+renderElements :: Map.Map String [Element] -> [Element] -> [Element] -> String
+renderElements env allElements parts = concat (fmap (renderElement env allElements) parts)
 
-renderElement :: [Element] -> Element -> String
-renderElement _ (Element "CHAPTER" parts) = ""
-renderElement allElements (Element "SECTION" parts) =
+renderElement :: Map.Map String [Element] -> [Element] -> Element -> String
+renderElement env _ (Element "CHAPTER" parts) = ""
+renderElement env allElements (Element "SECTION" parts) =
   "<h2 class='section'>" ++ (stringProp "title" parts) ++ "</h2>\n" ++
-  renderElements allElements parts
-renderElement allElements (Note noteType _ parts) =
+  renderElements env allElements parts
+renderElement env allElements (Note noteType _ parts) =
   "<table class='remark'><tr><td class='remarksymbol'><img src='" ++
     (head noteType : "sign.png") ++ -- (if head noteType == 'r' then ".png" else ".svg") ++
   "'/></td><td class='remarkcontent'>" ++
-  renderElements allElements parts ++
+  renderElements env allElements parts ++
   "</td></tr></table>\n"
-renderElement allElements (Paragraph _ text) = "<p>" ++ renderText allElements text ++ "</p>\n"
-renderElement allElements (Src srcType props src) =
+renderElement env allElements (Paragraph _ text) = "<p>" ++ renderText allElements text ++ "</p>\n"
+renderElement env allElements (Text text) = renderText allElements text
+renderElement env allElements (Src srcType props src) =
   let boldCommand prefix line =
         if (take (length prefix) line == prefix) then prefix ++ "<b>" ++ drop (length prefix) line ++ "</b>"
         else line
       boldCommands prefix = unlines . map (boldCommand prefix) . lines
       fileName = pathFileName props
-      fileLabel = runReader (directiveValueNoNewLines "File") allElements
+      fileLabel = init $ renderElements env allElements $ evalElements env [Element "File" []]
   in 
     if hasProp1 "norender" props
     then ""
@@ -210,14 +215,15 @@ renderElement allElements (Src srcType props src) =
                 else "<img class='filesign' src='filesign.png'/><b>" ++ fileLabel ++ " " ++ fileName ++
                   (if hasProp1 "fragment" props then " (fragment)" else "") ++ ":</b>\n") ++
               renderSource srcType props src ++ "</pre>\n"
-renderElement allElements (Items props items) =
+renderElement env allElements (Items props items) =
   let style = maybe "list" id $ stringPropMaybe "style" props
   in  "<ul class='" ++ style ++ "'>\n" ++ concat (map (renderItem allElements) items) ++  "</ul>\n"
-renderElement allElements (Img props file) =
+renderElement env allElements (Img props file) =
   "<div><img src='" ++ file ++ stringProp "html" props ++ "'></img><div class='caption'>" ++ (renderText allElements $ stringProp "label" props) ++ "</div></div>\n"
-renderElement allElements (Table props rows) =
+renderElement env allElements (Table props rows) =
   "<table>" ++ concat (map renderTableRow rows) ++ "</table>\n"
-renderElement _ _ = ""
+renderElement env allElements (Include content) = content
+renderElement env _ _ = ""
 
 renderTableRow (RegularRow cells) =
   "<tr>" ++ concat (map renderTableCell cells) ++ "</tr>\n"
@@ -409,13 +415,15 @@ sectionReference' parts chapterId chapterLabel sectionId =
     _:tailElements -> sectionReference' tailElements chapterId chapterLabel sectionId
     _ -> error $ "Unable to find section reference within chapter " ++ chapterId ++ " for section id: " ++ sectionId
 
-outputCss :: String -> ReaderT [Element] IO ()
-outputCss outputPath = do
+outputCss :: Map.Map String [Element] -> String -> ReaderT [Element] IO ()
+outputCss env outputPath = do
   allElements <- ask
   let path = outputPath ++ "/web.css"
   houtput <- liftIO $ safeOpenFileForWriting path
-  webCss <- directiveValue "WebCss"
+  let webCss = renderElements env allElements $ evalElements env [Element "WebCss" []]
   liftIO $ do 
     putStrLn $ "Generating " ++ path
     hPutStr houtput webCss
     hClose houtput
+
+----------------------------------------------------
