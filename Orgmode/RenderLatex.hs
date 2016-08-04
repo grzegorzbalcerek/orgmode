@@ -339,13 +339,10 @@ renderCodeSlides props src =
 
 ----------------------------------------------------
 
-includegraphicsCircle = "\\includegraphics[width=8pt]"
-
 whiteCircleText n = "\\raisebox{-1pt}{\\includegraphics[width=8pt]{white" ++ show n ++ ".png}}"
 whiteCircleSource n = " \\includegraphics[width=7pt]{white" ++ show n ++ ".png}"
 blackCircleText n = "\\raisebox{-1pt}{\\includegraphics[width=8pt]{black" ++ show n ++ ".png}}"
 blackCircleSource n = " \\includegraphics[width=7pt]{black" ++ show n ++ ".png}"
-
 
 renderIndex :: String -> String
 renderIndex ('!':t) = "{\\fontencoding{T1}\\selectfont\\char33}" ++ renderText [] t

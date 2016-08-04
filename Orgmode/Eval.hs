@@ -6,15 +6,6 @@ cmd /c "u: && cd u:\github\orgmode && make"
 cmd /c "u: && cd u:\github\orgmode && test"
 -}
 
-{-
-definicja elementu
-* DEF NAZWA
-** TRESC 1
-** TRESC
-** ARG 1          tu wstaw pierwszy argument z wywołania (jeśli istnieje)
-** DALSZA TREŚĆ
--}
-
 import Data.List (find,groupBy,intersect)
 import Orgmode.Model
 import Control.Monad.Reader

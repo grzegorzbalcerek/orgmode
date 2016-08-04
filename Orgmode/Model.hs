@@ -94,12 +94,6 @@ hasProp1 name =
                      Prop1 n | n == name -> True
                      _ -> acc) False
 
-elemProp :: String -> [Element] -> Bool
-elemProp name =
-  foldl (\acc p -> case p of
-                     Prop2 n _ | n == name -> True
-                     _ -> acc) False
-
 stringPropMaybe :: String -> [Element] -> Maybe String
 stringPropMaybe name =
   foldl (\acc p -> case p of
