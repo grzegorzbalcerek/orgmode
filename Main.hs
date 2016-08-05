@@ -36,7 +36,7 @@ mainWithArgs ["showsrc",path,chapterId,sectionId]                       = extrac
 mainWithArgs ["extractsrc",path]                                        = extractsrcCommand path WriteFilePaths "" ""
 mainWithArgs ["extractsrc",path,chapterId]                              = extractsrcCommand path WriteFilePaths chapterId ""
 mainWithArgs ["extractsrc",path,chapterId,sectionId]                    = extractsrcCommand path WriteFilePaths chapterId sectionId
-mainWithArgs ["multihtml",path,outputPath]                              = multihtmlCommand path outputPath
+--mainWithArgs ["multihtml",path,outputPath]                              = multihtmlCommand path outputPath
 mainWithArgs ["verifyoutput",path,actualOutputFile]                     = verifyoutputCommand path actualOutputFile "" ""
 mainWithArgs ["verifyoutput",path,actualOutputFile,chapterId]           = verifyoutputCommand path actualOutputFile chapterId ""
 mainWithArgs ["verifyoutput",path,actualOutputFile,chapterId,sectionId] = verifyoutputCommand path actualOutputFile chapterId sectionId
@@ -47,11 +47,11 @@ parseCommand variant path = processFile path $ \input -> do
   putStrLn (show content)
 
 evalCommand variant path = processFile path $ \input -> do
-  (_,content) <- inputToEnvAndContent Map.empty variant input
+  content <- string2elements (Map.singleton variant []) Map.empty input
   putStrLn (show content)
 
 latexCommand variant path outputPath = processFile path $ \input -> do
-  (_,content) <- inputToEnvAndContent latexEnv variant input
+  content <- string2elements (Map.insert variant [] latexEnv) Map.empty input
   let outputFile =
        if outputPath == "" && isSuffixOf ".org" path
        then (init.init.init.init $ path) ++ ".tex"
@@ -68,15 +68,15 @@ latexCommand variant path outputPath = processFile path $ \input -> do
     hClose houtput
 
 extractsrcCommand path defaultfile chapterId sectionId = processFile path $ \input -> do
-  (_,content) <- inputToEnvAndContent Map.empty "" input
+  content <- string2elements Map.empty Map.empty input
   extractSrcFromElements content defaultfile chapterId sectionId
 
-multihtmlCommand path outputPath = processFile path $ \input -> do
-  (env,content) <- inputToEnvAndContent Map.empty "" input
-  runReaderT (writeMultiHtml env outputPath) content
+--multihtmlCommand path outputPath = processFile path $ \input -> do
+--  (env,content) <- string2elements Map.empty Map.empty input
+--  runReaderT (writeMultiHtml env outputPath) content
 
 verifyoutputCommand path actualOutputFile chapterId sectionId = processFile path $ \input -> do
-  (_,content) <- inputToEnvAndContent Map.empty "" input
+  content <- string2elements Map.empty Map.empty input
   verifyOutput content actualOutputFile chapterId sectionId
 
 processFile :: String -> (String -> IO ()) -> IO ()

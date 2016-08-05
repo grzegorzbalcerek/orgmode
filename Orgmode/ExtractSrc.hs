@@ -37,7 +37,7 @@ truncateFiles :: [Element] -> IO ()
 truncateFiles elements =
   forM_ elements $ \element ->
     case element of
-      Element _ elements -> truncateFiles elements
+      Element _ _ elements -> truncateFiles elements
       Note _  _ elements -> truncateFiles elements
       Src srcType props _ -> truncateFile $ stringProp2 "path" props
       _ -> return ()
@@ -54,7 +54,7 @@ extractSrcFromElements' :: [Element] -> ExtractMode -> IO ()
 extractSrcFromElements' elements mode = do
   forM_ elements $ \element ->
     case element of
-      Element _ elements -> extractSrcFromElements' elements mode
+      Element _ _ elements -> extractSrcFromElements' elements mode
       Note _ _ elements -> extractSrcFromElements' elements mode
       Src srcType props str ->
         case (mode,stringProp2 "path" props,hasProp1 "show" props) of

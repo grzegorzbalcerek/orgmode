@@ -11,6 +11,7 @@ import Data.List (dropWhileEnd)
 import Control.Applicative ((<$>))
 import Orgmode.Model
 import Data.String (words)
+import qualified Data.Map as Map
 
 type P = Parsec String ()
 
@@ -43,11 +44,10 @@ skipLines = many1 (eol <|> do
 singleElement :: Int -> P Element
 singleElement level =
   (
-  try (ifargpresent level) <|>
-  try (ifargnotpresent level) <|>
-  try (ifargeq level) <|>
+  try (ifdef level) <|>
+  try (ifeq level) <|>
   try (args level) <|>
-  try (arg level) <|>
+  try (astext level) <|>
   try (def level) <|>
   try (contentElement level) <|>
   try (element level)
@@ -55,36 +55,31 @@ singleElement level =
 
 ----------------------------------------------------
 
+ifdef :: Int -> P Element
+ifdef level = do
+  (name) <- simpleAsteriskLine level "IFDEF"
+  content <- many (singleElement $ level + 1)
+  return $ IfDef name content
+
+ifeq :: Int -> P Element
+ifeq level = do
+  (c) <- simpleAsteriskLine level "IFEQ"
+  let (name,value) = span (/=' ') c
+  content <- many (singleElement $ level + 1)
+  return $ IfEq name (trim value) content
+
 args :: Int -> P Element
 args level = do
   asteriskLine level "ARGS"
   return $ Args
 
-arg :: Int -> P Element
-arg level = do
-  (name) <- simpleAsteriskLine level "ARG"
-  return $ Arg name
-
-ifargpresent :: Int -> P Element
-ifargpresent level = do
-  (name) <- simpleAsteriskLine level "IFARGPRESENT"
-  content <- many (singleElement $ level + 1)
-  return $ IfArgPresent name content
-
-ifargnotpresent :: Int -> P Element
-ifargnotpresent level = do
-  (name) <- simpleAsteriskLine level "IFARGNOTPRESENT"
-  content <- many (singleElement $ level + 1)
-  return $ IfArgNotPresent name content
-
-ifargeq :: Int -> P Element
-ifargeq level = do
-  (c) <- simpleAsteriskLine level "IFARGEQ"
-  let (name,value) = span (/=' ') c
-  content <- many (singleElement $ level + 1)
-  return $ IfArgEq name (trim value) content
+astext :: Int -> P Element
+astext level = do
+  (name) <- simpleAsteriskLine level "ASTEXT"
+  return $ AsText name
 
 ----------------------------------------------------
+
 def :: Int -> P Element
 def level = do
   name <- simpleAsteriskLine level "DEF"
@@ -93,10 +88,10 @@ def level = do
 ----------------------------------------------------
 element :: Int -> P Element
 element level = do
-  (name,title,props) <- elementWithProps level
-  let titleProp = if title == "" then [] else [Prop2 "title" title]
+  (name,props) <- elementWithProps level
+  --let titleProp = if title == "" then [] else [Prop2 "title" title]
   content <- many (singleElement $ level + 1)
-  return $ Element name (titleProp ++ props ++ content)
+  return $ Element name props content
 ----------------------------------------------------
 
 contentElement level =
@@ -134,25 +129,27 @@ asteriskLine n tag = do
   eol
   return $ trim content
 
-elementWithProps :: Int -> P (String,String,[Prop])
+elementWithProps :: Int -> P (String,Map.Map String String)
 elementWithProps n = do
   string $ take n $ repeat '*'
   space
   name <- many (noneOf " ¬:\n\r")
   content <- many (noneOf "¬:\n\r")
   props <- singleColonProp `sepBy` (many (noneOf "¬:\n\r"))
+  let mergedProps = foldl Map.union (Map.singleton "title" (trim content)) props
   restOfLine
-  return $ (trim name,trim content,props)
+  return $ (trim name,mergedProps)
 
-asteriskLineWithProps :: Int -> String -> P (String,[Prop])
+asteriskLineWithProps :: Int -> String -> P (String,Map.Map String String)
 asteriskLineWithProps n tag = do
   string $ take n $ repeat '*'
   space
   try (string tag <|> string ("TODO "++tag))
   content <- many (noneOf "¬:\n\r")
   props <- singleColonProp `sepBy` (many (noneOf "¬:\n\r"))
+  let mergedProps = foldl Map.union (Map.singleton "title" (trim content)) props
   restOfLine
-  return $ (trim content,props)
+  return (trim content,mergedProps)
 
 implicitText = do
   content <- many1 regularLineWithEol
@@ -220,7 +217,7 @@ singleColonProp =
 colonProp1 = do
   char ':'
   name <- many (noneOf " :\n\r")
-  return $ Prop1 name
+  return $ Map.singleton name "t"
 
 colonProp2 = do
   char ':'
@@ -228,8 +225,8 @@ colonProp2 = do
   char ' '
   value <- many (noneOf ":\n\r")
   if trim value == ""
-  then return (Prop1 name)
-  else return $ Prop2 name (trim value)
+  then return (Map.singleton name "t")
+  else return $ Map.singleton name (trim value)
 
 ----------------------------------------------
 

@@ -14,77 +14,103 @@ import qualified Data.Map as Map
 import Debug.Trace
 import System.IO
 import GHC.IO.Encoding
+import Data.Maybe
 
-inputToEnvAndContent :: Map.Map String [Element] -> String -> String -> IO (Map.Map String [Element],[Element])
-inputToEnvAndContent initialEnv variant input = do
+string2elements :: Map.Map String [Element] -> Map.Map String String -> String -> IO [Element]
+string2elements env props inputstr = string2elements' env props inputstr []
+
+string2elements' :: Map.Map String [Element] -> Map.Map String String -> String -> [Element] -> IO [Element]
+string2elements' env props input elements = do
   let content = parseInput input
-  (env,contentWithoutDefs) <- evaluateDefsAndImports variant content
-  let evaluated = evalElements (Map.union env initialEnv) contentWithoutDefs
-  return (env,evaluated)
+  evaluate env props (content ++ elements)
 
-evaluateDefsAndImports :: String -> [Element] -> IO (Map.Map String [Element],[Element])
-evaluateDefsAndImports variant e@((Def name elements):es) = do
-  (env, content) <- evaluateDefsAndImports variant es
-  return (Map.insert name elements env, content)
-evaluateDefsAndImports variant (e@(Element name subelements):es) | name == variant =
-  evaluateDefsAndImports variant (subelements ++ es)
-evaluateDefsAndImports variant (e@(Import path):es) = do
+evaluate :: Map.Map String [Element]  -- środowisko (definicje: String -> [Element])
+         -> Map.Map String String     -- akumulowane props z wyższych elementów, propagowane niżej, początkowo puste
+         -> [Element]                 -- ewaluowane elementy
+         -> IO [Element]
+
+-- dopisz def do środowiska i ewaluuj resztę
+-- def nie ma właściwości, więc props bez zmian
+evaluate env props ((Def name elements):es) =
+  evaluate (Map.insert name elements env) props es
+
+-- jeśli napotkano instrukcję importu
+-- wczytaj i ewaluuj zawartość pliku
+evaluate env props ((Import path):es) = do
   hinput <- openFile path ReadMode
   hSetEncoding hinput utf8
   input <- hGetContents hinput
-  (importedEnv,importedContent) <- inputToEnvAndContent Map.empty variant input
+  result <- string2elements' env props input es
   hClose hinput
-  (env, content) <- evaluateDefsAndImports variant es
-  return (Map.union env importedEnv, importedContent ++ content)  
-evaluateDefsAndImports variant (e:es) = do
-  (env, content) <- evaluateDefsAndImports variant es
-  return (env, e:content)
-evaluateDefsAndImports _ [] = return (Map.empty,[])
+  return result
 
-evalElements :: Map.Map String [Element] -> [Element] -> [Element]
-evalElements env e@((Element name arguments):es) =
+-- jeśli napotkano element to mamy 3 przypadki:
+evaluate env props ((Element name eprops subelements):es) =
+
   case (Map.lookup name env) of
-            Just defElements ->
-              let newEnv = Map.union (argumentsAsEnv arguments) env
-                  defApplied = applyArguments arguments newEnv defElements
-              in
-                 evalElements env defApplied ++ evalElements env es
-            _ ->
-                 (Element name $ evalElements env arguments) : evalElements env es
-evalElements env (e:es) = e : evalElements env es
-evalElements env [] = []
 
-argumentsAsEnv = argumentsAsEnv' 1 (Map.empty)
+    -- przypadek 1: środowisko zawiera pustą definicję z nazwą równą nazwie elementu
+    -- przyjmij że to jest wariant i dodaj podelementy
+    Just [] ->
+      evaluate env (Map.union eprops props) (subelements ++ es)
 
-argumentsAsEnv' :: Int -> Map.Map String [Element] -> [Element] -> Map.Map String [Element]
-argumentsAsEnv' n env ((Prop1 name):es) = argumentsAsEnv' n (Map.insert name [] env) es
-argumentsAsEnv' n env ((Prop2 name value):es) = argumentsAsEnv' n (Map.insert name [Include value] env) es
-argumentsAsEnv' n env (e:es) = argumentsAsEnv' (n+1) (Map.insert (show n) [e] env) es
-argumentsAsEnv' _ env [] = env
+    -- przypadek 2: środowisko zawiera niepustą definicję z nazwą równą nazwie elementu
+    -- zastąp element definicją, podstawiając argumenty
+    Just defBody -> do
+      let bodyWithArgsApplied = defBody >>= applyArguments (Map.union eprops props) subelements 
+      evaluatedBody <- evaluate env (Map.union eprops props) bodyWithArgsApplied
+      evaluatedTail <- evaluate env (Map.union eprops props) es
+      return $ evaluatedBody ++ evaluatedTail
 
-applyArguments :: [Element] -> Map.Map String [Element] -> [Element] -> [Element]
+    -- przypadek 3: środowisko nie ma elementu: pozostaw element bez zmian, ale z ewaluacją podelementów i łączeniem props
+    Nothing -> do
+      evaluatedTail <- evaluate env props es
+      evaluatedSubelements <- evaluate env (Map.union eprops props) subelements
+      return $ (Element name (Map.union eprops props) evaluatedSubelements) : evaluatedTail
 
-applyArguments args env ((Element name elements):es) =
-  (Element name (applyArguments args env elements)) : applyArguments args env es
+-- jeśli napotkano inny element
+evaluate env props (e:es) = do
+  evaluatedTail <- evaluate env props es
+  return $ e : evaluatedTail
 
-applyArguments args env (e@(Arg name):es) =
-  case (Map.lookup name env) of
-    Just elements -> elements ++ applyArguments args env es
-    _ -> applyArguments args env es
+-- zakończ na końcu listy
+evaluate _ _ [] = return []
 
-applyArguments args env ((IfArgPresent name elements):es) =
-  case (Map.lookup name env) of
-    Just _ -> applyArguments args env elements ++ applyArguments args env es
-    _ -> applyArguments args env es
+applyArguments :: Map.Map String String    -- akumulowane props z wyższych elementów
+               -> [Element]                -- argumenty
+               -> Element                  -- fragment definicji, do którego stosujemy argumenty
+               -> [Element]                -- fragment definicji w którym parametry zastąpiono argumentami
 
-applyArguments args env ((IfArgEq name value elements):es) =
-  case (Map.lookup name env) of
-    Just [Include v] | v == value -> applyArguments args env elements ++ applyArguments args env es
-    _ -> applyArguments args env es
+-- element: aplikuj argumenty do podelementów
+applyArguments props args (Element name eprops subelements) =
+  [Element name eprops (subelements >>= applyArguments props args)]
 
-applyArguments args env (Args:es) =
-  args ++ applyArguments args env es
+-- IfEq: zbadaj czy w props jest taka wartość i jeśli tak
+-- zwróć przetworzone elementy
+-- w przeciwnym razie zwróć listę pustą
+applyArguments props args (IfEq name value elements) =
+  case (Map.lookup name props) of
+    Just actualValue | actualValue == value ->
+      elements >>= applyArguments props args
+    _ -> []
 
-applyArguments args env (e:es) = e : applyArguments args env es
+-- IfDef: zbadaj czy w props jest taka wartość zdefiniowana
+-- zwróć przetworzone elementy
+-- w przeciwnym razie zwróć listę pustą
+applyArguments props args (IfDef name elements) =
+  case (Map.lookup name props) of
+    Just _ -> elements >>= applyArguments props args
+    _ -> []
 
-applyArguments args env [] = []
+-- AsText: dodaj jako tekst
+applyArguments props args (AsText name) =
+  case (Map.lookup name props) of
+    Just text -> [Text text]
+    _ -> []
+
+-- jeśli ciało zawiera Args
+-- skopiuj argumenty ale dodając do nich własności (todo)
+applyArguments props args Args = args
+
+-- każdy inny element pozostaw bez zmian
+applyArguments args env e = [e]

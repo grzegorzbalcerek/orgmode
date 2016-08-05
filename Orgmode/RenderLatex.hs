@@ -32,10 +32,10 @@ imageHeight 'w' = 34
 renderElement :: RenderType -> [Element] -> Element -> String
 renderElement _ _ (Include content) = content
 renderElement _ allElements (Text txt) = renderText allElements txt
-renderElement "Book" allElements (Element "CHAPTER" parts) =
-  let title = stringProp2 "title" parts
-      label = stringProp2 "label" parts
-      firstSectionTitle (Element "SECTION" elements : _) = stringProp2 "title" elements
+renderElement "Book" allElements (Element "CHAPTER" props parts) =
+  let title = stringProp2 "title" props
+      label = stringProp2 "label" props
+      firstSectionTitle (Element "SECTION" props elements : _) = stringProp2 "title" props
       firstSectionTitle (_:rest) = firstSectionTitle rest
       firstSectionTitle [] = ""
   in
@@ -51,20 +51,20 @@ renderElement "Book" allElements (Element "CHAPTER" parts) =
           "\\markboth{" ++ title ++ "}{" ++ firstSectionTitle parts ++ "}"
      else "") ++
     concat (map (renderElement "Book" allElements) parts) ++ "\n"
-renderElement rt allElements (Element "SECTION" parts) =
-  let label = stringProp2 "label" parts
+renderElement rt allElements (Element "SECTION" props parts) =
+  let label = stringProp2 "label" props
   in
-    stringProp2 "latex1" parts ++
+    stringProp2 "latex1" props ++
     (if label == ""
      then ""
      else "\\setcounter{section}{" ++ label ++ "}\\addtocounter{section}{-1}") ++
     "\n\\section" ++
     (if label == "" then "*" else "") ++
-    "{" ++ renderText allElements (stringProp2 "title" parts) ++ "}\n" ++
-    (if label == "" then "\\addcontentsline{toc}{section}{" ++ (stringProp2 "title" parts) ++ "}" else "") ++
-    concat (map (renderElement rt allElements) parts) ++ stringProp2 "latex2" parts ++ "\n"
+    "{" ++ renderText allElements (stringProp2 "title" props) ++ "}\n" ++
+    (if label == "" then "\\addcontentsline{toc}{section}{" ++ (stringProp2 "title" props) ++ "}" else "") ++
+    concat (map (renderElement rt allElements) parts) ++ stringProp2 "latex2" props ++ "\n"
 renderElement rt allElements (Note noteType props parts) =
-  "\n\n" ++ stringProp2 "latex1" props ++ "\n\n" ++ renderIndexEntries props ++ "\\begin{tabular}{lp{1cm}p{11.2cm}}\n" ++
+  "\n\n" ++ stringProp2 "latex1" props ++ "\n\n" ++ {- renderIndexEntries props ++ -} "\\begin{tabular}{lp{1cm}p{11.2cm}}\n" ++
   "\\cline{2-3}\\noalign{\\smallskip}\n" ++
   "&\\raisebox{-" ++ (show $ (imageHeight $ head noteType) - 10) ++
   "pt}{\\includegraphics[height=" ++ (show.imageHeight $ head noteType) ++ "pt]{" ++
@@ -86,8 +86,8 @@ renderElement rt allElements (Table props rows) =
     concat (map renderRow rows) ++
     "\\end{" ++ t ++ "}\n" ++
     "\n" ++ stringProp2 "latex2" props
-renderElement rt allElements (Element "COMMENT" parts) = ""
-renderElement rt allElements (Element "PAGE" parts) =
+renderElement rt allElements (Element "COMMENT" _ parts) = ""
+renderElement rt allElements (Element "PAGE" _ parts) =
     concat (map (renderElement rt allElements) parts) ++ "\n\\vfill\\eject\n"
 renderElement _ _ _ = ""
 
@@ -135,10 +135,10 @@ removeAlignment = filter (\c -> c/='«' && c/='¤' && c/='»' && c/='¦' && c/='
 
 ----------------------------------------------------
 
-renderIndexEntries =
-  foldl (\acc p -> case p of
-                     Prop2 "x" entry -> "\\index{" ++ renderIndex entry ++ "}" ++ acc
-                     _ -> acc) ""
+renderIndexEntries = ""
+--  foldl (\acc p -> case p of
+--                     Prop2 "x" entry -> "\\index{" ++ renderIndex entry ++ "}" ++ acc
+--                     _ -> acc) ""
 
 ----------------------------------------------------
 
@@ -150,13 +150,13 @@ renderSrcBook rt description props src =
         else line
       boldCommands = unlines . map boldCommand . lines
       fileName = pathFileName props
-      renderConsoleLike = boldCommands (renderCodeBook description props (divideLongLines 89 src))
+      renderConsoleLike = boldCommands (renderCodeBook description (divideLongLines 89 src))
       renderFile =
              (if fileName == ""
               then ""
               else "\\includegraphics[width=7pt]{filesign.png} \\textbf{Plik " ++ fileName ++
                 (if hasProp1 "fragment" props then " (fragment)" else "") ++ ":}\n") ++
-             renderCodeBook description props (divideLongLines 89 src)
+             renderCodeBook description (divideLongLines 89 src)
       render =
         if stringProp2 "console" props /= ""
         then renderConsoleLike
@@ -167,8 +167,8 @@ renderSrcBook rt description props src =
     else 
       stringProp2 "latex1" props ++ "\n\\begin{alltt}\\footnotesize\\leftskip10pt\n" ++ render ++ "\\end{alltt}\n\n" ++ stringProp2 "latex2" props
 
-renderCodeBook :: String -> [Prop] -> String -> String
-renderCodeBook sourceType props src =
+renderCodeBook :: String -> String -> String
+renderCodeBook sourceType src =
   let f :: Char -> String -> String
       f c acc =
         case (c, break (c ==) acc) of
@@ -250,9 +250,7 @@ renderSrcSlides (Src _ props content) =
     let lns = lines content
         height = floor $ 1.1 * fromIntegral (length lns)
         textwidth = maximum $ map (length . filter (\c -> ord c < 256)) lns
-        width = foldl (\w o -> case o of
-                              Prop2 "width" v -> read v `max` w
-                              _ -> w) textwidth props
+        width = maybe textwidth (\v -> read v `max` textwidth) $ Map.lookup "width" props
         textsize =
           if width <= 45 && height <= 15 then "Large"
           else if width <= 55 && height <= 18 then "large"
@@ -269,7 +267,7 @@ renderSrcSlides (Src _ props content) =
         "\\" ++ textsize ++ "\n" ++
         verbatimContent content
 
-renderCodeSlides :: [Prop] -> String -> String
+renderCodeSlides :: Map.Map String String -> String -> String
 renderCodeSlides props src =
   let sourceType = stringProp2 "type" props
       keywordlike =
@@ -466,7 +464,7 @@ renderText' allElements (c:acc) =
 chapterReference :: [Element] -> String -> (String)
 chapterReference parts chapterId =
   case parts of
-    (Element "CHAPTER" props):tailElements ->
+    (Element "CHAPTER" props _):tailElements ->
       let chId = idProp (stringProp2 "title" props) props
           chLabel = stringProp2 "label" props
       in
@@ -479,9 +477,9 @@ chapterReference parts chapterId =
 sectionReference :: [Element] -> String -> String -> (String)
 sectionReference parts chapterId sectionId =
   case parts of
-    (Element "CHAPTER" chapterElements):tailElements ->
-      let chId = idProp (stringProp2 "title" chapterElements) chapterElements
-          chLabel = stringProp2 "label" chapterElements
+    (Element "CHAPTER" props chapterElements):tailElements ->
+      let chId = idProp (stringProp2 "title" props) props
+          chLabel = stringProp2 "label" props
       in
           if chId == chapterId
           then sectionReference' chapterElements chId chLabel sectionId
@@ -492,7 +490,7 @@ sectionReference parts chapterId sectionId =
 sectionReference' :: [Element] -> String -> String -> String -> (String)
 sectionReference' parts chapterId chapterLabel sectionId =
   case parts of
-    (Element "SECTION" props):tailElements ->
+    (Element "SECTION" props _):tailElements ->
       let secId = idProp (stringProp2 "title" props) props
           secLabel = stringProp2 "label" props
       in
@@ -526,30 +524,30 @@ checkPrefixes prefixes str =
 latexEnv :: Map.Map String [Element]
 latexEnv = Map.fromList
   [ ("PAUSE",[Include "\\pause\n"])
-  , ("CENTER", [Include "\\centerline{", Arg "title", Arg "1", Include "}\n"])
-  , ("H1", [Include "\\textbf{\\Huge ", Arg "title", Arg "1", Include "}\\par\n"])
-  , ("H2", [Include "\\textbf{\\huge ", Arg "title", Arg "1", Include "}\\par\n"])
-  , ("H3", [Include "\\textbf{\\LARGE ", Arg "title", Arg "1", Include "}\\par\n"])
-  , ("H4", [Include "\\textbf{\\Large ", Arg "title", Arg "1", Include "}\\par\n"])
-  , ("H5", [Include "\\textbf{\\large ", Arg "title", Arg "1", Include "}\\par\n"])
-  , ("H6", [Include "\\textbf{\\normalsize ", Arg "title", Arg "1", Include "}\\par\n"])
-  , ("C1", [Include "\\textbf{\\centerline{\\Huge ", Arg "title", Arg "1", Include "}}\\par\n"])
-  , ("C2", [Include "\\textbf{\\centerline{\\huge ", Arg "title", Arg "1", Include "}}\\par\n"])
-  , ("C3", [Include "\\textbf{\\centerline{\\LARGE ", Arg "title", Arg "1", Include "}}\\par\n"])
-  , ("C4", [Include "\\textbf{\\centerline{\\Large ", Arg "title", Arg "1", Include "}}\\par\n"])
-  , ("C5", [Include "\\textbf{\\centerline{\\large ", Arg "title", Arg "1", Include "}}\\par\n"])
-  , ("C6", [Include "\\textbf{\\centerline{\\normalsize ", Arg "title", Arg "1", Include "}}\\par\n"])
+  , ("CENTER", [Include "\\centerline{", AsText "title", Args, Include "}\n"])
+  , ("H1", [Include "\\textbf{\\Huge ", AsText "title", Args, Include "}\\par\n"])
+  , ("H2", [Include "\\textbf{\\huge ", AsText "title", Args, Include "}\\par\n"])
+  , ("H3", [Include "\\textbf{\\LARGE ", AsText "title", Args, Include "}\\par\n"])
+  , ("H4", [Include "\\textbf{\\Large ", AsText "title", Args, Include "}\\par\n"])
+  , ("H5", [Include "\\textbf{\\large ", AsText "title", Args, Include "}\\par\n"])
+  , ("H6", [Include "\\textbf{\\normalsize ", AsText "title", Args, Include "}\\par\n"])
+  , ("C1", [Include "\\textbf{\\centerline{\\Huge ", AsText "title", Args, Include "}}\\par\n"])
+  , ("C2", [Include "\\textbf{\\centerline{\\huge ", AsText "title", Args, Include "}}\\par\n"])
+  , ("C3", [Include "\\textbf{\\centerline{\\LARGE ", AsText "title", Args, Include "}}\\par\n"])
+  , ("C4", [Include "\\textbf{\\centerline{\\Large ", AsText "title", Args, Include "}}\\par\n"])
+  , ("C5", [Include "\\textbf{\\centerline{\\large ", AsText "title", Args, Include "}}\\par\n"])
+  , ("C6", [Include "\\textbf{\\centerline{\\normalsize ", AsText "title", Args, Include "}}\\par\n"])
   , ("PARA", [Args, Include "\\par\n"])
-  , ("ITEMS", [Include "\n\\begin{itemize}\n",  IfArgEq "style" "none" [Include "\\renewcommand{\\labelitemi}{}\n"], Args, Include "\\end{itemize}\n"])
-  , ("ITEM", [Include "\\item{", Arg "title", Args, Include "}\n"])
-  , ("SLIDE", [Include "\\begin{frame}[fragile]\n", IfArgPresent "title" [Include "\\frametitle{", Arg "title", Include "}\n"], Args, Include "\\end{frame}\n"])
-  , ("BLOCK", [Include "\\begin{block}{", Arg "title", Include "}\n", Args, Include "\\end{block}\n"])
-  , ("EXAMPLEBLOCK", [Include "\\begin{exampleblock}{", Arg "title", Include "}\n", Args, Include "\\end{exampleblock}\n"])
+  , ("ITEMS", [Include "\n\\begin{itemize}\n",  IfEq "style" "none" [Include "\\renewcommand{\\labelitemi}{}\n"], Args, Include "\\end{itemize}\n"])
+  , ("ITEM", [Include "\\item{", AsText "title", Args, Include "}\n"])
+  , ("SLIDE", [Include "\\begin{frame}[fragile]\n", IfDef "title" [Include "\\frametitle{", AsText "title", Include "}\n"], Args, Include "\\end{frame}\n"])
+  , ("BLOCK", [Include "\\begin{block}{", AsText "title", Include "}\n", Args, Include "\\end{block}\n"])
+  , ("EXAMPLEBLOCK", [Include "\\begin{exampleblock}{", AsText "title", Include "}\n", Args, Include "\\end{exampleblock}\n"])
   , ("SHOWINDEX", [Include "\\printindex\n"])
   , ("DOCUMENTEND", [Include "\\end{document}\n"])
-  , ("HEADER1", [Include "\\centerline{\\tikz{\\node[scale=1]{", Arg "title", Arg "1", Include "};}}\n"])
-  , ("IMG", [Include "\\begin{center}\n\\includegraphics", Arg "square", Include "{",Arg "latexfile",Include "}\n",
-             IfArgPresent "label" [Include "\\par\n", Arg "label",Include "\n"],
+  , ("HEADER1", [Include "\\centerline{\\tikz{\\node[scale=1]{", AsText "title", Args, Include "};}}\n"])
+  , ("IMG", [Include "\\begin{center}\n\\includegraphics", AsText "square", Include "{",AsText "latexfile",Include "}\n",
+             IfDef "label" [Include "\\par\n", AsText "label",Include "\n"],
              Include "\\end{center}\n"])
   ]
 
