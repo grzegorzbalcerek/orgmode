@@ -58,8 +58,8 @@ idProp fallback =
                      Prop2 "id" ident -> ident
                      _ -> acc) (filter (\c -> c `elem` " ") fallback)
 
-intProp :: String -> [Element] -> Int
-intProp name =
+intProp2 :: String -> [Element] -> Int
+intProp2 name =
   foldl (\acc p -> case p of
                      Prop2 n x | n == name -> read x
                      _ -> acc) 0
@@ -70,14 +70,14 @@ hasProp1 name =
                      Prop1 n | n == name -> True
                      _ -> acc) False
 
-stringPropMaybe :: String -> [Element] -> Maybe String
-stringPropMaybe name =
+stringProp2Maybe :: String -> [Element] -> Maybe String
+stringProp2Maybe name =
   foldl (\acc p -> case p of
                      Prop2 n t | n == name -> Just t
                      _ -> acc) Nothing
 
-stringProp :: String -> [Element] -> String
-stringProp name =
+stringProp2 :: String -> [Element] -> String
+stringProp2 name =
   foldl (\acc p -> case p of
                      Prop2 n hp | n == name -> hp
                      _ -> acc) ""
@@ -105,7 +105,3 @@ filterSection' (sec@(Element "SECTION" props) : rest) wantedSectionId =
   else filterSection' rest wantedSectionId
 filterSection' (_:rest) wantedSectionId = filterSection' rest wantedSectionId
 filterSection' [] wantedSectionId = []
-
-isBook :: RenderType -> Bool
-isBook "Book" = True
-isBook _ = False

@@ -19,7 +19,6 @@ inputToEnvAndContent initialEnv variant input = do
   let content = parseInput input
   (env,contentWithoutDefs) <- evaluateDefsAndImports variant content
   let evaluated = evalElements (Map.union env initialEnv) contentWithoutDefs
-  putStrLn $ "Content parsed. Length: " ++ show (length evaluated) ++ "."
   return (env,evaluated)
 
 evaluateDefsAndImports :: String -> [Element] -> IO (Map.Map String [Element],[Element])

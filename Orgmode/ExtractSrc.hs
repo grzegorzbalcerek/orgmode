@@ -39,7 +39,7 @@ truncateFiles elements =
     case element of
       Element _ elements -> truncateFiles elements
       Note _  _ elements -> truncateFiles elements
-      Src srcType props _ -> truncateFile $ stringProp "path" props
+      Src srcType props _ -> truncateFile $ stringProp2 "path" props
       _ -> return ()
 
 truncateFile :: String -> IO ()
@@ -57,12 +57,12 @@ extractSrcFromElements' elements mode = do
       Element _ elements -> extractSrcFromElements' elements mode
       Note _ _ elements -> extractSrcFromElements' elements mode
       Src srcType props str ->
-        case (mode,stringProp "path" props) of
-             (WriteFilePaths,"")   -> return ()
-             (WriteFilePaths,"-")  -> return ()
-             (WriteFilePaths,file) -> writeToFile file $ getSrcContent srcType props str
-             (ShowMinusPaths,"-")  -> putStrLn $ getSrcContent srcType props str
-             (ShowMinusPaths,_)    -> return ()
+        case (mode,stringProp2 "path" props,hasProp1 "show" props) of
+             (WriteFilePaths,"",_)   -> return ()
+             (WriteFilePaths,"-",_)  -> return ()
+             (WriteFilePaths,file,_) -> writeToFile file $ getSrcContent srcType props str
+             (ShowMinusPaths,_,True)  -> putStrLn $ getSrcContent srcType props str
+             (ShowMinusPaths,_,False)    -> return ()
       _ -> return ()
 
 writeToFile :: String -> String -> IO ()
@@ -80,11 +80,11 @@ getSrcContent srcType props src =
       filterDollarOrGtPrompts xs = filter (\x -> take 2 x == "$ " || take 2 x == "> ") xs
       filterGtPrompts xs = filter (\x -> take 2 x == "> " || take 2 x == "| ") xs
       filteredSrc =
-        case stringProp "console" props of
+        case stringProp2 "console" props of
          "scala" -> unlines . map (drop 7) . filterScalaPrompts . lines $ filteredHighUnicodes
          "cmd" -> unlines . map (drop 2) . filterDollarPrompts . lines $ filteredHighUnicodes
          "elm" -> unlines . map (drop 2) . filterGtPrompts . lines $ filteredHighUnicodes
          "sbt" -> unlines . map (drop 2) . filterDollarOrGtPrompts . lines $ filteredHighUnicodes
          _ -> filteredHighUnicodes
-  in (take (intProp "prependnl" props) (repeat '\n')) ++ filteredSrc
+  in (take (intProp2 "prependnl" props) (repeat '\n')) ++ filteredSrc
 

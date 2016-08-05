@@ -40,7 +40,7 @@ writeToc env outputPath chapters = do
   let chapterLinks = chapters >>= (\chapter -> runReader (renderChapterLink env chapter) allElements)
   let content = "<h1>" ++ tableOfContents ++ "</h1>\n<ul class='toc'>\n" ++ chapterLinks ++ "</ul>\n"
   let (Element _ props) = head chapters
-  let right = idProp (stringProp "title" props) props
+  let right = idProp (stringProp2 "title" props) props
   let footer = renderElements env allElements $ evalElements env [Element "MultiHtmlFooter" []]
   let output = page "Spis treści" content "index" "index" right footer
   liftIO $ putStrLn $ "Generating " ++ path
@@ -49,7 +49,7 @@ writeToc env outputPath chapters = do
 
 renderChapterLink :: Map.Map String [Element] -> Element -> Reader [Element] String
 renderChapterLink env (Element "CHAPTER" elements) = do
-  let title = stringProp "title" elements
+  let title = stringProp2 "title" elements
   chTitle <- chapterTitle env title elements
   return $ "<li><a href='" ++ (idProp title elements) ++ ".html'>" ++ chTitle ++ "</a>\n"
 renderChapterLink _ _ = return ""
@@ -58,18 +58,18 @@ writeChapters :: Map.Map String [Element] -> String -> [Element] -> String -> [E
 writeChapters env outputPath allElements previousId chapters =
   case chapters of
     ch@(Element "CHAPTER" sections):nextChapters -> do
-      writeChapter env outputPath allElements (stringProp "title" sections) sections sections previousId nextChapters
+      writeChapter env outputPath allElements (stringProp2 "title" sections) sections sections previousId nextChapters
       writeChapters env outputPath allElements (getLastId ch sections) nextChapters
     _ -> return ()
 
-getLastId (Element "CHAPTER" props) [] = idProp (stringProp "title" props) props
-getLastId (Element "CHAPTER" props) ((Element "SECTION" sProps):[]) = (idProp (stringProp "title" props) props) ++ "_" ++ (idProp (stringProp "title" sProps) sProps)
+getLastId (Element "CHAPTER" props) [] = idProp (stringProp2 "title" props) props
+getLastId (Element "CHAPTER" props) ((Element "SECTION" sProps):[]) = (idProp (stringProp2 "title" props) props) ++ "_" ++ (idProp (stringProp2 "title" sProps) sProps)
 getLastId ch (_:sections) = getLastId ch sections
 
 writeChapter :: Map.Map String [Element] -> String -> [Element] -> String -> [Prop] -> [Element] -> String -> [Element] -> IO ()
 writeChapter env outputPath allElements title props chapterElements previousId nextChapters = do
   let chId = idProp title props
-  let chLabel = stringProp "label" props
+  let chLabel = stringProp2 "label" props
   let content = runReader (renderChapterContent env title props chapterElements) allElements
   let left = previousId
   let right = headElementId chId $ (sectionsOnly chapterElements) ++ nextChapters
@@ -89,8 +89,8 @@ writePage env outputPath name title content left up right = do
 
 headElementId chId parts =
   case parts of
-    (Element "SECTION" props):_ -> chId ++ "_" ++ idProp (stringProp "title" props) props
-    (Element "CHAPTER" props):_ -> idProp (stringProp "title" props) props
+    (Element "SECTION" props):_ -> chId ++ "_" ++ idProp (stringProp2 "title" props) props
+    (Element "CHAPTER" props):_ -> idProp (stringProp2 "title" props) props
     _:next -> headElementId chId next
     [] -> ""
 
@@ -98,8 +98,8 @@ writeSections :: Map.Map String [Element] -> String -> [Element] -> String -> St
 writeSections env outputPath allElements chId chLabel previousId sections nextChapters = do
   case sections of
     sec@(Element "SECTION" parts):nextSections -> do
-      writeSection env outputPath allElements chId chLabel (stringProp "title" parts) parts parts previousId nextSections nextChapters
-      writeSections env outputPath allElements chId chLabel (chId ++ "_" ++ idProp (stringProp "title" parts) parts) nextSections nextChapters
+      writeSection env outputPath allElements chId chLabel (stringProp2 "title" parts) parts parts previousId nextSections nextChapters
+      writeSections env outputPath allElements chId chLabel (chId ++ "_" ++ idProp (stringProp2 "title" parts) parts) nextSections nextChapters
     (_:nextSections) ->
       writeSections env outputPath allElements chId chLabel previousId nextSections nextChapters
     [] -> return ()
@@ -144,7 +144,7 @@ nonContainerElement = not . containerElement
 chapterTitle :: Map.Map String [Element] -> [Char] -> [Prop] -> Reader [Element] [Char]
 chapterTitle env title props = do
   allElements <- ask
-  let label = stringProp "label" props
+  let label = stringProp2 "label" props
   let chapterName = init $ renderElements env allElements $ evalElements env [Element "Chapter" []]
   let appendixName = init $ renderElements env allElements $ evalElements env [Element "Appendix" []]
   let prefix =
@@ -155,7 +155,7 @@ chapterTitle env title props = do
 
 
 sectionTitle chapterLabel title props =
-  let label = stringProp "label" props
+  let label = stringProp2 "label" props
       prefix =
         if label == "" || chapterLabel == "" then ""
         else chapterLabel ++ "." ++ label ++ ". "
@@ -166,7 +166,7 @@ renderChapterContent :: Map.Map String [Element] -> String -> [Prop] -> [Element
 renderChapterContent env title props parts = do
   allElements <- ask
   let chId = idProp title props
-  let chLabel = stringProp "label" props
+  let chLabel = stringProp2 "label" props
   chTitle <- chapterTitle env title props
   return $ "<h1 class='chapter'>" ++ chTitle ++ "</h1>\n" ++
     renderElements env allElements (filter nonContainerElement parts) ++
@@ -175,7 +175,7 @@ renderChapterContent env title props parts = do
     "</ul>\n"
 
 renderSectionLink chId chLabel (Element "SECTION" props) =
-  "<li><a href='" ++ chId ++ "_" ++ (idProp (stringProp "title" props) props) ++ ".html'>" ++ sectionTitle chLabel (stringProp "title" props) props ++ "</a>\n"
+  "<li><a href='" ++ chId ++ "_" ++ (idProp (stringProp2 "title" props) props) ++ ".html'>" ++ sectionTitle chLabel (stringProp2 "title" props) props ++ "</a>\n"
 renderSectionLink _ _ _ = ""
 
 renderElements :: Map.Map String [Element] -> [Element] -> [Element] -> String
@@ -184,7 +184,7 @@ renderElements env allElements parts = concat (fmap (renderElement env allElemen
 renderElement :: Map.Map String [Element] -> [Element] -> Element -> String
 renderElement env _ (Element "CHAPTER" parts) = ""
 renderElement env allElements (Element "SECTION" parts) =
-  "<h2 class='section'>" ++ (stringProp "title" parts) ++ "</h2>\n" ++
+  "<h2 class='section'>" ++ (stringProp2 "title" parts) ++ "</h2>\n" ++
   renderElements env allElements parts
 renderElement env allElements (Note noteType _ parts) =
   "<table class='remark'><tr><td class='remarksymbol'><img src='" ++
@@ -204,7 +204,7 @@ renderElement env allElements (Src srcType props src) =
   in 
     if hasProp1 "norender" props
     then ""
-    else case stringProp "console" props of
+    else case stringProp2 "console" props of
            "cmd" -> "<pre>" ++ boldCommands "$ " (renderSource srcType props src) ++ "</pre>\n"
            "elm" -> "<pre>" ++ boldCommands "&gt; " (renderSource srcType props src) ++ "</pre>\n"
            "scala" -> "<pre>" ++ boldCommands "scala&gt; " (renderSource srcType props src) ++ "</pre>\n"
@@ -216,10 +216,10 @@ renderElement env allElements (Src srcType props src) =
                   (if hasProp1 "fragment" props then " (fragment)" else "") ++ ":</b>\n") ++
               renderSource srcType props src ++ "</pre>\n"
 --renderElement env allElements (Items props items) =
---  let style = maybe "list" id $ stringPropMaybe "style" props
+--  let style = maybe "list" id $ stringProp2Maybe "style" props
 --  in  "<ul class='" ++ style ++ "'>\n" ++ concat (map (renderItem allElements) items) ++  "</ul>\n"
 --renderElement env allElements (Img props file) =
---  "<div><img src='" ++ file ++ stringProp "html" props ++ "'></img><div class='caption'>" ++ (renderText allElements $ stringProp "label" props) ++ "</div></div>\n"
+--  "<div><img src='" ++ file ++ stringProp2 "html" props ++ "'></img><div class='caption'>" ++ (renderText allElements $ stringProp2 "label" props) ++ "</div></div>\n"
 renderElement env allElements (Table props rows) =
   "<table>" ++ concat (map renderTableRow rows) ++ "</table>\n"
 renderElement env allElements (Include content) = content
@@ -382,8 +382,8 @@ chapterReference :: [Element] -> String -> (String)
 chapterReference parts chapterId =
   case parts of
     (Element "CHAPTER" props):tailElements ->
-      let chId = idProp (stringProp "title" props) props
-          chLabel = stringProp "label" props
+      let chId = idProp (stringProp2 "title" props) props
+          chLabel = stringProp2 "label" props
       in
           if chId == chapterId
           then "<a href='" ++ chId ++".html'>" ++ chLabel ++ "</a>"
@@ -394,8 +394,8 @@ sectionReference :: [Element] -> String -> String -> (String)
 sectionReference parts chapterId sectionId = --"xxxx"++chapterId++"cccc"++sectionId++"vvvv"
   case parts of
     (Element "CHAPTER" chapterElements):tailElements ->
-      let chId = idProp (stringProp "title" chapterElements) chapterElements
-          chLabel = stringProp "label" chapterElements
+      let chId = idProp (stringProp2 "title" chapterElements) chapterElements
+          chLabel = stringProp2 "label" chapterElements
       in
           if chId == chapterId
           then sectionReference' chapterElements chId chLabel sectionId
@@ -406,8 +406,8 @@ sectionReference' :: [Element] -> String -> String -> String -> (String)
 sectionReference' parts chapterId chapterLabel sectionId =
   case parts of
     (Element "SECTION" props):tailElements ->
-      let secId = idProp (stringProp "title" props) props
-          secLabel = stringProp "label" props
+      let secId = idProp (stringProp2 "title" props) props
+          secLabel = stringProp2 "label" props
       in
           if secId == sectionId
           then "<a href='" ++ chapterId ++ "_" ++ secId ++".html'>" ++ chapterLabel ++ "." ++ secLabel ++ "</a>"

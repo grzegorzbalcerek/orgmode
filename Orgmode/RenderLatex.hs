@@ -33,9 +33,9 @@ renderElement :: RenderType -> [Element] -> Element -> String
 renderElement _ _ (Include content) = content
 renderElement _ allElements (Text txt) = renderText allElements txt
 renderElement "Book" allElements (Element "CHAPTER" parts) =
-  let title = stringProp "title" parts
-      label = stringProp "label" parts
-      firstSectionTitle (Element "SECTION" elements : _) = stringProp "title" elements
+  let title = stringProp2 "title" parts
+      label = stringProp2 "label" parts
+      firstSectionTitle (Element "SECTION" elements : _) = stringProp2 "title" elements
       firstSectionTitle (_:rest) = firstSectionTitle rest
       firstSectionTitle [] = ""
   in
@@ -52,40 +52,40 @@ renderElement "Book" allElements (Element "CHAPTER" parts) =
      else "") ++
     concat (map (renderElement "Book" allElements) parts) ++ "\n"
 renderElement rt allElements (Element "SECTION" parts) =
-  let label = stringProp "label" parts
+  let label = stringProp2 "label" parts
   in
-    stringProp "latex1" parts ++
+    stringProp2 "latex1" parts ++
     (if label == ""
      then ""
      else "\\setcounter{section}{" ++ label ++ "}\\addtocounter{section}{-1}") ++
     "\n\\section" ++
     (if label == "" then "*" else "") ++
-    "{" ++ renderText allElements (stringProp "title" parts) ++ "}\n" ++
-    (if label == "" then "\\addcontentsline{toc}{section}{" ++ (stringProp "title" parts) ++ "}" else "") ++
-    concat (map (renderElement rt allElements) parts) ++ stringProp "latex2" parts ++ "\n"
+    "{" ++ renderText allElements (stringProp2 "title" parts) ++ "}\n" ++
+    (if label == "" then "\\addcontentsline{toc}{section}{" ++ (stringProp2 "title" parts) ++ "}" else "") ++
+    concat (map (renderElement rt allElements) parts) ++ stringProp2 "latex2" parts ++ "\n"
 renderElement rt allElements (Note noteType props parts) =
-  "\n\n" ++ stringProp "latex1" props ++ "\n\n" ++ renderIndexEntries props ++ "\\begin{tabular}{lp{1cm}p{11.2cm}}\n" ++
+  "\n\n" ++ stringProp2 "latex1" props ++ "\n\n" ++ renderIndexEntries props ++ "\\begin{tabular}{lp{1cm}p{11.2cm}}\n" ++
   "\\cline{2-3}\\noalign{\\smallskip}\n" ++
   "&\\raisebox{-" ++ (show $ (imageHeight $ head noteType) - 10) ++
   "pt}{\\includegraphics[height=" ++ (show.imageHeight $ head noteType) ++ "pt]{" ++
   [head noteType] ++ "sign.png" ++ -- (if head noteType == 'r' then ".png" else ".eps") ++
   "}}&\\small\\setlength{\\parskip}{2mm}" ++
   concat (map (renderElement "InNote" allElements) parts) ++
-  "\\\\ \\noalign{\\smallskip}\\cline{2-3}\n\\end{tabular}\n\n" ++ stringProp "latex2" props
+  "\\\\ \\noalign{\\smallskip}\\cline{2-3}\n\\end{tabular}\n\n" ++ stringProp2 "latex2" props
 renderElement "Slides" allElements (Src description props src) =
   renderSrcSlides (Src description props src)
 renderElement rt allElements (Src description props src) =
   renderSrcBook rt description props src
 renderElement rt allElements (Table props rows) =
-  let t = fromMaybe "tabular" $ stringPropMaybe "type" props
-      w = maybe "" (\x -> "{" ++ x ++ "}") $ stringPropMaybe "width" props
-      spec = stringProp "spec" props
+  let t = fromMaybe "tabular" $ stringProp2Maybe "type" props
+      w = maybe "" (\x -> "{" ++ x ++ "}") $ stringProp2Maybe "width" props
+      spec = stringProp2 "spec" props
   in
-    "\n" ++ stringProp "latex1" props ++
+    "\n" ++ stringProp2 "latex1" props ++
     "\n\\begin{" ++ t ++ "}" ++ w ++ "{" ++ spec ++ "}\n" ++
     concat (map renderRow rows) ++
     "\\end{" ++ t ++ "}\n" ++
-    "\n" ++ stringProp "latex2" props
+    "\n" ++ stringProp2 "latex2" props
 renderElement rt allElements (Element "COMMENT" parts) = ""
 renderElement rt allElements (Element "PAGE" parts) =
     concat (map (renderElement rt allElements) parts) ++ "\n\\vfill\\eject\n"
@@ -158,14 +158,14 @@ renderSrcBook rt description props src =
                 (if hasProp1 "fragment" props then " (fragment)" else "") ++ ":}\n") ++
              renderCodeBook description props (divideLongLines 89 src)
       render =
-        if stringProp "console" props /= ""
+        if stringProp2 "console" props /= ""
         then renderConsoleLike
         else renderFile
   in 
     if hasProp1 "norender" props
     then ""
     else 
-      stringProp "latex1" props ++ "\n\\begin{alltt}\\footnotesize\\leftskip10pt\n" ++ render ++ "\\end{alltt}\n\n" ++ stringProp "latex2" props
+      stringProp2 "latex1" props ++ "\n\\begin{alltt}\\footnotesize\\leftskip10pt\n" ++ render ++ "\\end{alltt}\n\n" ++ stringProp2 "latex2" props
 
 renderCodeBook :: String -> [Prop] -> String -> String
 renderCodeBook sourceType props src =
@@ -271,7 +271,7 @@ renderSrcSlides (Src _ props content) =
 
 renderCodeSlides :: [Prop] -> String -> String
 renderCodeSlides props src =
-  let sourceType = stringProp "type" props
+  let sourceType = stringProp2 "type" props
       keywordlike =
         if sourceType == "java" then ["interface", "abstract", "final", "match", "private", "public", "protected", "implements", "return", "static"
                                       ,"if", "else", "case", "class", "extends", "new", "instanceof", "import"]
@@ -467,8 +467,8 @@ chapterReference :: [Element] -> String -> (String)
 chapterReference parts chapterId =
   case parts of
     (Element "CHAPTER" props):tailElements ->
-      let chId = idProp (stringProp "title" props) props
-          chLabel = stringProp "label" props
+      let chId = idProp (stringProp2 "title" props) props
+          chLabel = stringProp2 "label" props
       in
           if chId == chapterId
           then chLabel
@@ -480,8 +480,8 @@ sectionReference :: [Element] -> String -> String -> (String)
 sectionReference parts chapterId sectionId =
   case parts of
     (Element "CHAPTER" chapterElements):tailElements ->
-      let chId = idProp (stringProp "title" chapterElements) chapterElements
-          chLabel = stringProp "label" chapterElements
+      let chId = idProp (stringProp2 "title" chapterElements) chapterElements
+          chLabel = stringProp2 "label" chapterElements
       in
           if chId == chapterId
           then sectionReference' chapterElements chId chLabel sectionId
@@ -493,8 +493,8 @@ sectionReference' :: [Element] -> String -> String -> String -> (String)
 sectionReference' parts chapterId chapterLabel sectionId =
   case parts of
     (Element "SECTION" props):tailElements ->
-      let secId = idProp (stringProp "title" props) props
-          secLabel = stringProp "label" props
+      let secId = idProp (stringProp2 "title" props) props
+          secLabel = stringProp2 "label" props
       in
           if secId == sectionId
           then chapterLabel ++ "." ++ secLabel
