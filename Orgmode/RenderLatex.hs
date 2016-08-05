@@ -31,8 +31,6 @@ imageHeight 'w' = 34
 
 renderElement :: RenderType -> [Element] -> Element -> String
 renderElement _ _ (Include content) = content
-renderElement _ allElements (Item item) =
-  "\\item{" ++ renderText allElements item ++ "}\n"
 renderElement "InNote" allElements (Paragraph props txt) =
   "\n\n" ++ stringProp "latex1" props ++ "\n\n" ++ renderIndexEntries props ++ renderText allElements txt
 renderElement _ allElements (Text txt) = renderText allElements txt
@@ -69,10 +67,6 @@ renderElement rt allElements (Element "SECTION" parts) =
     "{" ++ renderText allElements (stringProp "title" parts) ++ "}\n" ++
     (if label == "" then "\\addcontentsline{toc}{section}{" ++ (stringProp "title" parts) ++ "}" else "") ++
     concat (map (renderElement rt allElements) parts) ++ stringProp "latex2" parts ++ "\n"
-renderElement rt allElements (Items props items) =
-  renderIndexEntries props ++ "\n\\begin{itemize}\n" ++
-  (if stringPropMaybe "style" props == Just "none" then "\\renewcommand{\\labelitemi}{}\n" else "") ++
-  concat (map (renderElement rt allElements) items) ++  "\\end{itemize}\n"
 renderElement rt allElements (Note noteType props parts) =
   "\n\n" ++ stringProp "latex1" props ++ "\n\n" ++ renderIndexEntries props ++ "\\begin{tabular}{lp{1cm}p{11.2cm}}\n" ++
   "\\cline{2-3}\\noalign{\\smallskip}\n" ++
@@ -564,7 +558,9 @@ latexEnv = Map.fromList
   , ("C5", [Include "\\textbf{\\centerline{\\large ", Arg "title", Arg "1", Include "}}\\par\n"])
   , ("C6", [Include "\\textbf{\\centerline{\\normalsize ", Arg "title", Arg "1", Include "}}\\par\n"])
   , ("PARA", [Args, Include "\\par\n"])
-  , ("SLIDE", [Include "\\begin{frame}[fragile]\n", IfArg "title" [Include "\\frametitle{", Arg "title", Include "}\n"], Args, Include "\\end{frame}\n"])
+  , ("ITEMS", [Include "\n\\begin{itemize}\n",  IfArgEq "style" "none" [Include "\\renewcommand{\\labelitemi}{}\n"], Args, Include "\\end{itemize}\n"])
+  , ("ITEM", [Include "\\item{", Arg "title", Args, Include "}\n"])
+  , ("SLIDE", [Include "\\begin{frame}[fragile]\n", IfArgPresent "title" [Include "\\frametitle{", Arg "title", Include "}\n"], Args, Include "\\end{frame}\n"])
   , ("BLOCK", [Include "\\begin{block}{", Arg "title", Include "}\n", Args, Include "\\end{block}\n"])
   , ("EXAMPLEBLOCK", [Include "\\begin{exampleblock}{", Arg "title", Include "}\n", Args, Include "\\end{exampleblock}\n"])
   , ("SHOWINDEX", [Include "\\printindex\n"])

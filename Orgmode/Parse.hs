@@ -43,7 +43,8 @@ skipLines = many1 (eol <|> do
 singleElement :: Int -> P Element
 singleElement level =
   (
-  try (ifarg level) <|>
+  try (ifargpresent level) <|>
+  try (ifargeq level) <|>
   try (args level) <|>
   try (arg level) <|>
   try (def level) <|>
@@ -63,11 +64,18 @@ arg level = do
   (name) <- simpleAsteriskLine level "ARG"
   return $ Arg name
 
-ifarg :: Int -> P Element
-ifarg level = do
-  (name) <- simpleAsteriskLine level "IFARG"
+ifargpresent :: Int -> P Element
+ifargpresent level = do
+  (name) <- simpleAsteriskLine level "IFARGPRESENT"
   content <- many (singleElement $ level + 1)
-  return $ IfArg name content
+  return $ IfArgPresent name content
+
+ifargeq :: Int -> P Element
+ifargeq level = do
+  (c) <- simpleAsteriskLine level "IFARGEQ"
+  let (name,value) = span (/=' ') c
+  content <- many (singleElement $ level + 1)
+  return $ IfArgEq name (trim value) content
 
 ----------------------------------------------------
 def :: Int -> P Element
@@ -93,7 +101,6 @@ contentElement level =
   try (note level) <|>
   try (asteriskImg level) <|>
   try (include level) <|>
-  try (items level) <|>
   try (element level) <|>
   try implicitText
   ) <?> "contentElement"
@@ -158,13 +165,6 @@ note level = do
 asteriskImg level = do
   (file,props) <- asteriskLineWithProps level "IMG"
   return $ Img props file
-
-items level = do
-  (_,props) <- asteriskLineWithProps level "ITEMS"
-  content <- many1 (item)
-  return $ Items props content
-
-item = try $ Item <$> (char '•' >> restOfLine)
 
 table level = do
   (_,props) <- asteriskLineWithProps level "TABLE"

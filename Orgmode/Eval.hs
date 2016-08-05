@@ -47,6 +47,7 @@ evalElements env [] = []
 argumentsAsEnv = argumentsAsEnv' 1 (Map.empty)
 
 argumentsAsEnv' :: Int -> Map.Map String [Element] -> [Element] -> Map.Map String [Element]
+argumentsAsEnv' n env ((Prop1 name):es) = argumentsAsEnv' n (Map.insert name [] env) es
 argumentsAsEnv' n env ((Prop2 name value):es) = argumentsAsEnv' n (Map.insert name [Include value] env) es
 argumentsAsEnv' n env (e:es) = argumentsAsEnv' (n+1) (Map.insert (show n) [e] env) es
 argumentsAsEnv' _ env [] = env
@@ -61,9 +62,14 @@ applyArguments args env (e@(Arg name):es) =
     Just elements -> elements ++ applyArguments args env es
     _ -> applyArguments args env es
 
-applyArguments args env ((IfArg name elements):es) =
+applyArguments args env ((IfArgPresent name elements):es) =
   case (Map.lookup name env) of
     Just _ -> applyArguments args env elements ++ applyArguments args env es
+    _ -> applyArguments args env es
+
+applyArguments args env ((IfArgEq name value elements):es) =
+  case (Map.lookup name env) of
+    Just [Include v] | v == value -> applyArguments args env elements ++ applyArguments args env es
     _ -> applyArguments args env es
 
 applyArguments args env (Args:es) =

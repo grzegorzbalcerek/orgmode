@@ -215,9 +215,9 @@ renderElement env allElements (Src srcType props src) =
                 else "<img class='filesign' src='filesign.png'/><b>" ++ fileLabel ++ " " ++ fileName ++
                   (if hasProp1 "fragment" props then " (fragment)" else "") ++ ":</b>\n") ++
               renderSource srcType props src ++ "</pre>\n"
-renderElement env allElements (Items props items) =
-  let style = maybe "list" id $ stringPropMaybe "style" props
-  in  "<ul class='" ++ style ++ "'>\n" ++ concat (map (renderItem allElements) items) ++  "</ul>\n"
+--renderElement env allElements (Items props items) =
+--  let style = maybe "list" id $ stringPropMaybe "style" props
+--  in  "<ul class='" ++ style ++ "'>\n" ++ concat (map (renderItem allElements) items) ++  "</ul>\n"
 renderElement env allElements (Img props file) =
   "<div><img src='" ++ file ++ stringProp "html" props ++ "'></img><div class='caption'>" ++ (renderText allElements $ stringProp "label" props) ++ "</div></div>\n"
 renderElement env allElements (Table props rows) =
@@ -232,8 +232,8 @@ renderTableRow _ = ""
 renderTableCell cell =
   "<td>" ++ cell ++ "</td>"
 
-renderItem allElements (Item item) =
-  "<li>" ++ renderText allElements item ++ "</li>\n"
+--renderItem allElements (Item item) =
+--  "<li>" ++ renderText allElements item ++ "</li>\n"
 
 renderText :: [Element] -> String -> String
 renderText allElements txt =

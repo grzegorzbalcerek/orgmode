@@ -14,10 +14,9 @@ data Element =
   | Element String [Element]
   | Arg String
   | Args
-  | IfArg String [Element]
+  | IfArgPresent String [Element]
+  | IfArgEq String String [Element]
   | Note String [Element] [Element]
-  | Items [Element] [Element]
-  | Item String
   | Img [Element] String
   | Text String
   | Paragraph [Element] String
