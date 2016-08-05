@@ -41,9 +41,8 @@ evaluateDefsAndImports variant (e:es) = do
 evaluateDefsAndImports _ [] = return (Map.empty,[])
 
 evalElements :: Map.Map String [Element] -> [Element] -> [Element]
-
 evalElements env e@((Element name arguments):es) =
-  let r = case (Map.lookup name env) of
+  case (Map.lookup name env) of
             Just defElements ->
               let newEnv = Map.union (argumentsAsEnv arguments) env
                   defApplied = applyArguments arguments newEnv defElements
@@ -51,14 +50,7 @@ evalElements env e@((Element name arguments):es) =
                  evalElements env defApplied ++ evalElements env es
             _ ->
                  (Element name $ evalElements env arguments) : evalElements env es
-  in --trace ("evalElements3 " ++ show e ++ "     ====>    " ++ show r) $ r
-       r
-
-evalElements env x@(e:es) =
-  let r =  e : evalElements env es
-  in  -- trace ("evalElements4 " ++ show x ++ "     ====>    " ++ show r) $ r
-       r
-
+evalElements env (e:es) = e : evalElements env es
 evalElements env [] = []
 
 argumentsAsEnv = argumentsAsEnv' 1 (Map.empty)
