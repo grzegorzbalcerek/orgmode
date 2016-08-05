@@ -15,6 +15,7 @@ import Debug.Trace
 import System.IO
 import GHC.IO.Encoding
 
+inputToEnvAndContent :: Map.Map String [Element] -> String -> String -> IO (Map.Map String [Element],[Element])
 inputToEnvAndContent initialEnv variant input = do
   let content = parseInput input
   (env,contentWithoutDefs) <- evaluateDefsAndImports variant content
