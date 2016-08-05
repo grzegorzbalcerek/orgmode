@@ -8,20 +8,38 @@ cmd /c "u: && cd u:\github\orgmode && test"
 
 import Data.List (find,groupBy,intersect)
 import Orgmode.Model
+import Orgmode.Parse
 import Control.Monad.Reader
 import qualified Data.Map as Map
 import Debug.Trace
+import System.IO
+import GHC.IO.Encoding
 
-evaluateDefs :: String -> [Element] -> (Map.Map String [Element],[Element])
-evaluateDefs variant e@((Def name elements):es) =
-  let (env, content) = evaluateDefs variant es
-  in (Map.insert name elements env, content)
-evaluateDefs variant (e@(Element name subelements):es) | name == variant =
-  evaluateDefs variant (subelements ++ es)
-evaluateDefs variant (e:es) =
-  let (env, content) = evaluateDefs variant es
-  in (env, e:content)
-evaluateDefs _ [] = (Map.empty,[])
+inputToEnvAndContent initialEnv variant input = do
+  let content = parseInput input
+  (env,contentWithoutDefs) <- evaluateDefsAndImports variant content
+  let evaluated = evalElements (Map.union env initialEnv) contentWithoutDefs
+  putStrLn $ "Content parsed. Length: " ++ show (length evaluated) ++ "."
+  return (env,evaluated)
+
+evaluateDefsAndImports :: String -> [Element] -> IO (Map.Map String [Element],[Element])
+evaluateDefsAndImports variant e@((Def name elements):es) = do
+  (env, content) <- evaluateDefsAndImports variant es
+  return (Map.insert name elements env, content)
+evaluateDefsAndImports variant (e@(Element name subelements):es) | name == variant =
+  evaluateDefsAndImports variant (subelements ++ es)
+evaluateDefsAndImports variant (e@(Import path):es) = do
+  hinput <- openFile path ReadMode
+  hSetEncoding hinput utf8
+  input <- hGetContents hinput
+  (importedEnv,importedContent) <- inputToEnvAndContent Map.empty variant input
+  hClose hinput
+  (env, content) <- evaluateDefsAndImports variant es
+  return (Map.union env importedEnv, importedContent ++ content)  
+evaluateDefsAndImports variant (e:es) = do
+  (env, content) <- evaluateDefsAndImports variant es
+  return (env, e:content)
+evaluateDefsAndImports _ [] = return (Map.empty,[])
 
 evalElements :: Map.Map String [Element] -> [Element] -> [Element]
 

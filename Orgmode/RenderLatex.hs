@@ -31,11 +31,7 @@ imageHeight 'w' = 34
 
 renderElement :: RenderType -> [Element] -> Element -> String
 renderElement _ _ (Include content) = content
-renderElement "InNote" allElements (Paragraph props txt) =
-  "\n\n" ++ stringProp "latex1" props ++ "\n\n" ++ renderIndexEntries props ++ renderText allElements txt
 renderElement _ allElements (Text txt) = renderText allElements txt
-renderElement _ allElements (Paragraph props txt) =
-  "\n\n" ++ stringProp "latex1" props ++ "\n\n" ++ renderIndexEntries props ++ renderText allElements txt ++ "\n\n" ++ stringProp "latex2" props ++ "\n\n"
 renderElement "Book" allElements (Element "CHAPTER" parts) =
   let title = stringProp "title" parts
       label = stringProp "label" parts
@@ -90,23 +86,9 @@ renderElement rt allElements (Table props rows) =
     concat (map renderRow rows) ++
     "\\end{" ++ t ++ "}\n" ++
     "\n" ++ stringProp "latex2" props
-renderElement rt allElements (Img props filename) =
-  let label = stringProp "label" props
-      latex1 = stringProp "latex1" props
-      latex2 = stringProp "latex2" props
-  in if label == ""
-     then
-       "\n\n\\begin{center}\n\\includegraphics" ++ latex2 ++ "{" ++ filename ++ latex1 ++ "}\n\\end{center}\n"
-     else
-       "\\begin{center}\n" ++
-       "\\includegraphics" ++ latex2 ++ "{" ++ filename ++ latex1 ++ "}\\par\n" ++
-       renderText allElements label ++
-       "\n\\end{center}\n"
 renderElement rt allElements (Element "COMMENT" parts) = ""
 renderElement rt allElements (Element "PAGE" parts) =
     concat (map (renderElement rt allElements) parts) ++ "\n\\vfill\\eject\n"
-renderElement rt allElements (Element name parts) =
-    concat (map (renderElement rt allElements) parts)
 renderElement _ _ _ = ""
 
 ----------------------------------------------------
@@ -566,6 +548,9 @@ latexEnv = Map.fromList
   , ("SHOWINDEX", [Include "\\printindex\n"])
   , ("DOCUMENTEND", [Include "\\end{document}\n"])
   , ("HEADER1", [Include "\\centerline{\\tikz{\\node[scale=1]{", Arg "title", Arg "1", Include "};}}\n"])
+  , ("IMG", [Include "\\begin{center}\n\\includegraphics", Arg "square", Include "{",Arg "latexfile",Include "}\n",
+             IfArgPresent "label" [Include "\\par\n", Arg "label",Include "\n"],
+             Include "\\end{center}\n"])
   ]
 
 ----------------------------------------------------

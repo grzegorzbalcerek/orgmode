@@ -87,9 +87,3 @@ processFile path action = do
   action input
   hClose hinput
 
-inputToEnvAndContent initialEnv variant input = do
-  let content = parseInput input
-  let (env,contentWithoutDefs) = evaluateDefs variant content
-  let evaluated = evalElements (Map.union env initialEnv) contentWithoutDefs
-  putStrLn $ "Content parsed. Length: " ++ show (length evaluated) ++ "."
-  return (env,evaluated)

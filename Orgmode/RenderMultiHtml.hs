@@ -192,7 +192,7 @@ renderElement env allElements (Note noteType _ parts) =
   "'/></td><td class='remarkcontent'>" ++
   renderElements env allElements parts ++
   "</td></tr></table>\n"
-renderElement env allElements (Paragraph _ text) = "<p>" ++ renderText allElements text ++ "</p>\n"
+renderElement env allElements (Element "PARA" text) = "<p>" ++ renderElements env allElements text ++ "</p>\n"
 renderElement env allElements (Text text) = renderText allElements text
 renderElement env allElements (Src srcType props src) =
   let boldCommand prefix line =
@@ -218,8 +218,8 @@ renderElement env allElements (Src srcType props src) =
 --renderElement env allElements (Items props items) =
 --  let style = maybe "list" id $ stringPropMaybe "style" props
 --  in  "<ul class='" ++ style ++ "'>\n" ++ concat (map (renderItem allElements) items) ++  "</ul>\n"
-renderElement env allElements (Img props file) =
-  "<div><img src='" ++ file ++ stringProp "html" props ++ "'></img><div class='caption'>" ++ (renderText allElements $ stringProp "label" props) ++ "</div></div>\n"
+--renderElement env allElements (Img props file) =
+--  "<div><img src='" ++ file ++ stringProp "html" props ++ "'></img><div class='caption'>" ++ (renderText allElements $ stringProp "label" props) ++ "</div></div>\n"
 renderElement env allElements (Table props rows) =
   "<table>" ++ concat (map renderTableRow rows) ++ "</table>\n"
 renderElement env allElements (Include content) = content

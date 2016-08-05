@@ -15,13 +15,13 @@ data Element =
   | Arg String
   | Args
   | IfArgPresent String [Element]
+  | IfArgNotPresent String [Element]
   | IfArgEq String String [Element]
   | Note String [Element] [Element]
-  | Img [Element] String
   | Text String
-  | Paragraph [Element] String
   | Src String [Element] String
   | Include String
+  | Import String
   | Table [Element] [TableRow]
   | Prop1 String
   | Prop2 String String

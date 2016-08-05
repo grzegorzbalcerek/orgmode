@@ -44,6 +44,7 @@ singleElement :: Int -> P Element
 singleElement level =
   (
   try (ifargpresent level) <|>
+  try (ifargnotpresent level) <|>
   try (ifargeq level) <|>
   try (args level) <|>
   try (arg level) <|>
@@ -69,6 +70,12 @@ ifargpresent level = do
   (name) <- simpleAsteriskLine level "IFARGPRESENT"
   content <- many (singleElement $ level + 1)
   return $ IfArgPresent name content
+
+ifargnotpresent :: Int -> P Element
+ifargnotpresent level = do
+  (name) <- simpleAsteriskLine level "IFARGNOTPRESENT"
+  content <- many (singleElement $ level + 1)
+  return $ IfArgNotPresent name content
 
 ifargeq :: Int -> P Element
 ifargeq level = do
@@ -96,11 +103,10 @@ contentElement level =
   (
   try (text level) <|>
   try (src level) <|>
-  try img <|>
   try (table level) <|>
   try (note level) <|>
-  try (asteriskImg level) <|>
   try (include level) <|>
+  try (import1 level) <|>
   try (element level) <|>
   try implicitText
   ) <?> "contentElement"
@@ -162,10 +168,6 @@ note level = do
   content <- many (contentElement $ level + 1)
   return $ Note noteType props content
 
-asteriskImg level = do
-  (file,props) <- asteriskLineWithProps level "IMG"
-  return $ Img props file
-
 table level = do
   (_,props) <- asteriskLineWithProps level "TABLE"
   rows <- many (try tableRow)
@@ -197,19 +199,14 @@ tableCell = do
 
 ----------------------------------------------------
 
-img = do
-  char '⒤'
-  file <- many $ noneOf " :\n\r"
-  props <- singleColonProp `sepBy` (many (noneOf "¬:\n\r"))
-  restOfLine
-  return $ Img props file
-
-----------------------------------------------------
-
 include level = do
   (_,_) <- asteriskLineWithProps level "INCLUDE"
   content <- many1 emptyOrRegularLineWithEol
   return $ Include (concat content)
+
+import1 level = do
+  (file,_) <- asteriskLineWithProps level "IMPORT"
+  return $ Import (trim file)
 
 src level = do
   (description,props) <- asteriskLineWithProps level "SRC"
