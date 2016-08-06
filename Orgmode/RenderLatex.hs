@@ -73,7 +73,7 @@ renderElement "Book" allElements (Element "CHAPTER" props parts) =
     "\\renewcommand{\\firstsectiontitle}{" ++ firstSectionTitle parts ++ "}" ++
     "\\chapter" ++
     (if label == "" then "*" else "") ++
-    "{" ++ renderText allElements title ++ "}\n" ++
+    "{" ++ title ++ "}\n" ++
     (if label == ""
      then "\\addcontentsline{toc}{chapter}{" ++ title ++ "}" ++
           "\\markboth{" ++ title ++ "}{" ++ firstSectionTitle parts ++ "}"
@@ -168,21 +168,6 @@ renderIndexEntries = ""
 
 ----------------------------------------------------
 
-renderSrcBook rt description props src =
-  let boldCommand line =
-        if (take 2 line == "$ ") then "$ \\textbf{" ++ drop 2 line ++ "}"
-        else if (take 7 line == "scala> ") then "scala> \\textbf{" ++ drop 7 line ++ "}"
-        else if (take 7 line == "     | ") then "     | \\textbf{" ++ drop 7 line ++ "}"
-        else line
-      boldCommands = unlines . map boldCommand . lines
-      renderConsoleLike = boldCommands (divideLongLines 89 src)
-  in 
-    if hasProp "norender" props
-    then ""
-    else ""
-
-----------------------------------------------------
-
 chapterReference :: [Element] -> String -> (String)
 chapterReference parts chapterId =
   case parts of
@@ -273,14 +258,6 @@ latexEnv = Map.union basicEnv $ Map.fromList
 --        g c = c /= '!' && c /= '¡'
 --        k c = if c == '"' then '#' else c
 
---replaceBlank '\n' = ' '
---replaceBlank '\r' = ' '
---replaceBlank c = c
---
-renderText :: [Element] -> String -> String
-renderText allElements = sourcePng.textPng.styledText.lmChars
---renderText' allElements $ map replaceBlank text
---
 --renderText' :: [Element] -> String -> String
 --renderText' _ "" = ""
 --renderText' allElements (c:acc) =
