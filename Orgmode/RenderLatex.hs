@@ -211,8 +211,6 @@ latexEnv = Map.union basicEnv $ Map.fromList
   , ("C5", [Include "\\textbf{\\centerline{\\large ", AsText "title", Args Map.empty, Include "}}\\par\n"])
   , ("C6", [Include "\\textbf{\\centerline{\\normalsize ", AsText "title", Args Map.empty, Include "}}\\par\n"])
   , ("PARA", [Args Map.empty, Include "\\par", NewLine])
-  , ("ITEMS", [Include "\n\\begin{itemize}\n",  IfEq "style" "none" [Include "\\renewcommand{\\labelitemi}{}\n"], Args Map.empty, Include "\\end{itemize}\n"])
-  , ("ITEM", [Include "\\item{", AsText "title", Args Map.empty, Include "}\n"])
   , ("SLIDE", [Include "\\begin{frame}[fragile]\n", IfDef "title" [Include "\\frametitle{", AsText "title", Include "}\n"], Args Map.empty, Include "\\end{frame}\n"])
   , ("BLOCK", [Include "\\begin{block}{", AsText "title", Include "}\n", Args Map.empty, Include "\\end{block}\n"])
   , ("EXAMPLEBLOCK", [Include "\\begin{exampleblock}{", AsText "title", Include "}\n", Args Map.empty, Include "\\end{exampleblock}\n"])
