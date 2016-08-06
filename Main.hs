@@ -2,8 +2,8 @@
 module Main where
 
 {-
-cmd /c "u: && cd u:\github\orgmode && make && h:"
-cmd /c "u: && cd u:\github\orgmode && test && h:"
+cmd /c "u: && cd u:\github\orgmode && make"
+cmd /c "u: && cd u:\github\orgmode && test"
 -}
 
 import System.Environment
@@ -47,7 +47,8 @@ parseCommand variant path = processFile path $ \input -> do
   putStrLn (show content)
 
 evalCommand variant path = processFile path $ \input -> do
-  content <- string2elements (Map.singleton variant []) Map.empty input
+  --content <- string2elements (Map.singleton variant []) Map.empty input
+  content <- string2elements (Map.insert variant [] latexEnv) Map.empty input
   putStrLn (show content)
 
 latexCommand variant path outputPath = processFile path $ \input -> do

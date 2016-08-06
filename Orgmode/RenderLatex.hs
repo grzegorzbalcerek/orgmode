@@ -7,6 +7,7 @@ cmd /c "u: && cd u:\github\orgmode && test"
 -}
 
 import Orgmode.Model
+import Orgmode.Text
 import Control.Monad.Trans.State
 import Control.Monad
 import Data.List
@@ -29,13 +30,40 @@ imageHeight 'w' = 34
 
 ----------------------------------------------------
 
+data StringTransfSpec = SimpleTransf String (String -> String)
+                      | ColorTransf String (String -> [String] -> String -> String)
+
 renderElement :: RenderType -> [Element] -> Element -> String
 renderElement _ _ (Include content) = content
-renderElement _ allElements (Text txt) = renderText allElements txt
+renderElement _ allElements (Text props txt) =
+  let transformationSpecs =
+        [ SimpleTransf "onlyascii" onlyAscii
+        , SimpleTransf "sourcepng" sourcePng
+        , SimpleTransf "textpng" textPng
+        , SimpleTransf "styledtext" styledText
+        , SimpleTransf "colored" colored
+        , ColorTransf "green" addColor
+        , ColorTransf "red" addColor
+        , ColorTransf "blue" addColor
+        , ColorTransf "cyan" addColor
+        , ColorTransf "magenta" addColor
+        , ColorTransf "brown" addColor
+        , ColorTransf "gray" addColor
+        , SimpleTransf "lmchars" lmChars
+        , SimpleTransf "norender" (const "")
+        ]
+      makeTransfFunction (SimpleTransf name f) = if hasProp name props then f else id
+      makeTransfFunction (ColorTransf name f) = if hasProp name props then addColor name (read (stringProp name props) :: [String]) else id
+      transformationFunctions = map makeTransfFunction transformationSpecs
+      combinedTransformation = foldr (.) id transformationFunctions
+  in if hasProp "size" props
+     then "{\\" ++ srcSize (stringProp "size" props) txt ++ " " ++ combinedTransformation txt ++ "}"
+     else combinedTransformation txt
+
 renderElement "Book" allElements (Element "CHAPTER" props parts) =
-  let title = stringProp2 "title" props
-      label = stringProp2 "label" props
-      firstSectionTitle (Element "SECTION" props elements : _) = stringProp2 "title" props
+  let title = stringProp "title" props
+      label = stringProp "label" props
+      firstSectionTitle (Element "SECTION" props elements : _) = stringProp "title" props
       firstSectionTitle (_:rest) = firstSectionTitle rest
       firstSectionTitle [] = ""
   in
@@ -52,40 +80,38 @@ renderElement "Book" allElements (Element "CHAPTER" props parts) =
      else "") ++
     concat (map (renderElement "Book" allElements) parts) ++ "\n"
 renderElement rt allElements (Element "SECTION" props parts) =
-  let label = stringProp2 "label" props
+  let label = stringProp "label" props
   in
-    stringProp2 "latex1" props ++
+    stringProp "latex1" props ++
     (if label == ""
      then ""
      else "\\setcounter{section}{" ++ label ++ "}\\addtocounter{section}{-1}") ++
     "\n\\section" ++
     (if label == "" then "*" else "") ++
-    "{" ++ renderText allElements (stringProp2 "title" props) ++ "}\n" ++
-    (if label == "" then "\\addcontentsline{toc}{section}{" ++ (stringProp2 "title" props) ++ "}" else "") ++
-    concat (map (renderElement rt allElements) parts) ++ stringProp2 "latex2" props ++ "\n"
+    "{" ++ renderText allElements (stringProp "title" props) ++ "}\n" ++
+    (if label == "" then "\\addcontentsline{toc}{section}{" ++ (stringProp "title" props) ++ "}" else "") ++
+    concat (map (renderElement rt allElements) parts) ++ stringProp "latex2" props ++ "\n"
 renderElement rt allElements (Note noteType props parts) =
-  "\n\n" ++ stringProp2 "latex1" props ++ "\n\n" ++ {- renderIndexEntries props ++ -} "\\begin{tabular}{lp{1cm}p{11.2cm}}\n" ++
+  "\n\n" ++ stringProp "latex1" props ++ "\n\n" ++ {- renderIndexEntries props ++ -} "\\begin{tabular}{lp{1cm}p{11.2cm}}\n" ++
   "\\cline{2-3}\\noalign{\\smallskip}\n" ++
   "&\\raisebox{-" ++ (show $ (imageHeight $ head noteType) - 10) ++
   "pt}{\\includegraphics[height=" ++ (show.imageHeight $ head noteType) ++ "pt]{" ++
   [head noteType] ++ "sign.png" ++ -- (if head noteType == 'r' then ".png" else ".eps") ++
   "}}&\\small\\setlength{\\parskip}{2mm}" ++
   concat (map (renderElement "InNote" allElements) parts) ++
-  "\\\\ \\noalign{\\smallskip}\\cline{2-3}\n\\end{tabular}\n\n" ++ stringProp2 "latex2" props
-renderElement "Slides" allElements (Src description props src) =
-  renderSrcSlides (Src description props src)
-renderElement rt allElements (Src description props src) =
-  renderSrcBook rt description props src
+  "\\\\ \\noalign{\\smallskip}\\cline{2-3}\n\\end{tabular}\n\n" ++ stringProp "latex2" props
+--renderElement "Slides" allElements (Src description props src) =  renderSrcSlides (Src description props src)
+--renderElement rt allElements (Src description props src) = renderSrcBook rt description props src
 renderElement rt allElements (Table props rows) =
-  let t = fromMaybe "tabular" $ stringProp2Maybe "type" props
-      w = maybe "" (\x -> "{" ++ x ++ "}") $ stringProp2Maybe "width" props
-      spec = stringProp2 "spec" props
+  let t = fromMaybe "tabular" $ stringPropMaybe "type" props
+      w = maybe "" (\x -> "{" ++ x ++ "}") $ stringPropMaybe "width" props
+      spec = stringProp "spec" props
   in
-    "\n" ++ stringProp2 "latex1" props ++
+    "\n" ++ stringProp "latex1" props ++
     "\n\\begin{" ++ t ++ "}" ++ w ++ "{" ++ spec ++ "}\n" ++
     concat (map renderRow rows) ++
     "\\end{" ++ t ++ "}\n" ++
-    "\n" ++ stringProp2 "latex2" props
+    "\n" ++ stringProp "latex2" props
 renderElement rt allElements (Element "COMMENT" _ parts) = ""
 renderElement rt allElements (Element "PAGE" _ parts) =
     concat (map (renderElement rt allElements) parts) ++ "\n\\vfill\\eject\n"
@@ -150,323 +176,53 @@ renderSrcBook rt description props src =
         else line
       boldCommands = unlines . map boldCommand . lines
       fileName = pathFileName props
-      renderConsoleLike = boldCommands (renderCodeBook description (divideLongLines 89 src))
+      renderConsoleLike = boldCommands (divideLongLines 89 src)
       renderFile =
              (if fileName == ""
               then ""
               else "\\includegraphics[width=7pt]{filesign.png} \\textbf{Plik " ++ fileName ++
-                (if hasProp1 "fragment" props then " (fragment)" else "") ++ ":}\n") ++
-             renderCodeBook description (divideLongLines 89 src)
+                (if hasProp "fragment" props then " (fragment)" else "") ++ ":}\n") ++
+             (divideLongLines 89 src)
       render =
-        if stringProp2 "console" props /= ""
+        if stringProp "console" props /= ""
         then renderConsoleLike
         else renderFile
   in 
-    if hasProp1 "norender" props
+    if hasProp "norender" props
     then ""
     else 
-      stringProp2 "latex1" props ++ "\n\\begin{alltt}\\footnotesize\\leftskip10pt\n" ++ render ++ "\\end{alltt}\n\n" ++ stringProp2 "latex2" props
-
-renderCodeBook :: String -> String -> String
-renderCodeBook sourceType src =
-  let f :: Char -> String -> String
-      f c acc =
-        case (c, break (c ==) acc) of
-          ('}',_) -> "{\\fontencoding{T1}\\selectfont\\char125}" ++ acc
-          ('{',_) -> "{\\fontencoding{T1}\\selectfont\\char123}" ++ acc
-          ('\\',_) -> "{\\fontencoding{T1}\\selectfont\\char92}" ++ acc
-          ('Δ',_) -> "{\\fontencoding{QX}\\selectfont\\char1}" ++ acc
-          ('Π',_) -> "{\\fontencoding{QX}\\selectfont\\char5}" ++ acc
-          ('∞',_) -> "{\\fontencoding{QX}\\selectfont\\char173}" ++ acc
-          ('℃',_) -> "{\\fontencoding{TS1}\\selectfont\\char137}" ++ acc
-          ('⇒',_) -> "{\\includegraphics[width=7pt]{doublerightarrow.png}}" ++ acc
-          ('…',_) -> "{\\fontencoding{QX}\\selectfont\\char8}" ++ acc
-          ('`',_) -> "{\\fontencoding{T1}\\selectfont\\char0}" ++ acc
-          ('①',_) -> whiteCircleSource 1 ++ acc
-          ('②',_) -> whiteCircleSource 2 ++ acc
-          ('③',_) -> whiteCircleSource 3 ++ acc
-          ('④',_) -> whiteCircleSource 4 ++ acc
-          ('⑤',_) -> whiteCircleSource 5 ++ acc
-          ('⑥',_) -> whiteCircleSource 6 ++ acc
-          ('⑦',_) -> whiteCircleSource 7 ++ acc
-          ('⑧',_) -> whiteCircleSource 8 ++ acc
-          ('⑨',_) -> whiteCircleSource 9 ++ acc
-          ('⑩',_) -> whiteCircleSource 10 ++ acc
-          ('⑪',_) -> whiteCircleSource 11 ++ acc
-          ('⑫',_) -> whiteCircleSource 12 ++ acc
-          ('⑬',_) -> whiteCircleSource 13 ++ acc
-          ('⑭',_) -> whiteCircleSource 14 ++ acc
-          ('⑮',_) -> whiteCircleSource 15 ++ acc
-          ('⑯',_) -> whiteCircleSource 16 ++ acc
-          ('⑰',_) -> whiteCircleSource 17 ++ acc
-          ('⑱',_) -> whiteCircleSource 18 ++ acc
-          ('⑲',_) -> whiteCircleSource 19 ++ acc
-          ('⑳',_) -> whiteCircleSource 20 ++ acc
-          ('㉑',_) -> whiteCircleSource 21 ++ acc
-          ('㉒',_) -> whiteCircleSource 22 ++ acc
-          ('㉓',_) -> whiteCircleSource 23 ++ acc
-          ('㉔',_) -> whiteCircleSource 24 ++ acc
-          ('㉕',_) -> whiteCircleSource 25 ++ acc
-          ('㉖',_) -> whiteCircleSource 26 ++ acc
-          ('㉗',_) -> whiteCircleSource 27 ++ acc
-          ('㉘',_) -> whiteCircleSource 28 ++ acc
-          ('㉙',_) -> whiteCircleSource 29 ++ acc
-          ('㉚',_) -> whiteCircleSource 30 ++ acc
-          ('㉛',_) -> whiteCircleSource 31 ++ acc
-          ('㉜',_) -> whiteCircleSource 32 ++ acc
-          ('㉝',_) -> whiteCircleSource 33 ++ acc
-          ('㉞',_) -> whiteCircleSource 34 ++ acc
-          ('㉟',_) -> whiteCircleSource 35 ++ acc
-          ('❶',_) -> blackCircleSource 1 ++ acc
-          ('❷',_) -> blackCircleSource 2 ++ acc
-          ('❸',_) -> blackCircleSource 3 ++ acc
-          ('❹',_) -> blackCircleSource 4 ++ acc
-          ('❺',_) -> blackCircleSource 5 ++ acc
-          ('❻',_) -> blackCircleSource 6 ++ acc
-          ('❼',_) -> blackCircleSource 7 ++ acc
-          ('❽',_) -> blackCircleSource 8 ++ acc
-          ('❾',_) -> blackCircleSource 9 ++ acc
-          ('❿',_) -> blackCircleSource 10 ++ acc
-          ('⓫',_) -> blackCircleSource 11 ++ acc
-          ('⓬',_) -> blackCircleSource 12 ++ acc
-          ('⓭',_) -> blackCircleSource 13 ++ acc
-          ('⓮',_) -> blackCircleSource 14 ++ acc
-          ('⓯',_) -> blackCircleSource 15 ++ acc
-          ('⓰',_) -> blackCircleSource 16 ++ acc
-          ('⓱',_) -> blackCircleSource 17 ++ acc
-          ('⓲',_) -> blackCircleSource 18 ++ acc
-          ('⓳',_) -> blackCircleSource 19 ++ acc
-          ('⓴',_) -> blackCircleSource 20 ++ acc
-          _ -> c:acc
-  in
-    foldr f "" src
+      stringProp "latex1" props ++ "\n\\begin{alltt}\\footnotesize\\leftskip10pt\n" ++ render ++ "\\end{alltt}\n\n" ++ stringProp "latex2" props
 
 ----------------------------------------------------
 
-renderSrcSlides (Src _ props content) =
-  if hasProp1 "norender" props
-  then ""
-  else 
-    let lns = lines content
-        height = floor $ 1.1 * fromIntegral (length lns)
-        textwidth = maximum $ map (length . filter (\c -> ord c < 256)) lns
-        width = maybe textwidth (\v -> read v `max` textwidth) $ Map.lookup "width" props
-        textsize =
-          if width <= 45 && height <= 15 then "Large"
-          else if width <= 55 && height <= 18 then "large"
-          else if width <= 65 && height <= 21 then "normalsize"
-          else if width <= 72 && height <= 23 then "small"
-          else if width <= 82 && height <= 27 then "footnotesize"
-          else if width <= 90 && height <= 33 then "scriptsize"
-          else "tiny"
-        verbatimContent content =
-          "\\begin{semiverbatim}\n" ++
-          renderCodeSlides props content ++
-          "\\end{semiverbatim}\n"
-    in
-        "\\" ++ textsize ++ "\n" ++
-        verbatimContent content
-
-renderCodeSlides :: Map.Map String String -> String -> String
-renderCodeSlides props src =
-  let sourceType = stringProp2 "type" props
-      keywordlike =
-        if sourceType == "java" then ["interface", "abstract", "final", "match", "private", "public", "protected", "implements", "return", "static"
-                                      ,"if", "else", "case", "class", "extends", "new", "instanceof", "import"]
-        else if sourceType == "scala" then ["val", "var", "def", "type", "trait", "abstract", "final", "match", "return", "sealed", "final"
-                                      ,"if", "else", "case", "class", "object", "extends", "with", "implicit", "new", "import"]
-        else if sourceType == "elm" then ["module", "where", "import", "type", "alias", "if", "then", "else", "case", "of", "let", " in "]
-        else []
-      typelike = []
-      identifierlike =
-        if sourceType == "scala" then ["implicitly"]
-        else if sourceType == "elm" then []
-        else []
-      symbollike =
-        if sourceType == "java" then ["{\\raise-3pt\\hbox{~}}","{\\char92}", "\\{", "\\}", "(", ")", "[", "]", ".", ";", "|", "&", ":", ",", "\"", "++", "==", "=>", "+", "-", ">", "<", "*", "/", "=", "%", "@"]
-        else if sourceType == "scala" then ["{\\raise-3pt\\hbox{~}}","{\\char92}", "\\{", "\\}", "(", ")", "[", "]", ".", ";", "|", "&", ":", ",", "\"", "++", "==", "=>", "+", "-", ">", "<", "*", "/", "=", "%", "@"]
-        else if sourceType == "elm" then ["{\\raise-3pt\\hbox{~}}","{\\char92}", "\\{", "\\}", "(", ")", "[", "]", ".", ";", "|", "&", ":", ",", "\"", "++", "==", "=>", "+", "-", ">", "<", "*", "/", "=", "%"]
-        else []
-      constantlike = []
-      prefixes str =
-             case checkPrefixes [("black",identifierlike),("blue",keywordlike),("brown",symbollike)] str of
-               (_,[],_) -> str
-               (col,k,rest) -> "{\\color{" ++ col ++ "}" ++ k ++ "}" ++ rest
-      f :: Char -> String -> String
-      f c acc =
-        case (c, break (c ==) acc) of
-          ('⒢',(w,_:acc')) -> "{\\color{green}" ++ w ++ "}" ++ prefixes acc'
-          ('⒭',(w,_:acc')) -> "{\\color{red}" ++ w ++ "}" ++ prefixes acc'
-          ('⒝',(w,_:acc')) -> "{\\color{blue}" ++ w ++ "}" ++ prefixes acc'
-          ('⒞',(w,_:acc')) -> "{\\color{cyan}" ++ w ++ "}" ++ prefixes acc'
-          ('⒨',(w,_:acc')) -> "{\\color{magenta}" ++ w ++ "}" ++ prefixes acc'
-          ('⒩',(w,_:acc')) -> "{\\color{brown}" ++ w ++ "}" ++ prefixes acc'
-          ('}',_) -> prefixes $ '\\':'}':acc
-          ('{',_) -> prefixes $ '\\':'{':acc
-          ('\\',_) -> prefixes $ "{\\char92}" ++ acc
-          ('~',_) -> prefixes $ "{\\raise-3pt\\hbox{~}}" ++ acc
-          ('‖',_) -> "{\\pause}" ++ acc
-          ('①',_) -> "(1)" ++ acc
-          _ -> prefixes $ c:acc
-  in
-    "\\textbf{" ++ foldr f "" src ++ "}"
+-- renderSrcSlides content =
+--     let lns = lines content
+--         height = floor $ 1.1 * fromIntegral (length lns)
+--         width = maximum $ map (length . filter (\c -> ord c < 256)) lns
+--         textsize =
+--           if width <= 45 && height <= 15 then "Large"
+--           else if width <= 55 && height <= 18 then "large"
+--           else if width <= 65 && height <= 21 then "normalsize"
+--           else if width <= 72 && height <= 23 then "small"
+--           else if width <= 82 && height <= 27 then "footnotesize"
+--           else if width <= 90 && height <= 33 then "scriptsize"
+--           else "tiny"
+--         verbatimContent content =
+--           "\\begin{semiverbatim}\n" ++
+--           renderCodeSlides props content ++
+--           "\\end{semiverbatim}\n"
+--     in
+--         "\\" ++ textsize ++ "\n" ++
+--         verbatimContent content
 
 ----------------------------------------------------
-
-whiteCircleText n = "\\raisebox{-1pt}{\\includegraphics[width=8pt]{white" ++ show n ++ ".png}}"
-whiteCircleSource n = " \\includegraphics[width=7pt]{white" ++ show n ++ ".png}"
-blackCircleText n = "\\raisebox{-1pt}{\\includegraphics[width=8pt]{black" ++ show n ++ ".png}}"
-blackCircleSource n = " \\includegraphics[width=7pt]{black" ++ show n ++ ".png}"
-
-renderIndex :: String -> String
-renderIndex ('!':t) = "{\\fontencoding{T1}\\selectfont\\char33}" ++ renderText [] t
-renderIndex x =
-   case break f x of
-    (h, '¡':t) -> (takeWhile g . map k $ x) ++ "@" ++ renderText [] h ++ "!" ++ renderText [] t
-    (h, '!':t) -> (takeWhile g . map k $ x) ++ "@" ++ renderText [] h ++ "!" ++ renderText [] t
-    _ -> (map k $ x) ++ "@" ++ renderText [] x
-  where f c = c == '!' || c == '¡'
-        g c = c /= '!' && c /= '¡'
-        k c = if c == '"' then '#' else c
-
-replaceBlank '\n' = ' '
-replaceBlank '\r' = ' '
-replaceBlank c = c
-
-renderText :: [Element] -> String -> String
-renderText allElements text = renderText' allElements $ map replaceBlank text
-
-renderText' :: [Element] -> String -> String
-renderText' _ "" = ""
-renderText' allElements (a:'-':b:acc)
-  | isDigit a && isDigit b
-  = a : "{\\raise0.2ex\\hbox{-}}" ++ renderText' allElements (b:acc)
-renderText' allElements (c:acc) =
-          case (c, break (c ==) acc) of
-            ('\n',_) -> renderText' allElements (' ':acc)
-            (' ',("z",' ':acc')) -> " z{\\nobreak} " ++ renderText' allElements acc'
-            (' ',("w",' ':acc')) -> " w{\\nobreak} " ++ renderText' allElements acc'
-            (' ',("i",' ':acc')) -> " i{\\nobreak} " ++ renderText' allElements acc'
-            (' ',("a",' ':acc')) -> " a{\\nobreak} " ++ renderText' allElements acc'
-            (' ',("u",' ':acc')) -> " u{\\nobreak} " ++ renderText' allElements acc'
-            (' ',("o",' ':acc')) -> " o{\\nobreak} " ++ renderText' allElements acc'
-            (' ',("Z",' ':acc')) -> " Z{\\nobreak} " ++ renderText' allElements acc'
-            (' ',("W",' ':acc')) -> " W{\\nobreak} " ++ renderText' allElements acc'
-            (' ',("I",' ':acc')) -> " I{\\nobreak} " ++ renderText' allElements acc'
-            (' ',("A",' ':acc')) -> " A{\\nobreak} " ++ renderText' allElements acc'
-            (' ',("U",' ':acc')) -> " U{\\nobreak} " ++ renderText' allElements acc'
-            (' ',("O",' ':acc')) -> " O{\\nobreak} " ++ renderText' allElements acc'
-            ('⒡',(file,_:acc')) -> "\\textsl{" ++ renderText' allElements file ++ "}" ++ renderText' allElements acc'
-            ('⒰',(url,_:acc')) -> "\\textsl{" ++ renderText' allElements url ++ "}" ++ renderText' allElements acc'
-            ('⒤',(text,_:acc')) -> "\\textit{" ++ renderText' allElements text ++ "}" ++ renderText' allElements acc'
-            ('⒞',(code,_:acc')) -> "\\texttt{" ++ renderText' allElements code ++ "}" ++ renderText' allElements acc'
-            ('⒝',(code,_:acc')) -> "\\textbf{" ++ renderText' allElements code ++ "}" ++ renderText' allElements acc'
-            ('¡',(code,_:acc')) -> "\\textbf{" ++ renderText' allElements code ++ "}" ++ renderText' allElements acc'
-            ('⒳',(x,_:acc')) -> "\\index{" ++ renderIndex x ++ "}" ++ renderText' allElements acc'
-            ('⒭',(ref,_:acc')) ->
-              case break (','==) ref of
-                (chId,[]) ->  chapterReference allElements chId ++ renderText' allElements acc'
-                (chId,_:secId) -> sectionReference allElements chId secId ++ renderText' allElements acc'
-            ('~',_) -> "{\\fontencoding{T1}\\selectfont\\char126}" ++ renderText' allElements acc
-            ('|',_) -> "{\\fontencoding{T1}\\selectfont\\char124}" ++ renderText' allElements acc
-            ('!',_) -> "{\\fontencoding{T1}\\selectfont\\char33}" ++ renderText' allElements acc
-            ('"',_) -> "{\\fontencoding{T1}\\selectfont\\char34}" ++ renderText' allElements acc
-            ('#',_) -> "{\\fontencoding{T1}\\selectfont\\char35}" ++ renderText' allElements acc
-            ('$',_) -> "{\\fontencoding{T1}\\selectfont\\char36}" ++ renderText' allElements acc
-            ('%',_) -> "{\\fontencoding{T1}\\selectfont\\char37}" ++ renderText' allElements acc
-            ('_',_) -> "{\\fontencoding{T1}\\selectfont\\char95}" ++ renderText' allElements acc
-            ('>',_) -> "{\\fontencoding{T1}\\selectfont\\char62}" ++ renderText' allElements acc
-            ('<',_) -> "{\\fontencoding{T1}\\selectfont\\char60}" ++ renderText' allElements acc
-            ('‖',_) -> "\\pause\n" ++ renderText' allElements acc
-            ('¶',_) -> "{\\par}" ++ renderText' allElements acc
-            ('℃',_) -> "{\\fontencoding{TS1}\\selectfont\\char137}" ++ renderText' allElements acc
-            ('Σ',_) -> "{\\fontencoding{QX}\\selectfont\\char6}" ++ renderText' allElements acc
-            ('Ω',_) -> "{\\fontencoding{TS1}\\selectfont\\char87}" ++ renderText' allElements acc
-            ('Δ',_) -> "{\\fontencoding{QX}\\selectfont\\char1}" ++ renderText' allElements acc
-            ('Π',_) -> "{\\fontencoding{QX}\\selectfont\\char5}" ++ renderText' allElements acc
-            ('←',_) -> "{\\fontencoding{TS1}\\selectfont\\char24}" ++ renderText' allElements acc
-            ('→',_) -> "{\\fontencoding{TS1}\\selectfont\\char25}" ++ renderText' allElements acc
-            ('⇒',_) -> "{\\includegraphics[width=7pt]{doublerightarrow.png}}" ++ renderText' allElements acc
-            ('−',_) -> "{\\fontencoding{TS1}\\selectfont\\char61}" ++ renderText' allElements acc
-            ('–',_) -> "--" ++ renderText' allElements acc
-            ('—',_) -> "---" ++ renderText' allElements acc
-            ('×',_) -> "{\\fontencoding{QX}\\selectfont\\char169}" ++ renderText' allElements acc
-            ('∞',_) -> "{\\fontencoding{QX}\\selectfont\\char173}" ++ renderText' allElements acc
-            ('^',_) -> "{\\fontencoding{T1}\\selectfont\\char94}" ++ renderText' allElements acc
-            ('{',_) -> "{\\fontencoding{T1}\\selectfont\\char123}" ++ renderText' allElements acc
-            ('}',_) -> "{\\fontencoding{T1}\\selectfont\\char125}" ++ renderText' allElements acc
-            ('\\',_) -> "{\\fontencoding{T1}\\selectfont\\char92}" ++ renderText' allElements acc
-            ('&',_) -> "{\\fontencoding{T1}\\selectfont\\char38}" ++ renderText' allElements acc
-            ('\'',_) -> "{\\fontencoding{T1}\\selectfont\\char39}" ++ renderText' allElements acc
-            ('…',_) -> "{\\fontencoding{QX}\\selectfont\\char8}" ++ renderText' allElements acc
-            ('`',_) -> "{\\fontencoding{T1}\\selectfont\\char0}" ++ renderText' allElements acc
-            ('①',_) -> whiteCircleText 1 ++ renderText' allElements acc
-            ('②',_) -> whiteCircleText 2 ++ renderText' allElements acc
-            ('③',_) -> whiteCircleText 3 ++ renderText' allElements acc
-            ('④',_) -> whiteCircleText 4 ++ renderText' allElements acc
-            ('⑤',_) -> whiteCircleText 5 ++ renderText' allElements acc
-            ('⑥',_) -> whiteCircleText 6 ++ renderText' allElements acc
-            ('⑦',_) -> whiteCircleText 7 ++ renderText' allElements acc
-            ('⑧',_) -> whiteCircleText 8 ++ renderText' allElements acc
-            ('⑨',_) -> whiteCircleText 9 ++ renderText' allElements acc
-            ('⑩',_) -> whiteCircleText 10 ++ renderText' allElements acc
-            ('⑪',_) -> whiteCircleText 11 ++ renderText' allElements acc
-            ('⑫',_) -> whiteCircleText 12 ++ renderText' allElements acc
-            ('⑬',_) -> whiteCircleText 13 ++ renderText' allElements acc
-            ('⑭',_) -> whiteCircleText 14 ++ renderText' allElements acc
-            ('⑮',_) -> whiteCircleText 15 ++ renderText' allElements acc
-            ('⑯',_) -> whiteCircleText 16 ++ renderText' allElements acc
-            ('⑰',_) -> whiteCircleText 17 ++ renderText' allElements acc
-            ('⑱',_) -> whiteCircleText 18 ++ renderText' allElements acc
-            ('⑲',_) -> whiteCircleText 19 ++ renderText' allElements acc
-            ('⑳',_) -> whiteCircleText 20 ++ renderText' allElements acc
-            ('㉑',_) -> whiteCircleText 21 ++ renderText' allElements acc
-            ('㉒',_) -> whiteCircleText 22 ++ renderText' allElements acc
-            ('㉓',_) -> whiteCircleText 23 ++ renderText' allElements acc
-            ('㉔',_) -> whiteCircleText 24 ++ renderText' allElements acc
-            ('㉕',_) -> whiteCircleText 25 ++ renderText' allElements acc
-            ('㉖',_) -> whiteCircleText 26 ++ renderText' allElements acc
-            ('㉗',_) -> whiteCircleText 27 ++ renderText' allElements acc
-            ('㉘',_) -> whiteCircleText 28 ++ renderText' allElements acc
-            ('㉙',_) -> whiteCircleText 29 ++ renderText' allElements acc
-            ('㉚',_) -> whiteCircleText 30 ++ renderText' allElements acc
-            ('㉛',_) -> whiteCircleText 31 ++ renderText' allElements acc
-            ('㉜',_) -> whiteCircleText 32 ++ renderText' allElements acc
-            ('㉝',_) -> whiteCircleText 33 ++ renderText' allElements acc
-            ('㉞',_) -> whiteCircleText 34 ++ renderText' allElements acc
-            ('㉟',_) -> whiteCircleText 35 ++ renderText' allElements acc
-            ('❶',_) -> blackCircleText 1 ++ renderText' allElements acc
-            ('❷',_) -> blackCircleText 2 ++ renderText' allElements acc
-            ('❸',_) -> blackCircleText 3 ++ renderText' allElements acc
-            ('❹',_) -> blackCircleText 4 ++ renderText' allElements acc
-            ('❺',_) -> blackCircleText 5 ++ renderText' allElements acc
-            ('❻',_) -> blackCircleText 6 ++ renderText' allElements acc
-            ('❼',_) -> blackCircleText 7 ++ renderText' allElements acc
-            ('❽',_) -> blackCircleText 8 ++ renderText' allElements acc
-            ('❾',_) -> blackCircleText 9 ++ renderText' allElements acc
-            ('❿',_) -> blackCircleText 10 ++ renderText' allElements acc
-            ('⓫',_) -> blackCircleText 11 ++ renderText' allElements acc
-            ('⓬',_) -> blackCircleText 12 ++ renderText' allElements acc
-            ('⓭',_) -> blackCircleText 13 ++ renderText' allElements acc
-            ('⓮',_) -> blackCircleText 14 ++ renderText' allElements acc
-            ('⓯',_) -> blackCircleText 15 ++ renderText' allElements acc
-            ('⓰',_) -> blackCircleText 16 ++ renderText' allElements acc
-            ('⓱',_) -> blackCircleText 17 ++ renderText' allElements acc
-            ('⓲',_) -> blackCircleText 18 ++ renderText' allElements acc
-            ('⓳',_) -> blackCircleText 19 ++ renderText' allElements acc
-            ('⓴',_) -> blackCircleText 20 ++ renderText' allElements acc
-            _ -> c:renderText' allElements acc
-
--- ⒰ url
--- ⒞ code
--- ⒡ file
 
 chapterReference :: [Element] -> String -> (String)
 chapterReference parts chapterId =
   case parts of
     (Element "CHAPTER" props _):tailElements ->
-      let chId = idProp (stringProp2 "title" props) props
-          chLabel = stringProp2 "label" props
+      let chId = idProp (stringProp "title" props) props
+          chLabel = stringProp "label" props
       in
           if chId == chapterId
           then chLabel
@@ -478,8 +234,8 @@ sectionReference :: [Element] -> String -> String -> (String)
 sectionReference parts chapterId sectionId =
   case parts of
     (Element "CHAPTER" props chapterElements):tailElements ->
-      let chId = idProp (stringProp2 "title" props) props
-          chLabel = stringProp2 "label" props
+      let chId = idProp (stringProp "title" props) props
+          chLabel = stringProp "label" props
       in
           if chId == chapterId
           then sectionReference' chapterElements chId chLabel sectionId
@@ -491,8 +247,8 @@ sectionReference' :: [Element] -> String -> String -> String -> (String)
 sectionReference' parts chapterId chapterLabel sectionId =
   case parts of
     (Element "SECTION" props _):tailElements ->
-      let secId = idProp (stringProp2 "title" props) props
-          secLabel = stringProp2 "label" props
+      let secId = idProp (stringProp "title" props) props
+          secLabel = stringProp "label" props
       in
           if secId == sectionId
           then chapterLabel ++ "." ++ secLabel
@@ -508,16 +264,6 @@ divideLongLine n line =
     (x,y) -> x ++ "\n" ++ divideLongLine n y
 
 divideLongLines n = unlines . map (divideLongLine n) . lines
-
-checkPrefixes :: [(String,[String])] -> String -> (String,String,String)
-checkPrefixes prefixes str =
-  case prefixes of
-    [] -> ("","",str)
-    (_,[]):rest -> checkPrefixes rest str
-    (col,p:ps):rest ->
-      if isPrefixOf p str
-      then (col,p,drop (length p) str)
-      else checkPrefixes ((col,ps):rest) str
 
 ----------------------------------------------------
 
@@ -549,7 +295,46 @@ latexEnv = Map.fromList
   , ("IMG", [Include "\\begin{center}\n\\includegraphics", AsText "square", Include "{",AsText "latexfile",Include "}\n",
              IfDef "label" [Include "\\par\n", AsText "label",Include "\n"],
              Include "\\end{center}\n"])
+  , ("GROUP", [Args])
+  , ("SRC", [Include "\\begin{semiverbatim}\n\\textbf{",Args,Include "}\\end{semiverbatim}\n"])
   ]
 
 ----------------------------------------------------
+
+--        if sourceType == "java" then ["interface", "abstract", "final", "match", "private", "public", "protected", "implements", "return", "static"
+--                                      ,"if", "else", "case", "class", "extends", "new", "instanceof", "import"]
+--        else if sourceType == "scala" then ["val", "var", "def", "type", "trait", "abstract", "final", "match", "return", "sealed", "final"
+--                                      ,"if", "else", "case", "class", "object", "extends", "with", "implicit", "new", "import"]
+--        else if sourceType == "elm" then ["module", "where", "import", "type", "alias", "if", "then", "else", "case", "of", "let", " in "]
+
+--renderIndex :: String -> String
+--renderIndex ('!':t) = "{\\fontencoding{T1}\\selectfont\\char33}" ++ renderText [] t
+--renderIndex x =
+--   case break f x of
+--    (h, '¡':t) -> (takeWhile g . map k $ x) ++ "@" ++ renderText [] h ++ "!" ++ renderText [] t
+--    (h, '!':t) -> (takeWhile g . map k $ x) ++ "@" ++ renderText [] h ++ "!" ++ renderText [] t
+--    _ -> (map k $ x) ++ "@" ++ renderText [] x
+--  where f c = c == '!' || c == '¡'
+--        g c = c /= '!' && c /= '¡'
+--        k c = if c == '"' then '#' else c
+
+--replaceBlank '\n' = ' '
+--replaceBlank '\r' = ' '
+--replaceBlank c = c
+--
+renderText :: [Element] -> String -> String
+renderText allElements = sourcePng.textPng.styledText.lmChars
+--renderText' allElements $ map replaceBlank text
+--
+--renderText' :: [Element] -> String -> String
+--renderText' _ "" = ""
+--renderText' allElements (c:acc) =
+--          case (c, break (c ==) acc) of
+--            ('\n',_) -> renderText' allElements (' ':acc)
+--            ('⒳',(x,_:acc')) -> "\\index{" ++ renderIndex x ++ "}" ++ renderText' allElements acc'
+--            ('⒭',(ref,_:acc')) ->
+--              case break (','==) ref of
+--                (chId,[]) ->  chapterReference allElements chId ++ renderText' allElements acc'
+--                (chId,_:secId) -> sectionReference allElements chId secId ++ renderText' allElements acc'
+--            _ -> c:renderText' allElements acc
 

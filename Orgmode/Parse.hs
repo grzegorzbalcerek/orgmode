@@ -97,7 +97,6 @@ element level = do
 contentElement level =
   (
   try (text level) <|>
-  try (src level) <|>
   try (table level) <|>
   try (note level) <|>
   try (include level) <|>
@@ -152,13 +151,13 @@ asteriskLineWithProps n tag = do
   return (trim content,mergedProps)
 
 implicitText = do
-  content <- many1 regularLineWithEol
-  return $ Text (concat content)
+  content <- many1 emptyOrRegularLineWithEol
+  return $ Text Map.empty (concat content)
 
 text level = do
-  asteriskLineWithProps level "TEXT"
-  content <- many regularLineWithEol
-  return $ Text (concat content)
+  (_,props) <- asteriskLineWithProps level "TEXT"
+  content <- many emptyOrRegularLineWithEol
+  return $ Text props (concat content)
 
 note level = do
   (noteType,props) <- asteriskLineWithProps level "NOTE"
@@ -205,11 +204,6 @@ import1 level = do
   (file,_) <- asteriskLineWithProps level "IMPORT"
   return $ Import (trim file)
 
-src level = do
-  (description,props) <- asteriskLineWithProps level "SRC"
-  content <- many1 emptyOrRegularLineWithEol
-  return $ Src description props (concat content)
-
 singleColonProp =
   try colonProp2 <|>
   try colonProp1
@@ -240,16 +234,11 @@ restOfLine = do
 eol = try (string "\r\n") <|> string "\n"
 
 emptyOrRegularLineWithEol =
-  eol <|> commentLineWithEol <|> regularLineWithEol
-
-commentLineWithEol = do
-  char '¬'
-  many (noneOf "\n\r")
-  eol
+  eol <|> regularLineWithEol
 
 regularLineWithEol = do
   h <- noneOf "*\n\r"
-  content <- many (noneOf "¬\n\r")
+  content <- many (noneOf "\n\r")
   many (noneOf "\n\r")
   eol
   return (h:content ++ "\n")

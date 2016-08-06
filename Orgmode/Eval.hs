@@ -59,7 +59,7 @@ evaluate env props ((Element name eprops subelements):es) =
     Just defBody -> do
       let bodyWithArgsApplied = defBody >>= applyArguments (Map.union eprops props) subelements 
       evaluatedBody <- evaluate env (Map.union eprops props) bodyWithArgsApplied
-      evaluatedTail <- evaluate env (Map.union eprops props) es
+      evaluatedTail <- evaluate env props es
       return $ evaluatedBody ++ evaluatedTail
 
     -- przypadek 3: środowisko nie ma elementu: pozostaw element bez zmian, ale z ewaluacją podelementów i łączeniem props
@@ -105,12 +105,16 @@ applyArguments props args (IfDef name elements) =
 -- AsText: dodaj jako tekst
 applyArguments props args (AsText name) =
   case (Map.lookup name props) of
-    Just text -> [Text text]
+    Just text -> [Text Map.empty text]
     _ -> []
 
 -- jeśli ciało zawiera Args
 -- skopiuj argumenty ale dodając do nich własności (todo)
-applyArguments props args Args = args
+applyArguments props args Args = map (mergeProps props) args
 
 -- każdy inny element pozostaw bez zmian
 applyArguments args env e = [e]
+
+mergeProps props (Element name eprops elements) = Element name (Map.union eprops props) elements
+mergeProps props (Text eprops elements) = Text (Map.union eprops props) elements
+mergeProps props e = e

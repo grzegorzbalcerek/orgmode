@@ -19,13 +19,13 @@ verifyOutput parts actualOutputFile chapterId sectionId = do
   forM_ parts $ \part ->
     case part of
       Element "CHAPTER" props chapterElements ->
-        let chId = idProp (stringProp2 "title" props) props
+        let chId = idProp (stringProp "title" props) props
         in if chId == chapterId
            then (if sectionId == "" then verifySection chapterElements actualOutputFile
                                     else verifyOutput chapterElements actualOutputFile chapterId sectionId)
            else return ()
       Element "SECTION" props sectionElements ->
-        let secId = idProp (stringProp2 "title" props) props
+        let secId = idProp (stringProp "title" props) props
         in if secId == sectionId
            then verifySection sectionElements actualOutputFile
            else return ()
@@ -55,8 +55,8 @@ getSrcFromElements =
   foldr getSrc []
   where getSrc part acc =
           case part of
-            Src srcType props src
-              | stringProp2 "console" props /= "" && not (hasProp1 "noverify" props) -> (filter (\c -> ord c < 9216) src) : acc
+            Element "SRC" props [Text _ src]
+              | stringProp "console" props /= "" && not (hasProp "noverify" props) -> (filter (\c -> ord c < 9216) src) : acc
             _ -> acc
 
 

@@ -18,8 +18,7 @@ data Element =
   | IfDef String [Element]
   | IfEq String String [Element]
   | Note String (Map.Map String String) [Element]
-  | Text String
-  | Src String (Map.Map String String) String
+  | Text (Map.Map String String) String
   | Include String
   | Import String
   | Table (Map.Map String String) [TableRow]
@@ -51,17 +50,17 @@ isChapter _ = False
 idProp :: String -> Map.Map String String -> String
 idProp fallback = maybe (filter (\c -> c `elem` " ") fallback) id . Map.lookup "id"
 
-intProp2 :: String -> Map.Map String String -> Int
-intProp2 name = maybe 0 (read :: String -> Int) . Map.lookup name
+intProp :: String -> Map.Map String String -> Int
+intProp name = maybe 0 (read :: String -> Int) . Map.lookup name
 
-hasProp1 :: String -> Map.Map String String -> Bool
-hasProp1 name = maybe False (=="t") . Map.lookup name
+hasProp :: String -> Map.Map String String -> Bool
+hasProp name = maybe False (/="") . Map.lookup name
 
-stringProp2Maybe :: String -> Map.Map String String -> Maybe String
-stringProp2Maybe name = Map.lookup name
+stringPropMaybe :: String -> Map.Map String String -> Maybe String
+stringPropMaybe name = Map.lookup name
 
-stringProp2 :: String -> Map.Map String String -> String
-stringProp2 name = maybe "" id . Map.lookup name
+stringProp :: String -> Map.Map String String -> String
+stringProp name = maybe "" id . Map.lookup name
 
 filterChapter :: [Element] -> String -> [Element]
 filterChapter (ch@(Element "CHAPTER" props elements) : rest) wantedChapterId =
