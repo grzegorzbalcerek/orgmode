@@ -11,6 +11,7 @@ import Data.List (dropWhileEnd)
 import Control.Applicative ((<$>))
 import Orgmode.Model
 import Data.String (words)
+import Data.Char
 import qualified Data.Map as Map
 
 type P = Parsec String ()
@@ -45,6 +46,7 @@ singleElement :: Int -> P Element
 singleElement level =
   (
   try (ifdef level) <|>
+  try (ifundef level) <|>
   try (ifeq level) <|>
   try (args level) <|>
   try (astext level) <|>
@@ -61,6 +63,12 @@ ifdef level = do
   content <- many (singleElement $ level + 1)
   return $ IfDef name content
 
+ifundef :: Int -> P Element
+ifundef level = do
+  (name) <- simpleAsteriskLine level "IFUNDEF"
+  content <- many (singleElement $ level + 1)
+  return $ IfUndef name content
+
 ifeq :: Int -> P Element
 ifeq level = do
   (c) <- simpleAsteriskLine level "IFEQ"
@@ -70,8 +78,18 @@ ifeq level = do
 
 args :: Int -> P Element
 args level = do
-  asteriskLine level "ARGS"
-  return $ Args
+  (_,props) <- asteriskLineWithProps level "ARGS"
+  return $ Args props
+
+newline1 :: Int -> P Element
+newline1 level = do
+  asteriskLineWithProps level "NEWLINE"
+  return $ NewLine
+
+onespace :: Int -> P Element
+onespace level = do
+  asteriskLineWithProps level "SPACE"
+  return $ OneSpace
 
 astext :: Int -> P Element
 astext level = do
@@ -99,6 +117,8 @@ contentElement level =
   try (text level) <|>
   try (table level) <|>
   try (note level) <|>
+  try (newline1 level) <|>
+  try (onespace level) <|>
   try (include level) <|>
   try (import1 level) <|>
   try (element level) <|>
@@ -198,7 +218,7 @@ tableCell = do
 include level = do
   (_,_) <- asteriskLineWithProps level "INCLUDE"
   content <- many1 emptyOrRegularLineWithEol
-  return $ Include (concat content)
+  return $ Include (trim (concat content))
 
 import1 level = do
   (file,_) <- asteriskLineWithProps level "IMPORT"
@@ -211,16 +231,14 @@ singleColonProp =
 colonProp1 = do
   char ':'
   name <- many (noneOf " :\n\r")
-  return $ Map.singleton name "t"
+  return $ Map.singleton name ""
 
 colonProp2 = do
   char ':'
   name <- many (noneOf " :\n\r")
   char ' '
   value <- many (noneOf ":\n\r")
-  if trim value == ""
-  then return (Map.singleton name "t")
-  else return $ Map.singleton name (trim value)
+  return $ Map.singleton name (trim value)
 
 ----------------------------------------------
 
@@ -243,4 +261,5 @@ regularLineWithEol = do
   eol
   return (h:content ++ "\n")
 
-trim = dropWhile (\c -> c == ' ') . dropWhileEnd (\c -> c == ' ')
+
+trim = dropWhile isSpace . dropWhileEnd isSpace

@@ -13,13 +13,16 @@ import qualified Data.Map as Map
 data Element =
     Def String [Element]
   | Element String (Map.Map String String) [Element]
-  | Args
+  | Args (Map.Map String String)
   | AsText String
   | IfDef String [Element]
+  | IfUndef String [Element]
   | IfEq String String [Element]
   | Note String (Map.Map String String) [Element]
   | Text (Map.Map String String) String
   | Include String
+  | NewLine
+  | OneSpace
   | Import String
   | Table (Map.Map String String) [TableRow]
   deriving (Eq,Show)
@@ -30,6 +33,10 @@ data TableRow =
     HLine
   | RegularRow [String]
   deriving (Eq,Show)
+
+data StringTransfSpec = SimpleTransf String (String -> String)
+                      | StringListTransf String ([String] -> String -> String)
+                      | IntTransf String (Int -> String -> String)
 
 type RenderType = String
 
@@ -85,3 +92,7 @@ filterSection' (sec@(Element "SECTION" props _) : rest) wantedSectionId =
   else filterSection' rest wantedSectionId
 filterSection' (_:rest) wantedSectionId = filterSection' rest wantedSectionId
 filterSection' [] wantedSectionId = []
+
+makeTransfFunction props (SimpleTransf name f) = if hasProp name props then f else id
+makeTransfFunction props (StringListTransf name f) = if hasProp name props then f (read (stringProp name props) :: [String]) else id
+makeTransfFunction props (IntTransf name f) = if hasProp name props then f (read (stringProp name props) :: Int) else id

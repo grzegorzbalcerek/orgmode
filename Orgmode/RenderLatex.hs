@@ -8,6 +8,7 @@ cmd /c "u: && cd u:\github\orgmode && test"
 
 import Orgmode.Model
 import Orgmode.Text
+import Orgmode.Eval
 import Control.Monad.Trans.State
 import Control.Monad
 import Data.List
@@ -30,11 +31,10 @@ imageHeight 'w' = 34
 
 ----------------------------------------------------
 
-data StringTransfSpec = SimpleTransf String (String -> String)
-                      | ColorTransf String (String -> [String] -> String -> String)
-
 renderElement :: RenderType -> [Element] -> Element -> String
 renderElement _ _ (Include content) = content
+renderElement _ _ NewLine = "\n"
+renderElement _ _ OneSpace = " "
 renderElement _ allElements (Text props txt) =
   let transformationSpecs =
         [ SimpleTransf "onlyascii" onlyAscii
@@ -42,19 +42,19 @@ renderElement _ allElements (Text props txt) =
         , SimpleTransf "textpng" textPng
         , SimpleTransf "styledtext" styledText
         , SimpleTransf "colored" colored
-        , ColorTransf "green" addColor
-        , ColorTransf "red" addColor
-        , ColorTransf "blue" addColor
-        , ColorTransf "cyan" addColor
-        , ColorTransf "magenta" addColor
-        , ColorTransf "brown" addColor
-        , ColorTransf "gray" addColor
+        , StringListTransf "green" (addColor "green")
+        , StringListTransf "red" (addColor "red")
+        , StringListTransf "blue" (addColor "blue")
+        , StringListTransf "cyan" (addColor "cyan")
+        , StringListTransf "magenta" (addColor "magenta")
+        , StringListTransf "brown" (addColor "brown")
+        , StringListTransf "gray" (addColor "gray")
+        , StringListTransf "boldprefixed" boldPrefixed
         , SimpleTransf "lmchars" lmChars
+        , IntTransf "maxline" divideLongLines
         , SimpleTransf "norender" (const "")
         ]
-      makeTransfFunction (SimpleTransf name f) = if hasProp name props then f else id
-      makeTransfFunction (ColorTransf name f) = if hasProp name props then addColor name (read (stringProp name props) :: [String]) else id
-      transformationFunctions = map makeTransfFunction transformationSpecs
+      transformationFunctions = map (makeTransfFunction props) transformationSpecs
       combinedTransformation = foldr (.) id transformationFunctions
   in if hasProp "size" props
      then "{\\" ++ srcSize (stringProp "size" props) txt ++ " " ++ combinedTransformation txt ++ "}"
@@ -91,15 +91,15 @@ renderElement rt allElements (Element "SECTION" props parts) =
     "{" ++ renderText allElements (stringProp "title" props) ++ "}\n" ++
     (if label == "" then "\\addcontentsline{toc}{section}{" ++ (stringProp "title" props) ++ "}" else "") ++
     concat (map (renderElement rt allElements) parts) ++ stringProp "latex2" props ++ "\n"
-renderElement rt allElements (Note noteType props parts) =
-  "\n\n" ++ stringProp "latex1" props ++ "\n\n" ++ {- renderIndexEntries props ++ -} "\\begin{tabular}{lp{1cm}p{11.2cm}}\n" ++
-  "\\cline{2-3}\\noalign{\\smallskip}\n" ++
-  "&\\raisebox{-" ++ (show $ (imageHeight $ head noteType) - 10) ++
-  "pt}{\\includegraphics[height=" ++ (show.imageHeight $ head noteType) ++ "pt]{" ++
-  [head noteType] ++ "sign.png" ++ -- (if head noteType == 'r' then ".png" else ".eps") ++
-  "}}&\\small\\setlength{\\parskip}{2mm}" ++
-  concat (map (renderElement "InNote" allElements) parts) ++
-  "\\\\ \\noalign{\\smallskip}\\cline{2-3}\n\\end{tabular}\n\n" ++ stringProp "latex2" props
+--renderElement rt allElements (Note noteType props parts) =
+--  "\n\n" ++ stringProp "latex1" props ++ "\n\n" ++ {- renderIndexEntries props ++ -} "\\begin{tabular}{lp{1cm}p{11.2cm}}\n" ++
+--  "\\cline{2-3}\\noalign{\\smallskip}\n" ++
+--  "&\\raisebox{-" ++ (show $ (imageHeight $ head noteType) - 10) ++
+--  "pt}{\\includegraphics[height=" ++ (show.imageHeight $ head noteType) ++ "pt]{" ++
+--  [head noteType] ++ "sign.png" ++ -- (if head noteType == 'r' then ".png" else ".eps") ++
+--  "}}&\\small\\setlength{\\parskip}{2mm}" ++
+--  concat (map (renderElement "InNote" allElements) parts) ++
+--  "\\\\ \\noalign{\\smallskip}\\cline{2-3}\n\\end{tabular}\n\n" ++ stringProp "latex2" props
 --renderElement "Slides" allElements (Src description props src) =  renderSrcSlides (Src description props src)
 --renderElement rt allElements (Src description props src) = renderSrcBook rt description props src
 renderElement rt allElements (Table props rows) =
@@ -175,45 +175,11 @@ renderSrcBook rt description props src =
         else if (take 7 line == "     | ") then "     | \\textbf{" ++ drop 7 line ++ "}"
         else line
       boldCommands = unlines . map boldCommand . lines
-      fileName = pathFileName props
       renderConsoleLike = boldCommands (divideLongLines 89 src)
-      renderFile =
-             (if fileName == ""
-              then ""
-              else "\\includegraphics[width=7pt]{filesign.png} \\textbf{Plik " ++ fileName ++
-                (if hasProp "fragment" props then " (fragment)" else "") ++ ":}\n") ++
-             (divideLongLines 89 src)
-      render =
-        if stringProp "console" props /= ""
-        then renderConsoleLike
-        else renderFile
   in 
     if hasProp "norender" props
     then ""
-    else 
-      stringProp "latex1" props ++ "\n\\begin{alltt}\\footnotesize\\leftskip10pt\n" ++ render ++ "\\end{alltt}\n\n" ++ stringProp "latex2" props
-
-----------------------------------------------------
-
--- renderSrcSlides content =
---     let lns = lines content
---         height = floor $ 1.1 * fromIntegral (length lns)
---         width = maximum $ map (length . filter (\c -> ord c < 256)) lns
---         textsize =
---           if width <= 45 && height <= 15 then "Large"
---           else if width <= 55 && height <= 18 then "large"
---           else if width <= 65 && height <= 21 then "normalsize"
---           else if width <= 72 && height <= 23 then "small"
---           else if width <= 82 && height <= 27 then "footnotesize"
---           else if width <= 90 && height <= 33 then "scriptsize"
---           else "tiny"
---         verbatimContent content =
---           "\\begin{semiverbatim}\n" ++
---           renderCodeSlides props content ++
---           "\\end{semiverbatim}\n"
---     in
---         "\\" ++ textsize ++ "\n" ++
---         verbatimContent content
+    else ""
 
 ----------------------------------------------------
 
@@ -258,45 +224,34 @@ sectionReference' parts chapterId chapterLabel sectionId =
 
 ----------------------------------------------------
 
-divideLongLine n line =
-  case (splitAt n line) of
-    (x,"") -> x
-    (x,y) -> x ++ "\n" ++ divideLongLine n y
-
-divideLongLines n = unlines . map (divideLongLine n) . lines
-
-----------------------------------------------------
-
 latexEnv :: Map.Map String [Element]
-latexEnv = Map.fromList
+latexEnv = Map.union basicEnv $ Map.fromList
   [ ("PAUSE",[Include "\\pause\n"])
-  , ("CENTER", [Include "\\centerline{", AsText "title", Args, Include "}\n"])
-  , ("H1", [Include "\\textbf{\\Huge ", AsText "title", Args, Include "}\\par\n"])
-  , ("H2", [Include "\\textbf{\\huge ", AsText "title", Args, Include "}\\par\n"])
-  , ("H3", [Include "\\textbf{\\LARGE ", AsText "title", Args, Include "}\\par\n"])
-  , ("H4", [Include "\\textbf{\\Large ", AsText "title", Args, Include "}\\par\n"])
-  , ("H5", [Include "\\textbf{\\large ", AsText "title", Args, Include "}\\par\n"])
-  , ("H6", [Include "\\textbf{\\normalsize ", AsText "title", Args, Include "}\\par\n"])
-  , ("C1", [Include "\\textbf{\\centerline{\\Huge ", AsText "title", Args, Include "}}\\par\n"])
-  , ("C2", [Include "\\textbf{\\centerline{\\huge ", AsText "title", Args, Include "}}\\par\n"])
-  , ("C3", [Include "\\textbf{\\centerline{\\LARGE ", AsText "title", Args, Include "}}\\par\n"])
-  , ("C4", [Include "\\textbf{\\centerline{\\Large ", AsText "title", Args, Include "}}\\par\n"])
-  , ("C5", [Include "\\textbf{\\centerline{\\large ", AsText "title", Args, Include "}}\\par\n"])
-  , ("C6", [Include "\\textbf{\\centerline{\\normalsize ", AsText "title", Args, Include "}}\\par\n"])
-  , ("PARA", [Args, Include "\\par\n"])
-  , ("ITEMS", [Include "\n\\begin{itemize}\n",  IfEq "style" "none" [Include "\\renewcommand{\\labelitemi}{}\n"], Args, Include "\\end{itemize}\n"])
-  , ("ITEM", [Include "\\item{", AsText "title", Args, Include "}\n"])
-  , ("SLIDE", [Include "\\begin{frame}[fragile]\n", IfDef "title" [Include "\\frametitle{", AsText "title", Include "}\n"], Args, Include "\\end{frame}\n"])
-  , ("BLOCK", [Include "\\begin{block}{", AsText "title", Include "}\n", Args, Include "\\end{block}\n"])
-  , ("EXAMPLEBLOCK", [Include "\\begin{exampleblock}{", AsText "title", Include "}\n", Args, Include "\\end{exampleblock}\n"])
+  , ("CENTER", [Include "\\centerline{", AsText "title", Args Map.empty, Include "}\n"])
+  , ("H1", [Include "\\textbf{\\Huge ", AsText "title", Args Map.empty, Include "}\\par\n"])
+  , ("H2", [Include "\\textbf{\\huge ", AsText "title", Args Map.empty, Include "}\\par\n"])
+  , ("H3", [Include "\\textbf{\\LARGE ", AsText "title", Args Map.empty, Include "}\\par\n"])
+  , ("H4", [Include "\\textbf{\\Large ", AsText "title", Args Map.empty, Include "}\\par\n"])
+  , ("H5", [Include "\\textbf{\\large ", AsText "title", Args Map.empty, Include "}\\par\n"])
+  , ("H6", [Include "\\textbf{\\normalsize ", AsText "title", Args Map.empty, Include "}\\par\n"])
+  , ("C1", [Include "\\textbf{\\centerline{\\Huge ", AsText "title", Args Map.empty, Include "}}\\par\n"])
+  , ("C2", [Include "\\textbf{\\centerline{\\huge ", AsText "title", Args Map.empty, Include "}}\\par\n"])
+  , ("C3", [Include "\\textbf{\\centerline{\\LARGE ", AsText "title", Args Map.empty, Include "}}\\par\n"])
+  , ("C4", [Include "\\textbf{\\centerline{\\Large ", AsText "title", Args Map.empty, Include "}}\\par\n"])
+  , ("C5", [Include "\\textbf{\\centerline{\\large ", AsText "title", Args Map.empty, Include "}}\\par\n"])
+  , ("C6", [Include "\\textbf{\\centerline{\\normalsize ", AsText "title", Args Map.empty, Include "}}\\par\n"])
+  , ("PARA", [Args Map.empty, Include "\\par", NewLine])
+  , ("ITEMS", [Include "\n\\begin{itemize}\n",  IfEq "style" "none" [Include "\\renewcommand{\\labelitemi}{}\n"], Args Map.empty, Include "\\end{itemize}\n"])
+  , ("ITEM", [Include "\\item{", AsText "title", Args Map.empty, Include "}\n"])
+  , ("SLIDE", [Include "\\begin{frame}[fragile]\n", IfDef "title" [Include "\\frametitle{", AsText "title", Include "}\n"], Args Map.empty, Include "\\end{frame}\n"])
+  , ("BLOCK", [Include "\\begin{block}{", AsText "title", Include "}\n", Args Map.empty, Include "\\end{block}\n"])
+  , ("EXAMPLEBLOCK", [Include "\\begin{exampleblock}{", AsText "title", Include "}\n", Args Map.empty, Include "\\end{exampleblock}\n"])
   , ("SHOWINDEX", [Include "\\printindex\n"])
   , ("DOCUMENTEND", [Include "\\end{document}\n"])
-  , ("HEADER1", [Include "\\centerline{\\tikz{\\node[scale=1]{", AsText "title", Args, Include "};}}\n"])
+  , ("HEADER1", [Include "\\centerline{\\tikz{\\node[scale=1]{", AsText "title", Args Map.empty, Include "};}}\n"])
   , ("IMG", [Include "\\begin{center}\n\\includegraphics", AsText "square", Include "{",AsText "latexfile",Include "}\n",
              IfDef "label" [Include "\\par\n", AsText "label",Include "\n"],
              Include "\\end{center}\n"])
-  , ("GROUP", [Args])
-  , ("SRC", [Include "\\begin{semiverbatim}\n\\textbf{",Args,Include "}\\end{semiverbatim}\n"])
   ]
 
 ----------------------------------------------------

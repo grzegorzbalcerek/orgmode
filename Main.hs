@@ -2,8 +2,7 @@
 module Main where
 
 {-
-cmd /c "u: && cd u:\github\orgmode && make"
-cmd /c "u: && cd u:\github\orgmode && test"
+ghc Main.hs -o orgmode && copy /y orgmode.exe L:\bin
 -}
 
 import System.Environment
@@ -26,33 +25,33 @@ main = do
   args <- System.Environment.getArgs
   mainWithArgs args
 
-mainWithArgs ["parse",variant,path]                                     = parseCommand variant path
-mainWithArgs ["eval",variant,path]                                      = evalCommand variant path
-mainWithArgs ["latex",variant,path]                                     = latexCommand variant path ""
-mainWithArgs ["latex",variant,path,outputPath]                          = latexCommand variant path outputPath
-mainWithArgs ["showsrc",path]                                           = extractsrcCommand path ShowMinusPaths "" ""
-mainWithArgs ["showsrc",path,chapterId]                                 = extractsrcCommand path ShowMinusPaths chapterId ""
-mainWithArgs ["showsrc",path,chapterId,sectionId]                       = extractsrcCommand path ShowMinusPaths chapterId sectionId
-mainWithArgs ["extractsrc",path]                                        = extractsrcCommand path WriteFilePaths "" ""
-mainWithArgs ["extractsrc",path,chapterId]                              = extractsrcCommand path WriteFilePaths chapterId ""
-mainWithArgs ["extractsrc",path,chapterId,sectionId]                    = extractsrcCommand path WriteFilePaths chapterId sectionId
+mainWithArgs ["parse",path]                                             = parseCommand path
+mainWithArgs ["eval",path]                                              = evalCommand basicEnv path
+mainWithArgs ["evallatex",path]                                         = evalCommand latexEnv path
+mainWithArgs ["latex",path]                                             = latexCommand latexEnv path ""
+mainWithArgs ["latex",path,outputPath]                                  = latexCommand latexEnv path outputPath
+mainWithArgs ["showsrc",path]                                           = extractsrcCommand basicEnv path ShowMinusPaths "" ""
+mainWithArgs ["showsrc",path,chapterId]                                 = extractsrcCommand basicEnv path ShowMinusPaths chapterId ""
+mainWithArgs ["showsrc",path,chapterId,sectionId]                       = extractsrcCommand basicEnv path ShowMinusPaths chapterId sectionId
+mainWithArgs ["extractsrc",path]                                        = extractsrcCommand basicEnv path WriteFilePaths "" ""
+mainWithArgs ["extractsrc",path,chapterId]                              = extractsrcCommand basicEnv path WriteFilePaths chapterId ""
+mainWithArgs ["extractsrc",path,chapterId,sectionId]                    = extractsrcCommand basicEnv path WriteFilePaths chapterId sectionId
 --mainWithArgs ["multihtml",path,outputPath]                              = multihtmlCommand path outputPath
-mainWithArgs ["verifyoutput",path,actualOutputFile]                     = verifyoutputCommand path actualOutputFile "" ""
-mainWithArgs ["verifyoutput",path,actualOutputFile,chapterId]           = verifyoutputCommand path actualOutputFile chapterId ""
-mainWithArgs ["verifyoutput",path,actualOutputFile,chapterId,sectionId] = verifyoutputCommand path actualOutputFile chapterId sectionId
+mainWithArgs ["verifyoutput",path,actualOutputFile]                     = verifyoutputCommand basicEnv path actualOutputFile "" ""
+mainWithArgs ["verifyoutput",path,actualOutputFile,chapterId]           = verifyoutputCommand basicEnv path actualOutputFile chapterId ""
+mainWithArgs ["verifyoutput",path,actualOutputFile,chapterId,sectionId] = verifyoutputCommand basicEnv path actualOutputFile chapterId sectionId
 mainWithArgs _                                                          = putStrLn "Input arguments not recognized. Nothing to do."
 
-parseCommand variant path = processFile path $ \input -> do
+parseCommand path = processFile path $ \input -> do
   let content = parseInput input
   putStrLn (show content)
 
-evalCommand variant path = processFile path $ \input -> do
-  --content <- string2elements (Map.singleton variant []) Map.empty input
-  content <- string2elements (Map.insert variant [] latexEnv) Map.empty input
+evalCommand env path = processFile path $ \input -> do
+  content <- string2elements env Map.empty input
   putStrLn (show content)
 
-latexCommand variant path outputPath = processFile path $ \input -> do
-  content <- string2elements (Map.insert variant [] latexEnv) Map.empty input
+latexCommand env path outputPath = processFile path $ \input -> do
+  content <- string2elements env Map.empty input
   let outputFile =
        if outputPath == "" && isSuffixOf ".org" path
        then (init.init.init.init $ path) ++ ".tex"
@@ -61,23 +60,23 @@ latexCommand variant path outputPath = processFile path $ \input -> do
   then putStrLn "No output file name. Nothing to do."
   else do
     houtput <- safeOpenFileForWriting outputFile
-    let output = renderLatex variant content
+    let output = renderLatex "Book" content
     putStrLn $ "Generating " ++ outputFile ++ ". Length: " ++ show (length output) ++ "."
     putStrLn $ "You may want to run:"
     putStrLn $ "pdflatex " ++ outputFile
     hPutStr houtput output
     hClose houtput
 
-extractsrcCommand path defaultfile chapterId sectionId = processFile path $ \input -> do
-  content <- string2elements Map.empty Map.empty input
+extractsrcCommand env path defaultfile chapterId sectionId = processFile path $ \input -> do
+  content <- string2elements env Map.empty input
   extractSrcFromElements content defaultfile chapterId sectionId
 
 --multihtmlCommand path outputPath = processFile path $ \input -> do
 --  (env,content) <- string2elements Map.empty Map.empty input
 --  runReaderT (writeMultiHtml env outputPath) content
 
-verifyoutputCommand path actualOutputFile chapterId sectionId = processFile path $ \input -> do
-  content <- string2elements Map.empty Map.empty input
+verifyoutputCommand env path actualOutputFile chapterId sectionId = processFile path $ \input -> do
+  content <- string2elements env Map.empty input
   verifyOutput content actualOutputFile chapterId sectionId
 
 processFile :: String -> (String -> IO ()) -> IO ()

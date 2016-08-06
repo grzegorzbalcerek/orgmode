@@ -50,7 +50,7 @@ evaluate env props ((Element name eprops subelements):es) =
   case (Map.lookup name env) of
 
     -- przypadek 1: środowisko zawiera pustą definicję z nazwą równą nazwie elementu
-    -- przyjmij że to jest wariant i dodaj podelementy
+    -- dodaj podelementy
     Just [] ->
       evaluate env (Map.union eprops props) (subelements ++ es)
 
@@ -98,9 +98,15 @@ applyArguments props args (IfEq name value elements) =
 -- zwróć przetworzone elementy
 -- w przeciwnym razie zwróć listę pustą
 applyArguments props args (IfDef name elements) =
-  case (Map.lookup name props) of
-    Just _ -> elements >>= applyArguments props args
-    _ -> []
+  if hasProp name props
+  then elements >>= applyArguments props args
+  else []
+
+-- IfUndef: odwrotność IfDef
+applyArguments props args (IfUndef name elements) =
+  if hasProp name props
+  then []
+  else elements >>= applyArguments props args
 
 -- AsText: dodaj jako tekst
 applyArguments props args (AsText name) =
@@ -110,7 +116,7 @@ applyArguments props args (AsText name) =
 
 -- jeśli ciało zawiera Args
 -- skopiuj argumenty ale dodając do nich własności (todo)
-applyArguments props args Args = map (mergeProps props) args
+applyArguments props args (Args argsprops) = map (mergeProps (Map.union argsprops props)) args
 
 -- każdy inny element pozostaw bez zmian
 applyArguments args env e = [e]
@@ -118,3 +124,5 @@ applyArguments args env e = [e]
 mergeProps props (Element name eprops elements) = Element name (Map.union eprops props) elements
 mergeProps props (Text eprops elements) = Text (Map.union eprops props) elements
 mergeProps props e = e
+
+basicEnv = (Map.singleton "DEFS" [])

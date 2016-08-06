@@ -10,6 +10,7 @@ import Data.Char
 import Data.List
 
 onlyAscii = filter (\c -> ord c < 128)
+onlyLowUnicode = filter (\c -> ord c < 9216)
 
 nobreakAfterAiouwz :: String -> String
 nobreakAfterAiouwz =
@@ -151,6 +152,7 @@ styledText (c:acc) =
     ('⒰',(url,_:acc')) -> "\\textsl{" ++ styledText url ++ "}" ++ styledText acc'
     ('⒤',(text,_:acc')) -> "\\textit{" ++ styledText text ++ "}" ++ styledText acc'
     ('⒞',(code,_:acc')) -> "\\texttt{" ++ styledText code ++ "}" ++ styledText acc'
+    ('⒳',(x,_:acc')) -> styledText acc' -- temporary solution: ignore text inside x markers
     ('⒝',(code,_:acc')) -> "\\textbf{" ++ styledText code ++ "}" ++ styledText acc'
     ('¡',(code,_:acc')) -> "\\textbf{" ++ styledText code ++ "}" ++ styledText acc'
     _ -> c:styledText acc
@@ -212,4 +214,30 @@ autoSrcSize content =
           else if width <= 90 && height <= 33 then "scriptsize"
           else "tiny"
 
+divideLongLine n line =
+  case (splitAt n line) of
+    (x,"") -> x
+    (x,y) -> x ++ "\n" ++ divideLongLine n y
+
+divideLongLines n = unlines . map (divideLongLine n) . lines
+
+prependnl n txt = (take n (repeat '\n')) ++ txt
+
+onlyPrefixed :: [String] -> String -> String
+onlyPrefixed prefixes = unlines . filter (/="") . map (onlyPrefixedLine prefixes) . lines
+
+onlyPrefixedLine :: [String] -> String -> String
+onlyPrefixedLine (prefix:prefixes) line | isPrefixOf prefix line = drop (length prefix) line
+onlyPrefixedLine (_:prefixes) line = onlyPrefixedLine prefixes line
+onlyPrefixedLine [] line = ""
+
+boldPrefixed :: [String] -> String -> String
+boldPrefixed prefixes = unlines . map (boldPrefixedLine prefixes) . lines
+
+boldPrefixedLine :: [String] -> String -> String
+boldPrefixedLine (prefix:prefixes) line | isPrefixOf prefix line =
+  let prefixLength = length prefix
+  in take prefixLength line ++ "\\textbf{" ++ drop prefixLength line ++ "}"
+boldPrefixedLine (_:prefixes) line = boldPrefixedLine prefixes line
+boldPrefixedLine [] line = line
 
