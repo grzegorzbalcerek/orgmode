@@ -116,7 +116,6 @@ contentElement level =
   (
   try (text level) <|>
   try (table level) <|>
-  try (note level) <|>
   try (newline1 level) <|>
   try (onespace level) <|>
   try (include level) <|>
@@ -178,11 +177,6 @@ text level = do
   (_,props) <- asteriskLineWithProps level "TEXT"
   content <- many emptyOrRegularLineWithEol
   return $ Text props (concat content)
-
-note level = do
-  (noteType,props) <- asteriskLineWithProps level "NOTE"
-  content <- many (contentElement $ level + 1)
-  return $ Note noteType props content
 
 table level = do
   (_,props) <- asteriskLineWithProps level "TABLE"

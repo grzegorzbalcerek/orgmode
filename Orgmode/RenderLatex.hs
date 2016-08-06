@@ -25,12 +25,6 @@ renderLatex rt parts =
 
 ----------------------------------------------------
 
-imageHeight 'r' = 24
-imageHeight 'j' = 34
-imageHeight 'w' = 34
-
-----------------------------------------------------
-
 renderElement :: RenderType -> [Element] -> Element -> String
 renderElement _ _ (Include content) = content
 renderElement _ _ NewLine = "\n"
@@ -88,20 +82,9 @@ renderElement rt allElements (Element "SECTION" props parts) =
      else "\\setcounter{section}{" ++ label ++ "}\\addtocounter{section}{-1}") ++
     "\n\\section" ++
     (if label == "" then "*" else "") ++
-    "{" ++ renderText allElements (stringProp "title" props) ++ "}\n" ++
+    "{" ++ (stringProp "title" props) ++ "}\n" ++
     (if label == "" then "\\addcontentsline{toc}{section}{" ++ (stringProp "title" props) ++ "}" else "") ++
     concat (map (renderElement rt allElements) parts) ++ stringProp "latex2" props ++ "\n"
---renderElement rt allElements (Note noteType props parts) =
---  "\n\n" ++ stringProp "latex1" props ++ "\n\n" ++ {- renderIndexEntries props ++ -} "\\begin{tabular}{lp{1cm}p{11.2cm}}\n" ++
---  "\\cline{2-3}\\noalign{\\smallskip}\n" ++
---  "&\\raisebox{-" ++ (show $ (imageHeight $ head noteType) - 10) ++
---  "pt}{\\includegraphics[height=" ++ (show.imageHeight $ head noteType) ++ "pt]{" ++
---  [head noteType] ++ "sign.png" ++ -- (if head noteType == 'r' then ".png" else ".eps") ++
---  "}}&\\small\\setlength{\\parskip}{2mm}" ++
---  concat (map (renderElement "InNote" allElements) parts) ++
---  "\\\\ \\noalign{\\smallskip}\\cline{2-3}\n\\end{tabular}\n\n" ++ stringProp "latex2" props
---renderElement "Slides" allElements (Src description props src) =  renderSrcSlides (Src description props src)
---renderElement rt allElements (Src description props src) = renderSrcBook rt description props src
 renderElement rt allElements (Table props rows) =
   let t = fromMaybe "tabular" $ stringPropMaybe "type" props
       w = maybe "" (\x -> "{" ++ x ++ "}") $ stringPropMaybe "width" props
@@ -133,7 +116,7 @@ renderCells n sep (cell:cells)
   | elem '«' cell || elem '¤' cell || elem '»' cell =
   (if n > 1 then (removeAlignment sep) else "") ++
   "\\multicolumn{" ++ (show $ multiColumnSize sep) ++ "}{" ++ multiColumnAlignment cell ++ "}{" ++
-  renderText [] (removeAlignment cell) ++ "}" ++
+  renderCellText (removeAlignment cell) ++ "}" ++
   renderCells (n+1) (removeAlignment sep) cells
 -- jak jest w tekście ¨ lub w separatorze, to albo zaczyna się albo kontynuuje wielokomórkowa seria
 renderCells n sep (cell:nextcell:cells)
@@ -142,7 +125,9 @@ renderCells n sep (cell:nextcell:cells)
 -- normalny wiersz
 renderCells n sep (cell:cells) =
   (if n > 1 then sep else "") ++
-  renderText [] cell ++ renderCells (n+1) sep cells
+  renderCellText cell ++ renderCells (n+1) sep cells
+
+renderCellText txt = renderElement "" [] (Text (Map.fromList[{- todo -}]) txt)
 
 renderClines _ [] = ""
 renderClines n ("":cells) = renderClines (n+1) cells

@@ -18,7 +18,6 @@ data Element =
   | IfDef String [Element]
   | IfUndef String [Element]
   | IfEq String String [Element]
-  | Note String (Map.Map String String) [Element]
   | Text (Map.Map String String) String
   | Include String
   | NewLine

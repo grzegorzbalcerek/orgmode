@@ -152,9 +152,10 @@ styledText (c:acc) =
     ('⒰',(url,_:acc')) -> "\\textsl{" ++ styledText url ++ "}" ++ styledText acc'
     ('⒤',(text,_:acc')) -> "\\textit{" ++ styledText text ++ "}" ++ styledText acc'
     ('⒞',(code,_:acc')) -> "\\texttt{" ++ styledText code ++ "}" ++ styledText acc'
-    ('⒳',(x,_:acc')) -> styledText acc' -- temporary solution: ignore text inside x markers
     ('⒝',(code,_:acc')) -> "\\textbf{" ++ styledText code ++ "}" ++ styledText acc'
     ('¡',(code,_:acc')) -> "\\textbf{" ++ styledText code ++ "}" ++ styledText acc'
+    ('⒳',(_,_:acc')) -> styledText acc' -- temporary solution: ignore text inside x markers
+    ('⒭',(_,_:acc')) -> styledText acc' -- temporary solution: ignore text inside r markers
     _ -> c:styledText acc
 
 
