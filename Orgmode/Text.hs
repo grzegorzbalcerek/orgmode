@@ -126,6 +126,7 @@ lmChars =
           '~' -> "{\\fontencoding{T1}\\selectfont\\char126}" ++ acc
           '¶' -> "{\\par}" ++ acc
           '×' -> "{\\fontencoding{QX}\\selectfont\\char169}" ++ acc
+          '⋆' -> "*" ++ acc
           'Δ' -> "{\\fontencoding{QX}\\selectfont\\char1}" ++ acc
           'Π' -> "{\\fontencoding{QX}\\selectfont\\char5}" ++ acc
           'Σ' -> "{\\fontencoding{QX}\\selectfont\\char6}" ++ acc

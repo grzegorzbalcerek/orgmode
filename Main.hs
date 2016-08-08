@@ -60,7 +60,7 @@ latexCommand env path outputPath = processFile path $ \input -> do
   then putStrLn "No output file name. Nothing to do."
   else do
     houtput <- safeOpenFileForWriting outputFile
-    let output = renderLatex "Book" content
+    let output = renderLatex content
     putStrLn $ "Generating " ++ outputFile ++ ". Length: " ++ show (length output) ++ "."
     putStrLn $ "You may want to run:"
     putStrLn $ "pdflatex " ++ outputFile

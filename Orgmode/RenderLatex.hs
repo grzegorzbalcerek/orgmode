@@ -1,11 +1,6 @@
 -- -*- coding: utf-8; -*-
 module Orgmode.RenderLatex where
 
-{-
-cmd /c "u: && cd u:\github\orgmode && make"
-cmd /c "u: && cd u:\github\orgmode && test"
--}
-
 import Orgmode.Model
 import Orgmode.Text
 import Orgmode.Eval
@@ -19,17 +14,17 @@ import Data.Maybe (fromMaybe,maybe)
 
 ----------------------------------------------------
 
-renderLatex :: RenderType -> [Element] -> String
-renderLatex rt parts =
-  (concat $ renderElement rt parts `fmap` (parts ++ [Include "\\end{document}\n"]))
+renderLatex :: [Element] -> String
+renderLatex parts =
+  (concat $ renderElement parts `fmap` (parts ++ [Include "\\end{document}\n"]))
 
 ----------------------------------------------------
 
-renderElement :: RenderType -> [Element] -> Element -> String
-renderElement _ _ (Include content) = content
-renderElement _ _ NewLine = "\n"
-renderElement _ _ OneSpace = " "
-renderElement _ allElements (Text props txt) =
+renderElement :: [Element] -> Element -> String
+renderElement _ (Include content) = content
+renderElement _ NewLine = "\n"
+renderElement _ OneSpace = " "
+renderElement allElements (Text props txt) =
   let transformationSpecs =
         [ SimpleTransf "onlyascii" onlyAscii
         , SimpleTransf "sourcepng" sourcePng
@@ -54,38 +49,7 @@ renderElement _ allElements (Text props txt) =
      then "{\\" ++ srcSize (stringProp "size" props) txt ++ " " ++ combinedTransformation txt ++ "}"
      else combinedTransformation txt
 
-renderElement "Book" allElements (Element "CHAPTER" props parts) =
-  let title = stringProp "title" props
-      label = stringProp "label" props
-      firstSectionTitle (Element "SECTION" props elements : _) = stringProp "title" props
-      firstSectionTitle (_:rest) = firstSectionTitle rest
-      firstSectionTitle [] = ""
-  in
-    (if label == ""
-     then ""
-     else "\\setcounter{chapter}{" ++ label ++ "}\\addtocounter{chapter}{-1}\\setcounter{section}{1}") ++
-    "\\renewcommand{\\firstsectiontitle}{" ++ firstSectionTitle parts ++ "}" ++
-    "\\chapter" ++
-    (if label == "" then "*" else "") ++
-    "{" ++ title ++ "}\n" ++
-    (if label == ""
-     then "\\addcontentsline{toc}{chapter}{" ++ title ++ "}" ++
-          "\\markboth{" ++ title ++ "}{" ++ firstSectionTitle parts ++ "}"
-     else "") ++
-    concat (map (renderElement "Book" allElements) parts) ++ "\n"
-renderElement rt allElements (Element "SECTION" props parts) =
-  let label = stringProp "label" props
-  in
-    stringProp "latex1" props ++
-    (if label == ""
-     then ""
-     else "\\setcounter{section}{" ++ label ++ "}\\addtocounter{section}{-1}") ++
-    "\n\\section" ++
-    (if label == "" then "*" else "") ++
-    "{" ++ (stringProp "title" props) ++ "}\n" ++
-    (if label == "" then "\\addcontentsline{toc}{section}{" ++ (stringProp "title" props) ++ "}" else "") ++
-    concat (map (renderElement rt allElements) parts) ++ stringProp "latex2" props ++ "\n"
-renderElement rt allElements (Table props rows) =
+renderElement allElements (Table props rows) =
   let t = fromMaybe "tabular" $ stringPropMaybe "type" props
       w = maybe "" (\x -> "{" ++ x ++ "}") $ stringPropMaybe "width" props
       spec = stringProp "spec" props
@@ -95,10 +59,10 @@ renderElement rt allElements (Table props rows) =
     concat (map renderRow rows) ++
     "\\end{" ++ t ++ "}\n" ++
     "\n" ++ stringProp "latex2" props
-renderElement rt allElements (Element "COMMENT" _ parts) = ""
-renderElement rt allElements (Element "PAGE" _ parts) =
-    concat (map (renderElement rt allElements) parts) ++ "\n\\vfill\\eject\n"
-renderElement _ _ _ = ""
+renderElement allElements (Element "COMMENT" _ parts) = ""
+renderElement allElements (Element "PAGE" _ parts) =
+    concat (map (renderElement allElements) parts) ++ "\n\\vfill\\eject\n"
+renderElement _ _ = ""
 
 ----------------------------------------------------
 
@@ -127,7 +91,7 @@ renderCells n sep (cell:cells) =
   (if n > 1 then sep else "") ++
   renderCellText cell ++ renderCells (n+1) sep cells
 
-renderCellText txt = renderElement "" [] (Text (Map.fromList[{- todo -}]) txt)
+renderCellText txt = renderElement [] (Text (Map.fromList[{- todo -}]) txt)
 
 renderClines _ [] = ""
 renderClines n ("":cells) = renderClines (n+1) cells

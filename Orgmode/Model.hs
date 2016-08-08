@@ -37,8 +37,6 @@ data StringTransfSpec = SimpleTransf String (String -> String)
                       | StringListTransf String ([String] -> String -> String)
                       | IntTransf String (Int -> String -> String)
 
-type RenderType = String
-
 takeWhileEnd f = reverse . takeWhile f . reverse
 
 pathFileName :: Map.Map String String -> String
