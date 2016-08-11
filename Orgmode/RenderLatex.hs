@@ -40,6 +40,7 @@ renderElement allElements (Text props txt) =
         , StringListTransf "gray" (addColor "gray")
         , StringListTransf "boldprefixed" boldPrefixed
         , SimpleTransf "lmchars" lmChars
+        , SimpleTransf "references" references
         , IntTransf "maxline" divideLongLines
         , SimpleTransf "norender" (const "")
         ]
@@ -110,54 +111,6 @@ removeAlignment = filter (\c -> c/='«' && c/='¤' && c/='»' && c/='¦' && c/='
 
 ----------------------------------------------------
 
-renderIndexEntries = ""
---  foldl (\acc p -> case p of
---                     Prop2 "x" entry -> "\\index{" ++ renderIndex entry ++ "}" ++ acc
---                     _ -> acc) ""
-
-----------------------------------------------------
-
-chapterReference :: [Element] -> String -> (String)
-chapterReference parts chapterId =
-  case parts of
-    (Element "CHAPTER" props _):tailElements ->
-      let chId = idProp (stringProp "title" props) props
-          chLabel = stringProp "label" props
-      in
-          if chId == chapterId
-          then chLabel
-          else chapterReference tailElements chapterId
-    _:tailElements -> chapterReference tailElements chapterId
-    _ -> error $ "Unable to find chapter reference for chapter id: " ++ chapterId
-
-sectionReference :: [Element] -> String -> String -> (String)
-sectionReference parts chapterId sectionId =
-  case parts of
-    (Element "CHAPTER" props chapterElements):tailElements ->
-      let chId = idProp (stringProp "title" props) props
-          chLabel = stringProp "label" props
-      in
-          if chId == chapterId
-          then sectionReference' chapterElements chId chLabel sectionId
-          else sectionReference tailElements chapterId sectionId
-    _:tailElements -> sectionReference tailElements chapterId sectionId
-    _ -> error $ "Unable to find chapter/section reference for chapter/section: " ++ chapterId ++ "," ++ sectionId
-
-sectionReference' :: [Element] -> String -> String -> String -> (String)
-sectionReference' parts chapterId chapterLabel sectionId =
-  case parts of
-    (Element "SECTION" props _):tailElements ->
-      let secId = idProp (stringProp "title" props) props
-          secLabel = stringProp "label" props
-      in
-          if secId == sectionId
-          then chapterLabel ++ "." ++ secLabel
-          else sectionReference' tailElements chapterId chapterLabel sectionId
-    _:tailElements -> sectionReference' tailElements chapterId chapterLabel sectionId
-    _ -> error $ "Unable to find section reference within chapter " ++ chapterId ++ " for section id: " ++ sectionId
-
-----------------------------------------------------
-
 latexEnv :: Map.Map String [Element]
 latexEnv = Map.union basicEnv $ Map.fromList
   [ ("PAUSE",[Include "\\pause\n"])
@@ -185,35 +138,3 @@ latexEnv = Map.union basicEnv $ Map.fromList
              IfDef "label" [Include "\\par\n", AsText "label",Include "\n"],
              Include "\\end{center}\n"])
   ]
-
-----------------------------------------------------
-
---        if sourceType == "java" then ["interface", "abstract", "final", "match", "private", "public", "protected", "implements", "return", "static"
---                                      ,"if", "else", "case", "class", "extends", "new", "instanceof", "import"]
---        else if sourceType == "scala" then ["val", "var", "def", "type", "trait", "abstract", "final", "match", "return", "sealed", "final"
---                                      ,"if", "else", "case", "class", "object", "extends", "with", "implicit", "new", "import"]
---        else if sourceType == "elm" then ["module", "where", "import", "type", "alias", "if", "then", "else", "case", "of", "let", " in "]
-
---renderIndex :: String -> String
---renderIndex ('!':t) = "{\\fontencoding{T1}\\selectfont\\char33}" ++ renderText [] t
---renderIndex x =
---   case break f x of
---    (h, '¡':t) -> (takeWhile g . map k $ x) ++ "@" ++ renderText [] h ++ "!" ++ renderText [] t
---    (h, '!':t) -> (takeWhile g . map k $ x) ++ "@" ++ renderText [] h ++ "!" ++ renderText [] t
---    _ -> (map k $ x) ++ "@" ++ renderText [] x
---  where f c = c == '!' || c == '¡'
---        g c = c /= '!' && c /= '¡'
---        k c = if c == '"' then '#' else c
-
---renderText' :: [Element] -> String -> String
---renderText' _ "" = ""
---renderText' allElements (c:acc) =
---          case (c, break (c ==) acc) of
---            ('\n',_) -> renderText' allElements (' ':acc)
---            ('⒳',(x,_:acc')) -> "\\index{" ++ renderIndex x ++ "}" ++ renderText' allElements acc'
---            ('⒭',(ref,_:acc')) ->
---              case break (','==) ref of
---                (chId,[]) ->  chapterReference allElements chId ++ renderText' allElements acc'
---                (chId,_:secId) -> sectionReference allElements chId secId ++ renderText' allElements acc'
---            _ -> c:renderText' allElements acc
-

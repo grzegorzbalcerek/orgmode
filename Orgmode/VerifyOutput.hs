@@ -1,11 +1,6 @@
 -- -*- coding: utf-8; -*-
 module Orgmode.VerifyOutput where
 
-{-
-cmd /c "u: && cd u:\github\orgmode && make"
-cmd /c "u: && cd u:\github\orgmode && test"
--}
-
 import Orgmode.Model
 import Control.Monad
 import System.Directory

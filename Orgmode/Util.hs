@@ -1,11 +1,6 @@
 -- -*- coding: utf-8; -*-
 module Orgmode.Util where
 
-{-
-cmd /c "u: && cd u:\github\orgmode && make"
-cmd /c "u: && cd u:\github\orgmode && test"
--}
-
 import Data.List
 import GHC.IO.Encoding
 import System.Directory

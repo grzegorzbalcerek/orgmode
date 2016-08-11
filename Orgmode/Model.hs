@@ -1,10 +1,5 @@
 module Orgmode.Model where
 
-{-
-cmd /c "u: && cd u:\github\orgmode && make"
-cmd /c "u: && cd u:\github\orgmode && test"
--}
-
 import Data.List (intersperse,groupBy)
 import Control.Monad.Reader
 import Data.Maybe (fromMaybe)

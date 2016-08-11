@@ -1,11 +1,6 @@
 -- -*- coding: utf-8; -*-
 module Orgmode.ExtractSrc where
 
-{-
-cmd /c "u: && cd u:\github\orgmode && make"
-cmd /c "u: && cd u:\github\orgmode && test"
--}
-
 import Orgmode.Model
 import Orgmode.Util
 import Orgmode.Text
@@ -85,12 +80,3 @@ getSrcContent props txt =
       transformationFunctions = map (makeTransfFunction props) transformationSpecs
       combinedTransformation = foldr (.) id transformationFunctions
   in combinedTransformation txt
-
---      filterScalaPrompts xs = filter (\x -> take 7 x == "scala> " || take 7 x == "     | ") xs
---      filterDollarPrompts xs = filter (\x -> take 2 x == "$ ") xs
---      filterDollarOrGtPrompts xs = filter (\x -> take 2 x == "$ " || take 2 x == "> ") xs
---      filterGtPrompts xs = filter (\x -> take 2 x == "> " || take 2 x == "| ") xs
---         "scala" -> unlines . map (drop 7) . filterScalaPrompts . lines $ filteredHighUnicodes
---         "cmd" -> unlines . map (drop 2) . filterDollarPrompts . lines $ filteredHighUnicodes
---         "elm" -> unlines . map (drop 2) . filterGtPrompts . lines $ filteredHighUnicodes
---         "sbt" -> unlines . map (drop 2) . filterDollarOrGtPrompts . lines $ filteredHighUnicodes

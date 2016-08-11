@@ -1,13 +1,9 @@
 -- -*- coding: utf-8; -*-
 module Orgmode.Text where
 
-{-
-cmd /c "u: && cd u:\github\orgmode && make"
-cmd /c "u: && cd u:\github\orgmode && test"
--}
-
 import Data.Char
 import Data.List
+import Orgmode.Model
 
 onlyAscii = filter (\c -> ord c < 128)
 onlyLowUnicode = filter (\c -> ord c < 9216)
@@ -101,6 +97,15 @@ replaceByPng prefix =
 textPng = replaceByPng "\\raisebox{-1pt}{\\includegraphics[width=8pt]{"
 sourcePng = replaceByPng " {\\includegraphics[width=7pt]{"
 
+references :: String -> String
+references =
+  let f :: Char -> String -> String
+      f c acc =
+        case (c, break (c ==) acc) of
+            ('⒭',(ref,_:acc')) -> ref ++ references acc'
+            _ -> c:acc
+  in foldr f ""
+
 
 lmChars :: String -> String
 lmChars =
@@ -155,8 +160,6 @@ styledText (c:acc) =
     ('⒞',(code,_:acc')) -> "\\texttt{" ++ styledText code ++ "}" ++ styledText acc'
     ('⒝',(code,_:acc')) -> "\\textbf{" ++ styledText code ++ "}" ++ styledText acc'
     ('¡',(code,_:acc')) -> "\\textbf{" ++ styledText code ++ "}" ++ styledText acc'
-    ('⒳',(_,_:acc')) -> styledText acc' -- temporary solution: ignore text inside x markers
-    ('⒭',(_,_:acc')) -> styledText acc' -- temporary solution: ignore text inside r markers
     _ -> c:styledText acc
 
 
@@ -242,4 +245,3 @@ boldPrefixedLine (prefix:prefixes) line | isPrefixOf prefix line =
   in take prefixLength line ++ "\\textbf{" ++ drop prefixLength line ++ "}"
 boldPrefixedLine (_:prefixes) line = boldPrefixedLine prefixes line
 boldPrefixedLine [] line = line
-

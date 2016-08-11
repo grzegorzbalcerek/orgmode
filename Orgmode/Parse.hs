@@ -1,11 +1,6 @@
 -- -*- coding: utf-8; -*-
 module Orgmode.Parse where
 
-{-
-cmd /c "u: && cd u:\github\orgmode && make"
-cmd /c "u: && cd u:\github\orgmode && test"
--}
-
 import Text.Parsec
 import Data.List (dropWhileEnd)
 import Control.Applicative ((<$>))
@@ -151,9 +146,9 @@ elementWithProps :: Int -> P (String,Map.Map String String)
 elementWithProps n = do
   string $ take n $ repeat '*'
   space
-  name <- many (noneOf " ¬:\n\r")
-  content <- many (noneOf "¬:\n\r")
-  props <- singleColonProp `sepBy` (many (noneOf "¬:\n\r"))
+  name <- many (noneOf " :\n\r")
+  content <- many (noneOf ":\n\r")
+  props <- singleColonProp `sepBy` (many (noneOf ":\n\r"))
   let mergedProps = foldl Map.union (Map.singleton "title" (trim content)) props
   restOfLine
   return $ (trim name,mergedProps)
@@ -163,8 +158,8 @@ asteriskLineWithProps n tag = do
   string $ take n $ repeat '*'
   space
   try (string tag <|> string ("TODO "++tag))
-  content <- many (noneOf "¬:\n\r")
-  props <- singleColonProp `sepBy` (many (noneOf "¬:\n\r"))
+  content <- many (noneOf ":\n\r")
+  props <- singleColonProp `sepBy` (many (noneOf ":\n\r"))
   let mergedProps = foldl Map.union (Map.singleton "title" (trim content)) props
   restOfLine
   return (trim content,mergedProps)
@@ -232,7 +227,7 @@ colonProp2 = do
   name <- many (noneOf " :\n\r")
   char ' '
   value <- many (noneOf ":\n\r")
-  return $ Map.singleton name (trim value)
+  return $ Map.singleton name (map (\c -> if c == '÷' then ':' else c) $ trim value)
 
 ----------------------------------------------
 

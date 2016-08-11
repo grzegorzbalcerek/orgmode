@@ -1,11 +1,6 @@
 -- -*- coding: utf-8; -*-
 module Orgmode.Eval where
 
-{-
-cmd /c "u: && cd u:\github\orgmode && make"
-cmd /c "u: && cd u:\github\orgmode && test"
--}
-
 import Data.List (find,groupBy,intersect)
 import Orgmode.Model
 import Orgmode.Parse
