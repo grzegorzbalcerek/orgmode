@@ -36,17 +36,17 @@ mainWithArgs ["latex",path] =
   latexCommand latexEnv path ""
 mainWithArgs ["latex",path,outputPath] =
   latexCommand latexEnv path outputPath
-mainWithArgs ["showsrc",path] =
+mainWithArgs ["exportstdout",path] =
   exportCommand basicEnv path ExportStdOut Map.empty
-mainWithArgs ["showsrc",path,chapterId] =
+mainWithArgs ["exportstdout",path,chapterId] =
   exportCommand basicEnv path ExportStdOut (Map.fromList [("chapterid",chapterId)])
-mainWithArgs ["showsrc",path,chapterId,sectionId] =
+mainWithArgs ["exportstdout",path,chapterId,sectionId] =
   exportCommand basicEnv path ExportStdOut (Map.fromList [("chapterid",chapterId),("id",sectionId)])
-mainWithArgs ["extractsrc",path] =
+mainWithArgs ["exportpaths",path] =
   exportCommand basicEnv path ExportPaths Map.empty
-mainWithArgs ["extractsrc",path,chapterId] =
+mainWithArgs ["exportpaths",path,chapterId] =
   exportCommand basicEnv path ExportPaths (Map.fromList [("chapterid",chapterId)])
-mainWithArgs ["extractsrc",path,chapterId,sectionId]
+mainWithArgs ["exportpaths",path,chapterId,sectionId]
   = exportCommand basicEnv path ExportPaths (Map.fromList [("chapterid",chapterId),("id",sectionId)])
 mainWithArgs ["verifyoutput",path,actualOutputFile] =
   verifyoutputCommand basicEnv path actualOutputFile Map.empty
