@@ -1,9 +1,9 @@
 -- -*- coding: utf-8; -*-
-module Orgmode.RenderLatex where
+module RenderLatex where
 
-import Orgmode.Model
-import Orgmode.Text
-import Orgmode.Eval
+import Model
+import Text
+import Eval
 import Control.Monad.Trans.State
 import Control.Monad
 import Data.List
@@ -16,14 +16,12 @@ import Data.Maybe (fromMaybe,maybe)
 
 renderLatex :: [Element] -> String
 renderLatex parts =
-  (concat $ renderElement parts `fmap` (parts ++ [Include "\\end{document}\n"]))
+  (concat $ renderElement parts `fmap` (parts ++ [Include Map.empty "\\end{document}\n"]))
 
 ----------------------------------------------------
 
 renderElement :: [Element] -> Element -> String
-renderElement _ (Include content) = content
-renderElement _ NewLine = "\n"
-renderElement _ OneSpace = " "
+renderElement _ (Include _ content) = content
 renderElement allElements (Text props txt) =
   let transformationSpecs =
         [ SimpleTransf "onlyascii" onlyAscii
@@ -113,24 +111,24 @@ removeAlignment = filter (\c -> c/='«' && c/='¤' && c/='»' && c/='¦' && c/='
 
 latexEnv :: Map.Map String [Element]
 latexEnv = Map.union basicEnv $ Map.fromList
-  [ ("PAUSE",[Include "\\pause\n"])
-  , ("CENTER", [Include "\\centerline{", AsText Map.empty "title", Args Map.empty, Include "}\n"])
-  , ("H1", [Include "\\textbf{\\Huge ", AsText Map.empty "title", Args Map.empty, Include "}\\par\n"])
-  , ("H2", [Include "\\textbf{\\huge ", AsText Map.empty "title", Args Map.empty, Include "}\\par\n"])
-  , ("H3", [Include "\\textbf{\\LARGE ", AsText Map.empty "title", Args Map.empty, Include "}\\par\n"])
-  , ("H4", [Include "\\textbf{\\Large ", AsText Map.empty "title", Args Map.empty, Include "}\\par\n"])
-  , ("H5", [Include "\\textbf{\\large ", AsText Map.empty "title", Args Map.empty, Include "}\\par\n"])
-  , ("H6", [Include "\\textbf{\\normalsize ", AsText Map.empty "title", Args Map.empty, Include "}\\par\n"])
-  , ("C1", [Include "\\textbf{\\centerline{\\Huge ", AsText Map.empty "title", Args Map.empty, Include "}}\\par\n"])
-  , ("C2", [Include "\\textbf{\\centerline{\\huge ", AsText Map.empty "title", Args Map.empty, Include "}}\\par\n"])
-  , ("C3", [Include "\\textbf{\\centerline{\\LARGE ", AsText Map.empty "title", Args Map.empty, Include "}}\\par\n"])
-  , ("C4", [Include "\\textbf{\\centerline{\\Large ", AsText Map.empty "title", Args Map.empty, Include "}}\\par\n"])
-  , ("C5", [Include "\\textbf{\\centerline{\\large ", AsText Map.empty "title", Args Map.empty, Include "}}\\par\n"])
-  , ("C6", [Include "\\textbf{\\centerline{\\normalsize ", AsText Map.empty "title", Args Map.empty, Include "}}\\par\n"])
-  , ("PARA", [Args Map.empty, Include "\\par", NewLine])
-  , ("SLIDE", [Include "\\begin{frame}[fragile]\n", IfDef "title" [Include "\\frametitle{", AsText Map.empty "title", Include "}\n"], Args Map.empty, Include "\\end{frame}\n"])
-  , ("BLOCK", [Include "\\begin{block}{", AsText Map.empty "title", Include "}\n", Args Map.empty, Include "\\end{block}\n"])
-  , ("EXAMPLEBLOCK", [Include "\\begin{exampleblock}{", AsText Map.empty "title", Include "}\n", Args Map.empty, Include "\\end{exampleblock}\n"])
-  , ("DOCUMENTEND", [Include "\\end{document}\n"])
-  , ("HEADER1", [Include "\\centerline{\\tikz{\\node[scale=1]{", AsText Map.empty "title", Args Map.empty, Include "};}}\n"])
+  [ ("PAUSE",[Include Map.empty "\\pause\n"])
+  , ("CENTER", [Include Map.empty "\\centerline{", AsText Map.empty "title", Args Map.empty, Include Map.empty "}\n"])
+  , ("H1", [Include Map.empty "\\textbf{\\Huge ", AsText Map.empty "title", Args Map.empty, Include Map.empty "}\\par\n"])
+  , ("H2", [Include Map.empty "\\textbf{\\huge ", AsText Map.empty "title", Args Map.empty, Include Map.empty "}\\par\n"])
+  , ("H3", [Include Map.empty "\\textbf{\\LARGE ", AsText Map.empty "title", Args Map.empty, Include Map.empty "}\\par\n"])
+  , ("H4", [Include Map.empty "\\textbf{\\Large ", AsText Map.empty "title", Args Map.empty, Include Map.empty "}\\par\n"])
+  , ("H5", [Include Map.empty "\\textbf{\\large ", AsText Map.empty "title", Args Map.empty, Include Map.empty "}\\par\n"])
+  , ("H6", [Include Map.empty "\\textbf{\\normalsize ", AsText Map.empty "title", Args Map.empty, Include Map.empty "}\\par\n"])
+  , ("C1", [Include Map.empty "\\textbf{\\centerline{\\Huge ", AsText Map.empty "title", Args Map.empty, Include Map.empty "}}\\par\n"])
+  , ("C2", [Include Map.empty "\\textbf{\\centerline{\\huge ", AsText Map.empty "title", Args Map.empty, Include Map.empty "}}\\par\n"])
+  , ("C3", [Include Map.empty "\\textbf{\\centerline{\\LARGE ", AsText Map.empty "title", Args Map.empty, Include Map.empty "}}\\par\n"])
+  , ("C4", [Include Map.empty "\\textbf{\\centerline{\\Large ", AsText Map.empty "title", Args Map.empty, Include Map.empty "}}\\par\n"])
+  , ("C5", [Include Map.empty "\\textbf{\\centerline{\\large ", AsText Map.empty "title", Args Map.empty, Include Map.empty "}}\\par\n"])
+  , ("C6", [Include Map.empty "\\textbf{\\centerline{\\normalsize ", AsText Map.empty "title", Args Map.empty, Include Map.empty "}}\\par\n"])
+  , ("PARA", [Args Map.empty, Include Map.empty "\\par", NewLine Map.empty])
+  , ("SLIDE", [Include Map.empty "\\begin{frame}[fragile]\n", IfDef "title" [Include Map.empty "\\frametitle{", AsText Map.empty "title", Include Map.empty "}\n"], Args Map.empty, Include Map.empty "\\end{frame}\n"])
+  , ("BLOCK", [Include Map.empty "\\begin{block}{", AsText Map.empty "title", Include Map.empty "}\n", Args Map.empty, Include Map.empty "\\end{block}\n"])
+  , ("EXAMPLEBLOCK", [Include Map.empty "\\begin{exampleblock}{", AsText Map.empty "title", Include Map.empty "}\n", Args Map.empty, Include Map.empty "\\end{exampleblock}\n"])
+  , ("DOCUMENTEND", [Include Map.empty "\\end{document}\n"])
+  , ("HEADER1", [Include Map.empty "\\centerline{\\tikz{\\node[scale=1]{", AsText Map.empty "title", Args Map.empty, Include Map.empty "};}}\n"])
   ]

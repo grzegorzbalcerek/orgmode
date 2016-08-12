@@ -1,9 +1,9 @@
 -- -*- coding: utf-8; -*-
-module Orgmode.Text where
+module Text where
 
 import Data.Char
 import Data.List
-import Orgmode.Model
+import Model
 
 onlyAscii = filter (\c -> ord c < 128)
 onlyLowUnicode = filter (\c -> ord c < 9216)

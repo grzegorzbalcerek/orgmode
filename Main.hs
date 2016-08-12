@@ -2,19 +2,19 @@
 module Main where
 
 {-
-ghc Main.hs -o orgmode && copy /y orgmode.exe L:\bin
+ghc Main.hs -o orgdoc && copy /y orgdoc.exe L:\bin
 -}
 
 import System.Environment
-import Orgmode.Model
-import Orgmode.Util
-import Orgmode.Parse
-import Orgmode.Filter
-import Orgmode.RenderLatex
-import Orgmode.Export
-import Orgmode.RenderMultiHtml
-import Orgmode.VerifyOutput
-import Orgmode.Eval
+import Model
+import Util
+import Parse
+import Filter
+import RenderLatex
+import Export
+import RenderMultiHtml
+import VerifyOutput
+import Eval
 import System.IO
 import GHC.IO.Encoding
 import Control.Monad.Trans.State
@@ -38,22 +38,22 @@ mainWithArgs ["latex",path,outputPath] =
   latexCommand latexEnv path outputPath
 mainWithArgs ["exportstdout",path] =
   exportCommand basicEnv path ExportStdOut Map.empty
-mainWithArgs ["exportstdout",path,chapterId] =
-  exportCommand basicEnv path ExportStdOut (Map.fromList [("chapterid",chapterId)])
-mainWithArgs ["exportstdout",path,chapterId,sectionId] =
-  exportCommand basicEnv path ExportStdOut (Map.fromList [("chapterid",chapterId),("id",sectionId)])
+mainWithArgs ["exportstdout",path,level1id] =
+  exportCommand basicEnv path ExportStdOut (Map.fromList [("level1id",level1id)])
+mainWithArgs ["exportstdout",path,level1id,level2id] =
+  exportCommand basicEnv path ExportStdOut (Map.fromList [("level1id",level1id),("level2id",level2id)])
 mainWithArgs ["exportpaths",path] =
   exportCommand basicEnv path ExportPaths Map.empty
-mainWithArgs ["exportpaths",path,chapterId] =
-  exportCommand basicEnv path ExportPaths (Map.fromList [("chapterid",chapterId)])
-mainWithArgs ["exportpaths",path,chapterId,sectionId]
-  = exportCommand basicEnv path ExportPaths (Map.fromList [("chapterid",chapterId),("id",sectionId)])
+mainWithArgs ["exportpaths",path,level1id] =
+  exportCommand basicEnv path ExportPaths (Map.fromList [("level1id",level1id)])
+mainWithArgs ["exportpaths",path,level1id,level2id]
+  = exportCommand basicEnv path ExportPaths (Map.fromList [("level1id",level1id),("level2id",level2id)])
 mainWithArgs ["verifyoutput",path,actualOutputFile] =
   verifyoutputCommand basicEnv path actualOutputFile Map.empty
-mainWithArgs ["verifyoutput",path,actualOutputFile,chapterId] =
-  verifyoutputCommand basicEnv path actualOutputFile (Map.fromList [("chapterid",chapterId)])
-mainWithArgs ["verifyoutput",path,actualOutputFile,chapterId,sectionId] =
-  verifyoutputCommand basicEnv path actualOutputFile (Map.fromList [("chapterid",chapterId),("id",sectionId)])
+mainWithArgs ["verifyoutput",path,actualOutputFile,level1id] =
+  verifyoutputCommand basicEnv path actualOutputFile (Map.fromList [("level1id",level1id)])
+mainWithArgs ["verifyoutput",path,actualOutputFile,level1id,level2id] =
+  verifyoutputCommand basicEnv path actualOutputFile (Map.fromList [("level1id",level1id),("level2id",level2id)])
 mainWithArgs _ =
   putStrLn "Input arguments not recognized. Nothing to do."
 --mainWithArgs ["multihtml",path,outputPath] = multihtmlCommand path outputPath

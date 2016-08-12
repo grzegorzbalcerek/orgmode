@@ -1,7 +1,7 @@
 -- -*- coding: utf-8; -*-
-module Orgmode.Filter where
+module Filter where
 
-import Orgmode.Model
+import Model
 import qualified Data.Map as Map
 
 filterElements :: Map.Map String String     -- props jakie muszą być znalezione żeby element był zwrócony

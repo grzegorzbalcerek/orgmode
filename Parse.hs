@@ -1,10 +1,10 @@
 -- -*- coding: utf-8; -*-
-module Orgmode.Parse where
+module Parse where
 
 import Text.Parsec
 import Data.List (dropWhileEnd)
 import Control.Applicative ((<$>))
-import Orgmode.Model
+import Model
 import Data.String (words)
 import Data.Char
 import qualified Data.Map as Map
@@ -78,13 +78,13 @@ args level = do
 
 newline1 :: Int -> P Element
 newline1 level = do
-  asteriskLineWithProps level "NEWLINE"
-  return $ NewLine
+  (_,props) <- asteriskLineWithProps level "NEWLINE"
+  return $ NewLine props
 
-onespace :: Int -> P Element
-onespace level = do
-  asteriskLineWithProps level "SPACE"
-  return $ OneSpace
+space1 :: Int -> P Element
+space1 level = do
+  (_,props) <- asteriskLineWithProps level "SPACE"
+  return $ Space1 props
 
 astext :: Int -> P Element
 astext level = do
@@ -112,7 +112,7 @@ contentElement level =
   try (text level) <|>
   try (table level) <|>
   try (newline1 level) <|>
-  try (onespace level) <|>
+  try (space1 level) <|>
   try (include level) <|>
   try (import1 level) <|>
   try (element level) <|>
@@ -171,7 +171,7 @@ implicitText = do
 text level = do
   (_,props) <- asteriskLineWithProps level "TEXT"
   content <- many emptyOrRegularLineWithEol
-  return $ Text props (concat content)
+  return $ Text props (trim (concat content))
 
 table level = do
   (_,props) <- asteriskLineWithProps level "TABLE"
@@ -205,9 +205,9 @@ tableCell = do
 ----------------------------------------------------
 
 include level = do
-  (_,_) <- asteriskLineWithProps level "INCLUDE"
+  (_,props) <- asteriskLineWithProps level "INCLUDE"
   content <- many1 emptyOrRegularLineWithEol
-  return $ Include (trim (concat content))
+  return $ Include props (trim (concat content))
 
 import1 level = do
   (file,_) <- asteriskLineWithProps level "IMPORT"

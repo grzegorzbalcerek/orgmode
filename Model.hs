@@ -1,4 +1,4 @@
-module Orgmode.Model where
+module Model where
 
 import Data.List (intersperse,groupBy)
 import Control.Monad.Reader
@@ -14,9 +14,9 @@ data Element =
   | IfUndef String [Element]
   | IfEq String String [Element]
   | Text (Map.Map String String) String
-  | Include String
-  | NewLine
-  | OneSpace
+  | Include (Map.Map String String) String
+  | NewLine (Map.Map String String)
+  | Space1 (Map.Map String String)
   | Import String
   | Table (Map.Map String String) [TableRow]
   deriving (Eq,Show)

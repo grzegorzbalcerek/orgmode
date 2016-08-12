@@ -1,7 +1,7 @@
 -- -*- coding: utf-8; -*-
-module Orgmode.VerifyOutput where
+module VerifyOutput where
 
-import Orgmode.Model
+import Model
 import Control.Monad
 import System.Directory
 import System.IO

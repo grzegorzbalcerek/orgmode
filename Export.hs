@@ -1,9 +1,9 @@
 -- -*- coding: utf-8; -*-
-module Orgmode.Export where
+module Export where
 
-import Orgmode.Model
-import Orgmode.Util
-import Orgmode.Text
+import Model
+import Util
+import Text
 import Control.Monad.Trans.State
 import Control.Monad
 import Data.List

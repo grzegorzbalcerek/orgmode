@@ -1,5 +1,5 @@
 -- -*- coding: utf-8; -*-
-module Orgmode.Util where
+module Util where
 
 import Data.List
 import GHC.IO.Encoding

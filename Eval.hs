@@ -1,9 +1,9 @@
 -- -*- coding: utf-8; -*-
-module Orgmode.Eval where
+module Eval where
 
 import Data.List (find,groupBy,intersect)
-import Orgmode.Model
-import Orgmode.Parse
+import Model
+import Parse
 import Control.Monad.Reader
 import qualified Data.Map as Map
 import Debug.Trace
@@ -62,6 +62,26 @@ evaluate env props ((Element name eprops subelements):es) =
       evaluatedTail <- evaluate env props es
       evaluatedSubelements <- evaluate env (Map.union eprops props) subelements
       return $ (Element name (Map.union eprops props) evaluatedSubelements) : evaluatedTail
+
+-- jeśli napotkano tekst
+evaluate env props ((Text eprops txt):es) = do
+  evaluatedTail <- evaluate env props es
+  return $ (Text (Map.union eprops props) txt) : evaluatedTail
+
+-- jeśli napotkano include
+evaluate env props ((Include eprops txt):es) = do
+  evaluatedTail <- evaluate env props es
+  return $ (Include (Map.union eprops props) txt) : evaluatedTail
+
+-- jeśli napotkano newline
+evaluate env props ((NewLine eprops):es) = do
+  evaluatedTail <- evaluate env props es
+  return $ (Text (Map.union eprops props) "\n") : evaluatedTail
+
+-- jeśli napotkano space1
+evaluate env props ((Space1 eprops):es) = do
+  evaluatedTail <- evaluate env props es
+  return $ (Text (Map.union eprops props) " ") : evaluatedTail
 
 -- jeśli napotkano inny element
 evaluate env props (e:es) = do

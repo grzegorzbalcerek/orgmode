@@ -1,15 +1,10 @@
 -- -*- coding: utf-8; -*-
-module Orgmode.RenderMultiHtml () where
---module Orgmode.RenderMultiHtml (writeMultiHtml) where
+module RenderMultiHtml () where
+--module RenderMultiHtml (writeMultiHtml) where
 
-{-
-cmd /c "u: && cd u:\github\orgmode && make"
-cmd /c "u: && cd u:\github\orgmode && test"
--}
-
--- import Orgmode.Model
--- import Orgmode.Util
--- import Orgmode.Eval
+-- import Model
+-- import Util
+-- import Eval
 -- import Control.Monad.Trans.State
 -- import Control.Monad
 -- import Data.List
