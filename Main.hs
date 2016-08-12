@@ -9,8 +9,9 @@ import System.Environment
 import Orgmode.Model
 import Orgmode.Util
 import Orgmode.Parse
+import Orgmode.Filter
 import Orgmode.RenderLatex
-import Orgmode.ExtractSrc
+import Orgmode.Export
 import Orgmode.RenderMultiHtml
 import Orgmode.VerifyOutput
 import Orgmode.Eval
@@ -25,22 +26,37 @@ main = do
   args <- System.Environment.getArgs
   mainWithArgs args
 
-mainWithArgs ["parse",path]                                             = parseCommand path
-mainWithArgs ["eval",path]                                              = evalCommand basicEnv path
-mainWithArgs ["evallatex",path]                                         = evalCommand latexEnv path
-mainWithArgs ["latex",path]                                             = latexCommand latexEnv path ""
-mainWithArgs ["latex",path,outputPath]                                  = latexCommand latexEnv path outputPath
-mainWithArgs ["showsrc",path]                                           = extractsrcCommand basicEnv path ShowMinusPaths "" ""
-mainWithArgs ["showsrc",path,chapterId]                                 = extractsrcCommand basicEnv path ShowMinusPaths chapterId ""
-mainWithArgs ["showsrc",path,chapterId,sectionId]                       = extractsrcCommand basicEnv path ShowMinusPaths chapterId sectionId
-mainWithArgs ["extractsrc",path]                                        = extractsrcCommand basicEnv path WriteFilePaths "" ""
-mainWithArgs ["extractsrc",path,chapterId]                              = extractsrcCommand basicEnv path WriteFilePaths chapterId ""
-mainWithArgs ["extractsrc",path,chapterId,sectionId]                    = extractsrcCommand basicEnv path WriteFilePaths chapterId sectionId
---mainWithArgs ["multihtml",path,outputPath]                              = multihtmlCommand path outputPath
-mainWithArgs ["verifyoutput",path,actualOutputFile]                     = verifyoutputCommand basicEnv path actualOutputFile "" ""
-mainWithArgs ["verifyoutput",path,actualOutputFile,chapterId]           = verifyoutputCommand basicEnv path actualOutputFile chapterId ""
-mainWithArgs ["verifyoutput",path,actualOutputFile,chapterId,sectionId] = verifyoutputCommand basicEnv path actualOutputFile chapterId sectionId
-mainWithArgs _                                                          = putStrLn "Input arguments not recognized. Nothing to do."
+mainWithArgs ["parse",path] =
+  parseCommand path
+mainWithArgs ["eval",path] =
+  evalCommand basicEnv path
+mainWithArgs ["evallatex",path] =
+  evalCommand latexEnv path
+mainWithArgs ["latex",path] =
+  latexCommand latexEnv path ""
+mainWithArgs ["latex",path,outputPath] =
+  latexCommand latexEnv path outputPath
+mainWithArgs ["showsrc",path] =
+  exportCommand basicEnv path ExportStdOut Map.empty
+mainWithArgs ["showsrc",path,chapterId] =
+  exportCommand basicEnv path ExportStdOut (Map.fromList [("chapterid",chapterId)])
+mainWithArgs ["showsrc",path,chapterId,sectionId] =
+  exportCommand basicEnv path ExportStdOut (Map.fromList [("chapterid",chapterId),("id",sectionId)])
+mainWithArgs ["extractsrc",path] =
+  exportCommand basicEnv path ExportPaths Map.empty
+mainWithArgs ["extractsrc",path,chapterId] =
+  exportCommand basicEnv path ExportPaths (Map.fromList [("chapterid",chapterId)])
+mainWithArgs ["extractsrc",path,chapterId,sectionId]
+  = exportCommand basicEnv path ExportPaths (Map.fromList [("chapterid",chapterId),("id",sectionId)])
+mainWithArgs ["verifyoutput",path,actualOutputFile] =
+  verifyoutputCommand basicEnv path actualOutputFile Map.empty
+mainWithArgs ["verifyoutput",path,actualOutputFile,chapterId] =
+  verifyoutputCommand basicEnv path actualOutputFile (Map.fromList [("chapterid",chapterId)])
+mainWithArgs ["verifyoutput",path,actualOutputFile,chapterId,sectionId] =
+  verifyoutputCommand basicEnv path actualOutputFile (Map.fromList [("chapterid",chapterId),("id",sectionId)])
+mainWithArgs _ =
+  putStrLn "Input arguments not recognized. Nothing to do."
+--mainWithArgs ["multihtml",path,outputPath] = multihtmlCommand path outputPath
 
 parseCommand path = processFile path $ \input -> do
   let content = parseInput input
@@ -67,17 +83,19 @@ latexCommand env path outputPath = processFile path $ \input -> do
     hPutStr houtput output
     hClose houtput
 
-extractsrcCommand env path defaultfile chapterId sectionId = processFile path $ \input -> do
+exportCommand env path defaultfile patternProps = processFile path $ \input -> do
   content <- string2elements env Map.empty input
-  extractSrcFromElements content defaultfile chapterId sectionId
+  let filteredContent = filterElements patternProps content
+  exportFromElements filteredContent defaultfile
 
 --multihtmlCommand path outputPath = processFile path $ \input -> do
 --  (env,content) <- string2elements Map.empty Map.empty input
 --  runReaderT (writeMultiHtml env outputPath) content
 
-verifyoutputCommand env path actualOutputFile chapterId sectionId = processFile path $ \input -> do
+verifyoutputCommand env path actualOutputFile patternProps = processFile path $ \input -> do
   content <- string2elements env Map.empty input
-  verifyOutput content actualOutputFile chapterId sectionId
+  let filteredContent = filterElements patternProps content
+  verifySection filteredContent actualOutputFile
 
 processFile :: String -> (String -> IO ()) -> IO ()
 processFile path action = do

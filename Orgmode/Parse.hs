@@ -88,8 +88,8 @@ onespace level = do
 
 astext :: Int -> P Element
 astext level = do
-  (name) <- simpleAsteriskLine level "ASTEXT"
-  return $ AsText name
+  (name,props) <- asteriskLineWithProps level "ASTEXT"
+  return $ AsText props name
 
 ----------------------------------------------------
 

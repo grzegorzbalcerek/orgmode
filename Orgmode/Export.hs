@@ -1,5 +1,5 @@
 -- -*- coding: utf-8; -*-
-module Orgmode.ExtractSrc where
+module Orgmode.Export where
 
 import Orgmode.Model
 import Orgmode.Util
@@ -14,20 +14,14 @@ import GHC.IO.Encoding
 import Data.Char
 import Debug.Trace
 
-data ExtractMode = WriteFilePaths | ShowMinusPaths
+data ExportMode = ExportPaths | ExportStdOut
 
-extractSrcFromElements :: [Element] -> ExtractMode -> String -> String -> IO ()
-extractSrcFromElements elements mode chapterId sectionId =
-  let doWork actualElements = do
+exportFromElements :: [Element] -> ExportMode -> IO ()
+exportFromElements elements mode = do
         case mode of
-          WriteFilePaths -> truncateFiles actualElements
-          ShowMinusPaths -> return ()
-        extractSrcFromElements' actualElements mode
-  in
-    case (chapterId,sectionId) of
-      ("","") -> doWork elements
-      (_,"") -> doWork (filterChapter elements chapterId)
-      (_,_) -> doWork (filterSection elements chapterId sectionId)
+          ExportPaths -> truncateFiles elements
+          ExportStdOut -> return ()
+        exportFromElements' elements mode
 
 truncateFiles :: [Element] -> IO ()
 truncateFiles elements =
@@ -35,30 +29,28 @@ truncateFiles elements =
     case element of
       Element "COMMENT" _ _ -> return ()
       Element _ _ parts -> truncateFiles parts
-      Text props _ | hasProp "extract" props && hasProp "path" props -> trace "truncate" $ truncateFile $ stringProp "path" props
+      Text props _ | hasProp "export" props && hasProp "path" props -> trace "truncate" $ truncateFile $ stringProp "path" props
       _ -> return ()
 
 truncateFile :: String -> IO ()
 truncateFile "" = return ()
-truncateFile "-" = return ()
 truncateFile file = do
   putStrLn $ "truncating " ++ file
   houtput <- safeOpenFileForWriting file
   hClose houtput
 
-extractSrcFromElements' :: [Element] -> ExtractMode -> IO ()
-extractSrcFromElements' elements mode = do
+exportFromElements' :: [Element] -> ExportMode -> IO ()
+exportFromElements' elements mode = do
   forM_ elements $ \element ->
     case element of
       Element "COMMENT" props _ -> return ()
-      Element _ _ elements -> extractSrcFromElements' elements mode
+      Element _ _ elements -> exportFromElements' elements mode
       Text props str ->
-        case (mode,stringProp "path" props,hasProp "show" props) of
-             (WriteFilePaths,"",_)   -> return ()
-             (WriteFilePaths,"-",_)  -> return ()
-             (WriteFilePaths,file,_) -> writeToFile file $ getSrcContent props str
-             (ShowMinusPaths,_,True)  -> putStr $ getSrcContent props str
-             (ShowMinusPaths,_,False)    -> return ()
+        case (mode,stringProp "path" props,hasProp "stdout" props) of
+             (ExportPaths,"",_)   -> return ()
+             (ExportPaths,file,_) -> writeToFile file $ getContent props str
+             (ExportStdOut,_,True)  -> putStr $ getContent props str
+             (ExportStdOut,_,False)    -> return ()
       _ -> return ()
 
 writeToFile :: String -> String -> IO ()
@@ -69,13 +61,12 @@ writeToFile file content = do
   hPutStr houtput content
   hClose houtput
 
-getSrcContent props txt =
+getContent props txt =
   let transformationSpecs =
         [ SimpleTransf "onlyascii" onlyAscii
         , SimpleTransf "onlylowunicode" onlyLowUnicode
         , IntTransf "prependnl" prependnl
         , StringListTransf "onlyprefixed" onlyPrefixed
-        , SimpleTransf "norender" (const "")
         ]
       transformationFunctions = map (makeTransfFunction props) transformationSpecs
       combinedTransformation = foldr (.) id transformationFunctions

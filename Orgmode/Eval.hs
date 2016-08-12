@@ -104,9 +104,9 @@ applyArguments props args (IfUndef name elements) =
   else elements >>= applyArguments props args
 
 -- AsText: dodaj jako tekst
-applyArguments props args (AsText name) =
+applyArguments props args (AsText asTextProps name) =
   case (Map.lookup name props) of
-    Just text -> [Text Map.empty text]
+    Just text -> [Text (Map.union props asTextProps) text]
     _ -> []
 
 -- jeśli ciało zawiera Args
