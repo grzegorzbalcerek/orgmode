@@ -4,6 +4,7 @@ module Eval where
 import Data.List (find,groupBy,intersect)
 import Model
 import Parse
+import Render
 import Control.Monad.Reader
 import qualified Data.Map as Map
 import Debug.Trace
@@ -39,17 +40,15 @@ evaluate env props ((Import path):es) = do
   hClose hinput
   return result
 
--- jeśli napotkano element to mamy 3 przypadki:
-evaluate env props ((Element name eprops subelements):es) =
+-- jeśli napotkano Group
+evaluate env props ((Group subelements):es) =
+  evaluate env props (subelements ++ es)
 
+-- jeśli napotkano element to mamy 2 przypadki:
+evaluate env props ((Element name eprops subelements):es) =
   case (Map.lookup name env) of
 
-    -- przypadek 1: środowisko zawiera pustą definicję z nazwą równą nazwie elementu
-    -- dodaj podelementy
-    Just [] ->
-      evaluate env (Map.union eprops props) (subelements ++ es)
-
-    -- przypadek 2: środowisko zawiera niepustą definicję z nazwą równą nazwie elementu
+    -- przypadek 1: środowisko zawiera definicję z nazwą równą nazwie elementu
     -- zastąp element definicją, podstawiając argumenty
     Just defBody -> do
       let bodyWithArgsApplied = defBody >>= applyArguments (Map.union eprops props) subelements 
@@ -57,31 +56,36 @@ evaluate env props ((Element name eprops subelements):es) =
       evaluatedTail <- evaluate env props es
       return $ evaluatedBody ++ evaluatedTail
 
-    -- przypadek 3: środowisko nie ma elementu: pozostaw element bez zmian, ale z ewaluacją podelementów i łączeniem props
+    -- przypadek 2: środowisko nie ma elementu: pozostaw element bez zmian, ale z ewaluacją podelementów i łączeniem props
     Nothing -> do
       evaluatedTail <- evaluate env props es
       evaluatedSubelements <- evaluate env (Map.union eprops props) subelements
-      return $ (Element name (Map.union eprops props) evaluatedSubelements) : evaluatedTail
+      let newProps = evalProps $ Map.union eprops props
+      return $ (Element name newProps evaluatedSubelements) : evaluatedTail
 
 -- jeśli napotkano tekst
 evaluate env props ((Text eprops txt):es) = do
   evaluatedTail <- evaluate env props es
-  return $ (Text (Map.union eprops props) txt) : evaluatedTail
+  let newProps = evalProps $ Map.union eprops props
+  return $ (Text newProps txt) : evaluatedTail
 
 -- jeśli napotkano include
 evaluate env props ((Include eprops txt):es) = do
   evaluatedTail <- evaluate env props es
-  return $ (Include (Map.union eprops props) txt) : evaluatedTail
+  let newProps = evalProps $ Map.union eprops props
+  return $ (Include newProps txt) : evaluatedTail
 
 -- jeśli napotkano newline
 evaluate env props ((NewLine eprops):es) = do
   evaluatedTail <- evaluate env props es
-  return $ (Text (Map.union eprops props) "\n") : evaluatedTail
+  let newProps = evalProps $ Map.union eprops props
+  return $ (Text newProps "\n") : evaluatedTail
 
 -- jeśli napotkano space1
 evaluate env props ((Space1 eprops):es) = do
   evaluatedTail <- evaluate env props es
-  return $ (Text (Map.union eprops props) " ") : evaluatedTail
+  let newProps = evalProps $ Map.union eprops props
+  return $ (Text newProps " ") : evaluatedTail
 
 -- jeśli napotkano inny element
 evaluate env props (e:es) = do
@@ -130,7 +134,7 @@ applyArguments props args (AsText asTextProps name) =
     _ -> []
 
 -- jeśli ciało zawiera Args
--- skopiuj argumenty ale dodając do nich własności (todo)
+-- skopiuj argumenty ale dodając do nich własności
 applyArguments props args (Args argsprops) = map (mergeProps (Map.union argsprops props)) args
 
 -- każdy inny element pozostaw bez zmian
@@ -140,4 +144,7 @@ mergeProps props (Element name eprops elements) = Element name (Map.union eprops
 mergeProps props (Text eprops elements) = Text (Map.union eprops props) elements
 mergeProps props e = e
 
-basicEnv = (Map.singleton "DEFS" [])
+----------------------------------------------------
+
+evalProps :: Map.Map String String -> Map.Map String String
+evalProps props = Map.map (parseOneProp props) props

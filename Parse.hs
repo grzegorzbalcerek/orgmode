@@ -8,6 +8,8 @@ import Model
 import Data.String (words)
 import Data.Char
 import qualified Data.Map as Map
+import Debug.Trace
+import Data.Maybe (maybe)
 
 type P = Parsec String ()
 
@@ -45,6 +47,7 @@ singleElement level =
   try (ifeq level) <|>
   try (args level) <|>
   try (astext level) <|>
+  try (group level) <|>
   try (def level) <|>
   try (contentElement level) <|>
   try (element level)
@@ -98,6 +101,12 @@ def level = do
   name <- simpleAsteriskLine level "DEF"
   content <- many (singleElement $ level + 1)
   return $ Def name content
+----------------------------------------------------
+group :: Int -> P Element
+group level = do
+  asteriskLine level "GROUP"
+  content <- many (singleElement $ level + 1)
+  return $ Group content
 ----------------------------------------------------
 element :: Int -> P Element
 element level = do
@@ -250,5 +259,32 @@ regularLineWithEol = do
   eol
   return (h:content ++ "\n")
 
-
 trim = dropWhile isSpace . dropWhileEnd isSpace
+
+----------------------------------------------------
+
+parseOneProp :: Map.Map String String -> String -> String
+parseOneProp env p =
+    case (parse (oneprop env) "error" p) of
+      Right result -> result
+      Left err -> p
+
+oneprop :: Map.Map String String -> P String
+oneprop env = do
+  results <- many1 (try $ onepropPart env)
+  return $ concat results
+
+onepropPart :: Map.Map String String -> P String
+onepropPart props =
+  (
+  try (onepropSimpleDollarProp props) <|>
+  try (many1 (noneOf "$"))
+  ) <?> "onepropPart"
+
+onepropSimpleDollarProp :: Map.Map String String -> P String
+onepropSimpleDollarProp env = do
+  char '$'
+  name <- many1 (oneOf lettersAndDigits)
+  return $ maybe "" id $ Map.lookup name env
+
+lettersAndDigits = ['a'..'z']++['A'..'Z']++['0'..'9']

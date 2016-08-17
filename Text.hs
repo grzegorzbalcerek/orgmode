@@ -8,8 +8,8 @@ import Model
 onlyAscii = filter (\c -> ord c < 128)
 onlyLowUnicode = filter (\c -> ord c < 9216)
 
-nobreakAfterAiouwz :: String -> String
-nobreakAfterAiouwz =
+noBreakPl :: String -> String
+noBreakPl =
   let f :: Char -> String -> String
       f c acc =
         case (c, break (c ==) acc) of
@@ -106,6 +106,14 @@ references =
             _ -> c:acc
   in foldr f ""
 
+newLineAsSpace :: String -> String
+newLineAsSpace =
+  let f :: Char -> String -> String
+      f c acc =
+        case c of
+          '\n' -> ' ' : acc
+          _ -> c:acc
+  in foldr f ""
 
 lmChars :: String -> String
 lmChars =

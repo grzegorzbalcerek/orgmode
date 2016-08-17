@@ -8,7 +8,6 @@ filterElements :: Map.Map String String     -- props jakie muszą być znalezion
                -> [Element]                 -- filtrowane elementy
                -> [Element]
 
--- jeśli napotkano element
 filterElements pattern (e@(Element _ props _):es) | areCompatible pattern props = e : filterElements pattern es
 filterElements pattern (e@(Element _ _ subelements):es) = filterElements pattern subelements ++ filterElements pattern es
 filterElements pattern (e@(Text props _):es) | areCompatible pattern props = e : filterElements pattern es

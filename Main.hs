@@ -10,11 +10,12 @@ import Model
 import Util
 import Parse
 import Filter
-import RenderLatex
+import Render
 import Export
 import RenderMultiHtml
 import VerifyOutput
 import Eval
+import Pages
 import System.IO
 import GHC.IO.Encoding
 import Control.Monad.Trans.State
@@ -29,34 +30,29 @@ main = do
 mainWithArgs ["parse",path] =
   parseCommand path
 mainWithArgs ["eval",path] =
-  evalCommand basicEnv path
-mainWithArgs ["evallatex",path] =
-  evalCommand latexEnv path
-mainWithArgs ["latex",path] =
-  latexCommand latexEnv path ""
-mainWithArgs ["latex",path,outputPath] =
-  latexCommand latexEnv path outputPath
+  evalCommand Map.empty path
 mainWithArgs ["exportstdout",path] =
-  exportCommand basicEnv path ExportStdOut Map.empty
+  exportCommand Map.empty path ExportStdOut Map.empty
 mainWithArgs ["exportstdout",path,level1id] =
-  exportCommand basicEnv path ExportStdOut (Map.fromList [("level1id",level1id)])
+  exportCommand Map.empty path ExportStdOut (Map.fromList [("level1id",level1id)])
 mainWithArgs ["exportstdout",path,level1id,level2id] =
-  exportCommand basicEnv path ExportStdOut (Map.fromList [("level1id",level1id),("level2id",level2id)])
+  exportCommand Map.empty path ExportStdOut (Map.fromList [("level1id",level1id),("level2id",level2id)])
 mainWithArgs ["exportpaths",path] =
-  exportCommand basicEnv path ExportPaths Map.empty
+  exportCommand Map.empty path ExportPaths Map.empty
 mainWithArgs ["exportpaths",path,level1id] =
-  exportCommand basicEnv path ExportPaths (Map.fromList [("level1id",level1id)])
+  exportCommand Map.empty path ExportPaths (Map.fromList [("level1id",level1id)])
 mainWithArgs ["exportpaths",path,level1id,level2id]
-  = exportCommand basicEnv path ExportPaths (Map.fromList [("level1id",level1id),("level2id",level2id)])
+  = exportCommand Map.empty path ExportPaths (Map.fromList [("level1id",level1id),("level2id",level2id)])
 mainWithArgs ["verifyoutput",path,actualOutputFile] =
-  verifyoutputCommand basicEnv path actualOutputFile Map.empty
+  verifyoutputCommand Map.empty path actualOutputFile Map.empty
 mainWithArgs ["verifyoutput",path,actualOutputFile,level1id] =
-  verifyoutputCommand basicEnv path actualOutputFile (Map.fromList [("level1id",level1id)])
+  verifyoutputCommand Map.empty path actualOutputFile (Map.fromList [("level1id",level1id)])
 mainWithArgs ["verifyoutput",path,actualOutputFile,level1id,level2id] =
-  verifyoutputCommand basicEnv path actualOutputFile (Map.fromList [("level1id",level1id),("level2id",level2id)])
+  verifyoutputCommand Map.empty path actualOutputFile (Map.fromList [("level1id",level1id),("level2id",level2id)])
+mainWithArgs [path] =
+  renderCommand Map.empty path
 mainWithArgs _ =
   putStrLn "Input arguments not recognized. Nothing to do."
---mainWithArgs ["multihtml",path,outputPath] = multihtmlCommand path outputPath
 
 parseCommand path = processFile path $ \input -> do
   let content = parseInput input
@@ -66,31 +62,20 @@ evalCommand env path = processFile path $ \input -> do
   content <- string2elements env Map.empty input
   putStrLn (show content)
 
-latexCommand env path outputPath = processFile path $ \input -> do
+renderCommand env path = processFile path $ \input -> do
   content <- string2elements env Map.empty input
-  let outputFile =
-       if outputPath == "" && isSuffixOf ".org" path
-       then (init.init.init.init $ path) ++ ".tex"
-       else outputPath
-  if outputFile == ""
-  then putStrLn "No output file name. Nothing to do."
-  else do
-    houtput <- safeOpenFileForWriting outputFile
-    let output = renderLatex content
-    putStrLn $ "Generating " ++ outputFile ++ ". Length: " ++ show (length output) ++ "."
-    putStrLn $ "You may want to run:"
-    putStrLn $ "pdflatex " ++ outputFile
-    hPutStr houtput output
+  let rawPages = makePages content
+  let pages = Map.map renderElement rawPages
+  forM_ (Map.toList pages) $ \(file,content) -> do
+    houtput <- safeOpenFileForWriting file
+    putStrLn $ "Generating " ++ file ++ ". Length: " ++ show (length content) ++ "."
+    hPutStr houtput content
     hClose houtput
 
 exportCommand env path defaultfile patternProps = processFile path $ \input -> do
   content <- string2elements env Map.empty input
   let filteredContent = filterElements patternProps content
   exportFromElements filteredContent defaultfile
-
---multihtmlCommand path outputPath = processFile path $ \input -> do
---  (env,content) <- string2elements Map.empty Map.empty input
---  runReaderT (writeMultiHtml env outputPath) content
 
 verifyoutputCommand env path actualOutputFile patternProps = processFile path $ \input -> do
   content <- string2elements env Map.empty input

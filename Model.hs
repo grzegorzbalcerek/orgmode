@@ -7,6 +7,7 @@ import qualified Data.Map as Map
 
 data Element =
     Def String [Element]
+  | Group [Element]
   | Element String (Map.Map String String) [Element]
   | Args (Map.Map String String)
   | AsText (Map.Map String String) String
@@ -20,8 +21,6 @@ data Element =
   | Import String
   | Table (Map.Map String String) [TableRow]
   deriving (Eq,Show)
-
-type Prop = Element
 
 data TableRow =
     HLine
