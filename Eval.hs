@@ -64,10 +64,11 @@ evaluate env props ((Element name eprops subelements):es) =
       return $ (Element name newProps evaluatedSubelements) : evaluatedTail
 
 -- jeśli napotkano tekst
-evaluate env props ((Text eprops txt):es) = do
+evaluate env props ((Text eprops rules txt):es) = do
   evaluatedTail <- evaluate env props es
   let newProps = evalProps $ Map.union eprops props
-  return $ (Text newProps txt) : evaluatedTail
+  let newRules = maybe rules id $ Map.lookup (stringProp "rules" newProps) env
+  return $ (Text newProps newRules txt) : evaluatedTail
 
 -- jeśli napotkano include
 evaluate env props ((Include eprops txt):es) = do
@@ -79,13 +80,13 @@ evaluate env props ((Include eprops txt):es) = do
 evaluate env props ((NewLine eprops):es) = do
   evaluatedTail <- evaluate env props es
   let newProps = evalProps $ Map.union eprops props
-  return $ (Text newProps "\n") : evaluatedTail
+  return $ (Text newProps [] "\n") : evaluatedTail
 
 -- jeśli napotkano space1
 evaluate env props ((Space1 eprops):es) = do
   evaluatedTail <- evaluate env props es
   let newProps = evalProps $ Map.union eprops props
-  return $ (Text newProps " ") : evaluatedTail
+  return $ (Text newProps [] " ") : evaluatedTail
 
 -- jeśli napotkano inny element
 evaluate env props (e:es) = do
@@ -130,7 +131,7 @@ applyArguments props args (IfUndef name elements) =
 -- AsText: dodaj jako tekst
 applyArguments props args (AsText asTextProps name) =
   case (Map.lookup name props) of
-    Just text -> [Text (Map.union props asTextProps) text]
+    Just text -> [Text (Map.union props asTextProps) [] text]
     _ -> []
 
 -- jeśli ciało zawiera Args
@@ -141,7 +142,7 @@ applyArguments props args (Args argsprops) = map (mergeProps (Map.union argsprop
 applyArguments args env e = [e]
 
 mergeProps props (Element name eprops elements) = Element name (Map.union eprops props) elements
-mergeProps props (Text eprops elements) = Text (Map.union eprops props) elements
+mergeProps props (Text eprops rules elements) = Text (Map.union eprops props) rules elements
 mergeProps props e = e
 
 ----------------------------------------------------

@@ -14,12 +14,14 @@ data Element =
   | IfDef String [Element]
   | IfUndef String [Element]
   | IfEq String String [Element]
-  | Text (Map.Map String String) String
+  | Text (Map.Map String String) [Element] String
   | Include (Map.Map String String) String
   | NewLine (Map.Map String String)
   | Space1 (Map.Map String String)
   | Import String
   | Table (Map.Map String String) [TableRow]
+  | ReplaceChars (Map.Map Char String)
+  | TextRule String
   deriving (Eq,Show)
 
 data TableRow =

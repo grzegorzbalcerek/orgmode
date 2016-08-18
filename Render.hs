@@ -15,7 +15,7 @@ import Data.Maybe (fromMaybe,maybe)
 
 renderElement :: Element -> String
 renderElement (Include _ content) = content
-renderElement (Text props txt) =
+renderElement (Text props [] txt) =
   let transformationSpecs =
         [ SimpleTransf "onlyascii" onlyAscii
         , SimpleTransf "sourcepng" sourcePng
@@ -42,6 +42,11 @@ renderElement (Text props txt) =
   in if hasProp "size" props
      then "{\\" ++ srcSize (stringProp "size" props) txt ++ " " ++ combinedTransformation txt ++ "}"
      else combinedTransformation txt
+
+renderElement (Text props rules txt) =
+  let f txt (ReplaceChars replaceCharsRules) = replaceChars replaceCharsRules txt
+      f txt _ = txt
+  in foldl f txt rules
 
 renderElement (Table props rows) =
   let t = fromMaybe "tabular" $ stringPropMaybe "type" props
@@ -85,7 +90,7 @@ renderCells n sep (cell:cells) =
   (if n > 1 then sep else "") ++
   renderCellText cell ++ renderCells (n+1) sep cells
 
-renderCellText txt = renderElement (Text (Map.fromList[{- todo -}]) txt)
+renderCellText txt = renderElement (Text (Map.fromList[{- todo -}]) [] txt)
 
 renderClines _ [] = ""
 renderClines n ("":cells) = renderClines (n+1) cells

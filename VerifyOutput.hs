@@ -33,7 +33,7 @@ getSrcFromElements =
   foldr getSrc []
   where getSrc part acc =
           case part of
-            Text props src | hasProp "verify" props -> (filter (\c -> ord c < 9216) src) : acc
+            Text props _ src | hasProp "verify" props -> (filter (\c -> ord c < 9216) src) : acc
             _ -> acc
 
 

@@ -29,7 +29,7 @@ truncateFiles elements =
     case element of
       Element "COMMENT" _ _ -> return ()
       Element _ _ parts -> truncateFiles parts
-      Text props _ | hasProp "export" props && hasProp "path" props -> trace "truncate" $ truncateFile $ stringProp "path" props
+      Text props _ _ | hasProp "export" props && hasProp "path" props -> trace "truncate" $ truncateFile $ stringProp "path" props
       _ -> return ()
 
 truncateFile :: String -> IO ()
@@ -45,7 +45,7 @@ exportFromElements' elements mode = do
     case element of
       Element "COMMENT" props _ -> return ()
       Element _ _ elements -> exportFromElements' elements mode
-      Text props str ->
+      Text props _ str ->
         case (mode,stringProp "path" props,hasProp "stdout" props) of
              (ExportPaths,"",_)   -> return ()
              (ExportPaths,file,_) -> writeToFile file $ getContent props str

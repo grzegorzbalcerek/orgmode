@@ -4,6 +4,7 @@ module Text where
 import Data.Char
 import Data.List
 import Model
+import qualified Data.Map as Map
 
 onlyAscii = filter (\c -> ord c < 128)
 onlyLowUnicode = filter (\c -> ord c < 9216)
@@ -29,6 +30,14 @@ noBreakPl =
   in foldr f ""
 
 circle prefix color n = prefix ++ color ++ show n ++ ".png}}"
+
+replaceChars :: Map.Map Char String -> String -> String
+replaceChars rules =
+  let f :: Char -> String -> String
+      f c acc = case (Map.lookup c rules) of
+                  Just s -> s ++ acc
+                  Nothing -> c : acc
+  in foldr f ""
 
 replaceByPng :: String -> String -> String
 replaceByPng prefix =
