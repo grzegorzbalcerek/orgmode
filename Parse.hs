@@ -15,21 +15,15 @@ type P = Parsec String ()
 
 parseInput :: String -> [Element]
 parseInput input =
-    case (parse entry "error" input) of
+    case (parse elements "error" input) of
       Right result -> result
       Left err -> error (show err)
 
 ----------------------------------------------------
 
-entry :: P [Element]
-entry = do
-  optional propLine
-  elements
-
-----------------------------------------------------
-
 elements :: P [Element]
 elements = do
+  optional propLine
   results <- many (try (many1 (try $ singleElement 1)) <|> try (many1 emptyOrRegularLineWithEol >> return []))
   try eof
   return $ concat results
@@ -39,12 +33,12 @@ singleElement n =
   (
   try (levelTag n "IFDEF" >> IfDef <$> restOfLine <*> nextLevelElements n) <|>
   try (levelTag n "IFUNDEF" >> IfUndef <$> restOfLine <*> nextLevelElements n) <|>
-  try (ifeq n) <|>
+  try (levelTag n "IFEQ" >> IfEq <$> takeWord <*> restOfLine <*> nextLevelElements n) <|>
   try (levelTag n "ARGS" >> Args <$> properties) <|>
   try (astext n) <|>
   try (levelTag n "GROUP" >> restOfLine >> Group <$> nextLevelElements n) <|>
   try (levelTag n "DEF" >> Def <$> takeWordIgnoreUntilEol <*> nextLevelElements n) <|>
-  try (levelTag n "TEXT RULE" >> TextRule <$> takeWordIgnoreUntilEol) <|>
+  try (levelTag n "TEXT RULE" >> TextRule <$> takeWord <*> restOfLine) <|>
   try (replacechars n) <|>
   try (text n) <|>
   try (table n) <|>
@@ -57,14 +51,6 @@ singleElement n =
   ) <?> "singleElement"
 
 ----------------------------------------------------
-
-ifeq :: Int -> P Element
-ifeq n = do
-  levelTag n "IFEQ"
-  c <- restOfLine
-  let (name,value) = span (/=' ') c
-  content <- nextLevelElements n
-  return $ IfEq name (trim value) content
 
 astext :: Int -> P Element
 astext n = do
@@ -94,6 +80,8 @@ table n = do
   (_,props) <- asteriskLineWithProps n "TABLE"
   rows <- many (try tableRow)
   return $ Table props rows
+
+-------------------------------------------------------
 
 tableRow =
   (
@@ -155,15 +143,15 @@ lettersAndDigits = ['a'..'z']++['A'..'Z']++['0'..'9']
 -----------------------------------------------------
 
 singleColonProp =
-  try colonProp2 <|>
-  try colonProp1
+  try colonPropWithValue <|>
+  try colonPropEmpty
 
-colonProp1 = do
+colonPropEmpty = do
   char ':'
   name <- many (noneOf " :\n\r")
   return $ Map.singleton name ""
 
-colonProp2 = do
+colonPropWithValue = do
   char ':'
   name <- many (noneOf " :\n\r")
   char ' '

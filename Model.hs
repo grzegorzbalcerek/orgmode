@@ -21,7 +21,7 @@ data Element =
   | Import String
   | Table (Map.Map String String) [TableRow]
   | ReplaceChars (Map.Map Char String)
-  | TextRule String
+  | TextRule String String
   deriving (Eq,Show)
 
 data TableRow =

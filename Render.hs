@@ -45,6 +45,16 @@ renderElement (Text props [] txt) =
 
 renderElement (Text props rules txt) =
   let f txt (ReplaceChars replaceCharsRules) = replaceChars replaceCharsRules txt
+      f txt (TextRule "onlyascii" _) = onlyAscii txt
+      f txt (TextRule "sourcepng" _) = sourcePng txt
+      f txt (TextRule "textpng" _) = textPng txt
+      f txt (TextRule "nobreakpl" _) = noBreakPl txt
+      f txt (TextRule "newlineasspace" _) = newLineAsSpace txt
+      f txt (TextRule "styledtext" _) = styledText txt
+      f txt (TextRule "lmchars" _) = lmChars txt
+      f txt (TextRule "references" _) = references txt
+      f txt (TextRule "maxline" n) = divideLongLines (read n :: Int) txt
+      f txt (TextRule "hide" _) = ""
       f txt _ = txt
   in foldl f txt rules
 
