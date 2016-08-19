@@ -15,12 +15,12 @@ import Data.Maybe (fromMaybe,maybe)
 
 renderElement :: Element -> String
 renderElement (Text props rules txt) =
-  let f txt (CharReplaceTextRule replaceCharsRules) = replaceChars replaceCharsRules txt
+  let f txt (CharReplaceTextRule rules) = replaceChars rules txt
+      f txt (StringReplaceTextRule rules) = replaceString rules txt
+      f txt (CharPairTextRule rules) = replaceCharPair rules txt
       f txt (BuiltInTextRule "onlyascii" _) = onlyAscii txt
-      f txt (BuiltInTextRule "nobreakpl" _) = noBreakPl txt
       f txt (BuiltInTextRule "newlineasspace" _) = newLineAsSpace txt
-      f txt (BuiltInTextRule "styledtext" _) = styledText txt
-      f txt (BuiltInTextRule "references" _) = references txt
+      f txt (BuiltInTextRule "dashbetweendigits" _) = dashBetweenDigits txt
       f txt (BuiltInTextRule "maxline" n) = divideLongLines (read n :: Int) txt
       f txt (BuiltInTextRule "boldprefixed" lst) = boldPrefixed (read lst :: [String]) txt
       f txt (BuiltInTextRule "onlyprefixed" lst) = onlyPrefixed (read lst :: [String]) txt

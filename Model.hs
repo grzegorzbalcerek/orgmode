@@ -19,6 +19,8 @@ data Element =
   | Import String
   | Table (Map.Map String String) [TableRow]
   | CharReplaceTextRule (Map.Map Char String)
+  | StringReplaceTextRule (Map.Map String String)
+  | CharPairTextRule (Map.Map Char (String,String))
   | BuiltInTextRule String String -- rulename arg
   deriving (Eq,Show)
 

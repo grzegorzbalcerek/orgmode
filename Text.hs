@@ -14,47 +14,29 @@ replaceChars rules =
                   Nothing -> c : acc
   in foldr f ""
 
+replaceString :: Map.Map String String -> String -> String
+replaceString rules "" = ""
+replaceString rules str =
+  case applyReplaceStringRules (Map.toList rules) str of
+    ([],c:cs) -> c : replaceString rules cs
+    (v,s) -> v ++ replaceString rules s
+
+applyReplaceStringRules [] str = ([],str)
+applyReplaceStringRules ((k,v):rs) str | isPrefixOf k str = (v,drop (length k) str)
+applyReplaceStringRules (_:rs) str = applyReplaceStringRules rs str
+
 replaceCharPair :: Map.Map Char (String,String) -> String -> String
 replaceCharPair _ "" = ""
 replaceCharPair rules (c:acc) =
   case (c, break (c ==) acc) of
     (_,(wrappedtext,_:acc')) ->
       case (Map.lookup c rules) of
-        Just (b,e) -> b ++ wrappedtext ++ e ++ replaceCharPair rules acc'
+        Just (b,e) -> b ++ replaceCharPair rules wrappedtext ++ e ++ replaceCharPair rules acc'
         Nothing -> c : replaceCharPair rules acc
     _ -> c : replaceCharPair rules acc
 
 onlyAscii = filter (\c -> ord c < 128)
 onlyLowUnicode = filter (\c -> ord c < 9216)
-
-noBreakPl :: String -> String
-noBreakPl =
-  let f :: Char -> String -> String
-      f c acc =
-        case (c, break (c ==) acc) of
-            (' ',("z",' ':acc')) -> " z{\\nobreak} " ++ acc'
-            (' ',("w",' ':acc')) -> " w{\\nobreak} " ++ acc'
-            (' ',("i",' ':acc')) -> " i{\\nobreak} " ++ acc'
-            (' ',("a",' ':acc')) -> " a{\\nobreak} " ++ acc'
-            (' ',("u",' ':acc')) -> " u{\\nobreak} " ++ acc'
-            (' ',("o",' ':acc')) -> " o{\\nobreak} " ++ acc'
-            (' ',("Z",' ':acc')) -> " Z{\\nobreak} " ++ acc'
-            (' ',("W",' ':acc')) -> " W{\\nobreak} " ++ acc'
-            (' ',("I",' ':acc')) -> " I{\\nobreak} " ++ acc'
-            (' ',("A",' ':acc')) -> " A{\\nobreak} " ++ acc'
-            (' ',("U",' ':acc')) -> " U{\\nobreak} " ++ acc'
-            (' ',("O",' ':acc')) -> " O{\\nobreak} " ++ acc'
-            _ -> c:acc
-  in foldr f ""
-
-references :: String -> String
-references =
-  let f :: Char -> String -> String
-      f c acc =
-        case (c, break (c ==) acc) of
-            ('⒭',(ref,_:acc')) -> ref ++ references acc'
-            _ -> c:acc
-  in foldr f ""
 
 newLineAsSpace :: String -> String
 newLineAsSpace =
@@ -65,19 +47,10 @@ newLineAsSpace =
           _ -> c:acc
   in foldr f ""
 
-styledText :: String -> String
-styledText "" = ""
-styledText (a:'-':b:acc) | isDigit a && isDigit b = a : "{\\raise0.2ex\\hbox{-}}" ++ styledText (b:acc)
-styledText (c:acc) =
-  case (c, break (c ==) acc) of
-    ('⒡',(file,_:acc')) -> "\\textsl{" ++ styledText file ++ "}" ++ styledText acc'
-    ('⒰',(url,_:acc')) -> "\\textsl{" ++ styledText url ++ "}" ++ styledText acc'
-    ('⒤',(text,_:acc')) -> "\\textit{" ++ styledText text ++ "}" ++ styledText acc'
-    ('⒞',(code,_:acc')) -> "\\texttt{" ++ styledText code ++ "}" ++ styledText acc'
-    ('⒝',(code,_:acc')) -> "\\textbf{" ++ styledText code ++ "}" ++ styledText acc'
-    ('¡',(code,_:acc')) -> "\\textbf{" ++ styledText code ++ "}" ++ styledText acc'
-    _ -> c:styledText acc
-
+dashBetweenDigits :: String -> String
+dashBetweenDigits "" = ""
+dashBetweenDigits (a:'-':b:acc) | isDigit a && isDigit b = a : "{\\raise0.2ex\\hbox{-}}" ++ dashBetweenDigits (b:acc)
+dashBetweenDigits (c:acc) = c:dashBetweenDigits acc
 
 identifierChars = [ConnectorPunctuation,DecimalNumber,
                    LowercaseLetter,UppercaseLetter]
@@ -141,8 +114,6 @@ divideLongLine n line =
     (x,y) -> x ++ "\n" ++ divideLongLine n y
 
 divideLongLines n = unlines . map (divideLongLine n) . lines
-
-prependnl n txt = (take n (repeat '\n')) ++ txt
 
 onlyPrefixed :: [String] -> String -> String
 onlyPrefixed prefixes = unlines . filter (/="") . map (onlyPrefixedLine prefixes) . lines

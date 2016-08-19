@@ -38,7 +38,9 @@ singleElement n =
   try (levelTag n "ASTEXT" >> AsText <$> takeWord <*> properties) <|>
   try (levelTag n "DEF" >> Def <$> takeWordIgnoreUntilEol <*> nextLevelElements n) <|>
   try (levelTag n "BUILT-IN TEXT RULE" >> BuiltInTextRule <$> takeWord <*> restOfLine) <|>
-  try (replacechars n) <|>
+  try (charReplaceTextRule n) <|>
+  try (stringReplaceTextRule n) <|>
+  try (charPairTextRule n) <|>
   try (text n) <|>
   try (table n) <|>
   try (levelTag n "NEWLINE" >> NewLine <$> properties) <|>
@@ -50,7 +52,7 @@ singleElement n =
 
 ----------------------------------------------------
 
-replacechars n =
+charReplaceTextRule n =
   let replaceCharRule = do
         c <- ( space >> char '*' ) <|> noneOf " *\n\r"
         r <- restOfLine
@@ -59,6 +61,36 @@ replacechars n =
       levelTag n "CHAR REPLACE TEXT RULE" >> restOfLine
       rules <- many (try replaceCharRule)
       return $ CharReplaceTextRule (Map.fromList rules)
+
+stringReplaceTextRule n =
+  let stringPairRule separator = do
+        c <- noneOf ['*']
+        a <- many (noneOf [separator])
+        char separator
+        b <- restOfLine
+        return (c:a,b)
+  in do
+      levelTag n "STRING REPLACE TEXT RULE"
+      parsedSeparator <- restOfLine
+      let trimmedSeparator = trim parsedSeparator
+      let separator = if trimmedSeparator == "" then ' ' else head trimmedSeparator
+      rules <- many (try (stringPairRule separator))
+      return $ StringReplaceTextRule (Map.fromList rules)
+
+charPairTextRule n =
+  let charPairRule separator = do
+        c <- ( space >> char '*' ) <|> noneOf " *\n\r"
+        b <- many (noneOf [separator])
+        char separator
+        e <- restOfLine
+        return (c,(b,e))
+  in do
+      levelTag n "CHAR PAIR TEXT RULE"
+      parsedSeparator <- restOfLine
+      let trimmedSeparator = trim parsedSeparator
+      let separator = if trimmedSeparator == "" then ' ' else head trimmedSeparator
+      rules <- many (try (charPairRule separator))
+      return $ CharPairTextRule (Map.fromList rules)
 
 implicitText = do
   content <- many1 emptyOrRegularLineWithEol
