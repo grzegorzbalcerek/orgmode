@@ -29,8 +29,6 @@ noBreakPl =
             _ -> c:acc
   in foldr f ""
 
-circle prefix color n = prefix ++ color ++ show n ++ ".png}}"
-
 replaceChars :: Map.Map Char String -> String -> String
 replaceChars rules =
   let f :: Char -> String -> String
@@ -38,73 +36,6 @@ replaceChars rules =
                   Just s -> s ++ acc
                   Nothing -> c : acc
   in foldr f ""
-
-replaceByPng :: String -> String -> String
-replaceByPng prefix =
-  let f :: Char -> String -> String
-      f c acc =
-        case c of
-          '①' -> circle prefix "white" 1 ++ acc
-          '②' -> circle prefix "white" 2 ++ acc
-          '③' -> circle prefix "white" 3 ++ acc
-          '④' -> circle prefix "white" 4 ++ acc
-          '⑤' -> circle prefix "white" 5 ++ acc
-          '⑥' -> circle prefix "white" 6 ++ acc
-          '⑦' -> circle prefix "white" 7 ++ acc
-          '⑧' -> circle prefix "white" 8 ++ acc
-          '⑨' -> circle prefix "white" 9 ++ acc
-          '⑩' -> circle prefix "white" 10 ++ acc
-          '⑪' -> circle prefix "white" 11 ++ acc
-          '⑫' -> circle prefix "white" 12 ++ acc
-          '⑬' -> circle prefix "white" 13 ++ acc
-          '⑭' -> circle prefix "white" 14 ++ acc
-          '⑮' -> circle prefix "white" 15 ++ acc
-          '⑯' -> circle prefix "white" 16 ++ acc
-          '⑰' -> circle prefix "white" 17 ++ acc
-          '⑱' -> circle prefix "white" 18 ++ acc
-          '⑲' -> circle prefix "white" 19 ++ acc
-          '⑳' -> circle prefix "white" 20 ++ acc
-          '㉑' -> circle prefix "white" 21 ++ acc
-          '㉒' -> circle prefix "white" 22 ++ acc
-          '㉓' -> circle prefix "white" 23 ++ acc
-          '㉔' -> circle prefix "white" 24 ++ acc
-          '㉕' -> circle prefix "white" 25 ++ acc
-          '㉖' -> circle prefix "white" 26 ++ acc
-          '㉗' -> circle prefix "white" 27 ++ acc
-          '㉘' -> circle prefix "white" 28 ++ acc
-          '㉙' -> circle prefix "white" 29 ++ acc
-          '㉚' -> circle prefix "white" 30 ++ acc
-          '㉛' -> circle prefix "white" 31 ++ acc
-          '㉜' -> circle prefix "white" 32 ++ acc
-          '㉝' -> circle prefix "white" 33 ++ acc
-          '㉞' -> circle prefix "white" 34 ++ acc
-          '㉟' -> circle prefix "white" 35 ++ acc
-          '❶' -> circle prefix "black" 1 ++ acc
-          '❷' -> circle prefix "black" 2 ++ acc
-          '❸' -> circle prefix "black" 3 ++ acc
-          '❹' -> circle prefix "black" 4 ++ acc
-          '❺' -> circle prefix "black" 5 ++ acc
-          '❻' -> circle prefix "black" 6 ++ acc
-          '❼' -> circle prefix "black" 7 ++ acc
-          '❽' -> circle prefix "black" 8 ++ acc
-          '❾' -> circle prefix "black" 9 ++ acc
-          '❿' -> circle prefix "black" 10 ++ acc
-          '⓫' -> circle prefix "black" 11 ++ acc
-          '⓬' -> circle prefix "black" 12 ++ acc
-          '⓭' -> circle prefix "black" 13 ++ acc
-          '⓮' -> circle prefix "black" 14 ++ acc
-          '⓯' -> circle prefix "black" 15 ++ acc
-          '⓰' -> circle prefix "black" 16 ++ acc
-          '⓱' -> circle prefix "black" 17 ++ acc
-          '⓲' -> circle prefix "black" 18 ++ acc
-          '⓳' -> circle prefix "black" 19 ++ acc
-          '⓴' -> circle prefix "black" 20 ++ acc
-          '⇒' -> "{\\includegraphics[width=7pt]{doublerightarrow.png}}" ++ acc
-          _ -> c:acc
-  in foldr f ""
-
-textPng = replaceByPng "\\raisebox{-1pt}{\\includegraphics[width=8pt]{"
-sourcePng = replaceByPng " {\\includegraphics[width=7pt]{"
 
 references :: String -> String
 references =
@@ -123,48 +54,6 @@ newLineAsSpace =
           '\n' -> ' ' : acc
           _ -> c:acc
   in foldr f ""
-
-lmChars :: String -> String
-lmChars =
-  let f :: Char -> String -> String
-      f c acc =
-        case c of
-          '!' -> "{\\fontencoding{T1}\\selectfont\\char33}" ++ acc
-          '"' -> "{\\fontencoding{T1}\\selectfont\\char34}" ++ acc
-          '#' -> "{\\fontencoding{T1}\\selectfont\\char35}" ++ acc
-          '$' -> "{\\fontencoding{T1}\\selectfont\\char36}" ++ acc
-          '%' -> "{\\fontencoding{T1}\\selectfont\\char37}" ++ acc
-          '&' -> "{\\fontencoding{T1}\\selectfont\\char38}" ++ acc
-          '<' -> "{\\fontencoding{T1}\\selectfont\\char60}" ++ acc
-          '>' -> "{\\fontencoding{T1}\\selectfont\\char62}" ++ acc
-          '\'' -> "{\\fontencoding{T1}\\selectfont\\char39}" ++ acc
-          '\\' -> "{\\fontencoding{T1}\\selectfont\\char92}" ++ acc
-          '^' -> "{\\fontencoding{T1}\\selectfont\\char94}" ++ acc
-          '_' -> "{\\fontencoding{T1}\\selectfont\\char95}" ++ acc
-          '`' -> "{\\fontencoding{T1}\\selectfont\\char0}" ++ acc
-          '{' -> "{\\fontencoding{T1}\\selectfont\\char123}" ++ acc
-          '|' -> "{\\fontencoding{T1}\\selectfont\\char124}" ++ acc
-          '}' -> "{\\fontencoding{T1}\\selectfont\\char125}" ++ acc
-          '~' -> "{\\fontencoding{T1}\\selectfont\\char126}" ++ acc
-          '¶' -> "{\\par}" ++ acc
-          '×' -> "{\\fontencoding{QX}\\selectfont\\char169}" ++ acc
-          '⋆' -> "*" ++ acc
-          'Δ' -> "{\\fontencoding{QX}\\selectfont\\char1}" ++ acc
-          'Π' -> "{\\fontencoding{QX}\\selectfont\\char5}" ++ acc
-          'Σ' -> "{\\fontencoding{QX}\\selectfont\\char6}" ++ acc
-          'Ω' -> "{\\fontencoding{TS1}\\selectfont\\char87}" ++ acc
-          '–' -> "--" ++ acc
-          '—' -> "---" ++ acc
-          '‖' -> "\\pause\n" ++ acc
-          '…' -> "{\\fontencoding{QX}\\selectfont\\char8}" ++ acc
-          '℃' -> "{\\fontencoding{TS1}\\selectfont\\char137}" ++ acc
-          '←' -> "{\\fontencoding{TS1}\\selectfont\\char24}" ++ acc
-          '→' -> "{\\fontencoding{TS1}\\selectfont\\char25}" ++ acc
-          '−' -> "{\\fontencoding{TS1}\\selectfont\\char61}" ++ acc
-          '∞' -> "{\\fontencoding{QX}\\selectfont\\char173}" ++ acc
-          _ -> c:acc
-  in foldr f ""
-
 
 styledText :: String -> String
 styledText "" = ""

@@ -16,3 +16,5 @@ makePages (e@(Element name props subelements):es) =
   Map.union (makePages subelements) (makePages es)
 makePages (_:es) = makePages es
 makePages [] = Map.empty
+
+--combineElement

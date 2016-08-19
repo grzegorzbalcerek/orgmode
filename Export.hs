@@ -61,13 +61,13 @@ writeToFile file content = do
   hPutStr houtput content
   hClose houtput
 
-getContent props txt =
-  let transformationSpecs =
-        [ SimpleTransf "onlyascii" onlyAscii
-        , SimpleTransf "onlylowunicode" onlyLowUnicode
-        , IntTransf "prependnl" prependnl
-        , StringListTransf "onlyprefixed" onlyPrefixed
-        ]
-      transformationFunctions = map (makeTransfFunction props) transformationSpecs
-      combinedTransformation = foldr (.) id transformationFunctions
-  in combinedTransformation txt
+getContent props txt = txt
+--  let transformationSpecs =
+--        [ SimpleTransf "onlyascii" onlyAscii
+--        , SimpleTransf "onlylowunicode" onlyLowUnicode
+--        , IntTransf "prependnl" prependnl
+--        , StringListTransf "onlyprefixed" onlyPrefixed
+--        ]
+--      transformationFunctions = map (makeTransfFunction props) transformationSpecs
+--      combinedTransformation = foldr (.) id transformationFunctions
+--  in combinedTransformation txt

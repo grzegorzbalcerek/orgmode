@@ -31,20 +31,19 @@ elements = do
 singleElement :: Int -> P Element
 singleElement n =
   (
-  try (levelTag n "IFDEF" >> IfDef <$> restOfLine <*> nextLevelElements n) <|>
-  try (levelTag n "IFUNDEF" >> IfUndef <$> restOfLine <*> nextLevelElements n) <|>
-  try (levelTag n "IFEQ" >> IfEq <$> takeWord <*> restOfLine <*> nextLevelElements n) <|>
+  try (levelTag n "IFDEF" >> IfDef <$> (takeWord <* restOfLine) <*> nextLevelElements n) <|>
+  try (levelTag n "IFUNDEF" >> IfUndef <$> (takeWord <* restOfLine) <*> nextLevelElements n) <|>
+  try (levelTag n "IFEQ" >> IfEq <$> takeWord <*> (takeWord <* restOfLine) <*> nextLevelElements n) <|>
   try (levelTag n "ARGS" >> Args <$> properties) <|>
-  try (astext n) <|>
+  try (levelTag n "ASTEXT" >> AsText <$> takeWord <*> properties) <|>
   try (levelTag n "GROUP" >> restOfLine >> Group <$> nextLevelElements n) <|>
   try (levelTag n "DEF" >> Def <$> takeWordIgnoreUntilEol <*> nextLevelElements n) <|>
-  try (levelTag n "TEXT RULE" >> TextRule <$> takeWord <*> restOfLine) <|>
+  try (levelTag n "RULE" >> Rule <$> takeWord <*> restOfLine) <|>
   try (replacechars n) <|>
   try (text n) <|>
   try (table n) <|>
   try (levelTag n "NEWLINE" >> NewLine <$> properties) <|>
   try (levelTag n "SPACE" >> Space1 <$> properties) <|>
-  try (include n) <|>
   try (levelTag n "IMPORT" >> Import <$> takeWordIgnoreUntilEol) <|>
   try (beginLevel n >> Element <$> takeWord <*> properties <*> nextLevelElements n) <|>
   try implicitText
@@ -52,18 +51,13 @@ singleElement n =
 
 ----------------------------------------------------
 
-astext :: Int -> P Element
-astext n = do
-  (name,props) <- asteriskLineWithProps n "ASTEXT"
-  return $ AsText props name
-
 replacechars n =
   let replaceCharRule = do
         c <- ( space >> char '*' ) <|> noneOf " *\n\r"
         r <- restOfLine
         return (c,r)
   in do
-      asteriskLineWithProps n "REPLACE CHARS"
+      levelTag n "REPLACE CHARS" >> restOfLine
       rules <- many (try replaceCharRule)
       return $ ReplaceChars (Map.fromList rules)
 
@@ -72,12 +66,15 @@ implicitText = do
   return $ Text Map.empty [] (concat content)
 
 text n = do
-  (_,props) <- asteriskLineWithProps n "TEXT"
+  levelTag n "TEXT"
+  txt <- takeUntilColon
+  props <- properties
   content <- many emptyOrRegularLineWithEol
-  return $ Text props [] (trim (concat content))
+  return $ Text props [] (trim txt ++ trim (concat content))
 
 table n = do
-  (_,props) <- asteriskLineWithProps n "TABLE"
+  levelTag n "TABLE" 
+  props <- properties
   rows <- many (try tableRow)
   return $ Table props rows
 
@@ -106,11 +103,6 @@ tableCell = do
   content <- many (noneOf "|\n\r")
   char '|'
   return (trim content)
-
-include n = do
-  (_,props) <- asteriskLineWithProps n "INCLUDE"
-  content <- many1 emptyOrRegularLineWithEol
-  return $ Include props (trim (concat content))
 
 ----------------------------------------------
 
@@ -191,17 +183,13 @@ takeWordIgnoreUntilEol = do
 takeWord :: P String
 takeWord = do
   many space
-  content <- many (noneOf " \n\r")
+  content <- many (noneOf " :\n\r")
   return $ trim content
 
-asteriskLineWithProps :: Int -> String -> P (String,Map.Map String String)
-asteriskLineWithProps n tag = do
-  levelTag n tag
-  value <- many (noneOf ":\n\r")
-  props <- singleColonProp `sepBy` (many (noneOf ":\n\r"))
-  let mergedProps = foldl Map.union (Map.singleton "value" (trim value)) props
-  restOfLine
-  return (trim value,mergedProps)
+takeUntilColon :: P String
+takeUntilColon = do
+  content <- many (noneOf ":\n\r")
+  return $ trim content
 
 ----------------------------------------------------
 
@@ -210,7 +198,7 @@ propLine = string "# -*-" >> restOfLine
 restOfLine = do
   content <- many (noneOf "\n\r")
   eol
-  return (trim content)
+  return content
 
 eol = try (string "\r\n") <|> string "\n"
 

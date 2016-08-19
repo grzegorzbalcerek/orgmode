@@ -68,13 +68,8 @@ evaluate env props ((Text eprops rules txt):es) = do
   evaluatedTail <- evaluate env props es
   let newProps = evalProps $ Map.union eprops props
   let newRules = maybe rules id $ Map.lookup (stringProp "rules" newProps) env
-  return $ (Text newProps newRules txt) : evaluatedTail
-
--- jeśli napotkano include
-evaluate env props ((Include eprops txt):es) = do
-  evaluatedTail <- evaluate env props es
-  let newProps = evalProps $ Map.union eprops props
-  return $ (Include newProps txt) : evaluatedTail
+  evalulatedNewRules <- evaluate env props newRules
+  return $ (Text newProps evalulatedNewRules txt) : evaluatedTail
 
 -- jeśli napotkano newline
 evaluate env props ((NewLine eprops):es) = do
@@ -129,7 +124,7 @@ applyArguments props args (IfUndef name elements) =
   else elements >>= applyArguments props args
 
 -- AsText: dodaj jako tekst
-applyArguments props args (AsText asTextProps name) =
+applyArguments props args (AsText name asTextProps) =
   case (Map.lookup name props) of
     Just text -> [Text (Map.union props asTextProps) [] text]
     _ -> []

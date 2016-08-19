@@ -14,47 +14,16 @@ import Data.Maybe (fromMaybe,maybe)
 ----------------------------------------------------
 
 renderElement :: Element -> String
-renderElement (Include _ content) = content
-renderElement (Text props [] txt) =
-  let transformationSpecs =
-        [ SimpleTransf "onlyascii" onlyAscii
-        , SimpleTransf "sourcepng" sourcePng
-        , SimpleTransf "textpng" textPng
-        , SimpleTransf "nobreakpl" noBreakPl
-        , SimpleTransf "newlineasspace" newLineAsSpace
-        , SimpleTransf "styledtext" styledText
-        , SimpleTransf "colored" colored
-        , StringListTransf "green" (addColor "green")
-        , StringListTransf "red" (addColor "red")
-        , StringListTransf "blue" (addColor "blue")
-        , StringListTransf "cyan" (addColor "cyan")
-        , StringListTransf "magenta" (addColor "magenta")
-        , StringListTransf "brown" (addColor "brown")
-        , StringListTransf "gray" (addColor "gray")
-        , StringListTransf "boldprefixed" boldPrefixed
-        , SimpleTransf "lmchars" lmChars
-        , SimpleTransf "references" references
-        , IntTransf "maxline" divideLongLines
-        , SimpleTransf "hide" (const "")
-        ]
-      transformationFunctions = map (makeTransfFunction props) transformationSpecs
-      combinedTransformation = foldr (.) id transformationFunctions
-  in if hasProp "size" props
-     then "{\\" ++ srcSize (stringProp "size" props) txt ++ " " ++ combinedTransformation txt ++ "}"
-     else combinedTransformation txt
-
 renderElement (Text props rules txt) =
   let f txt (ReplaceChars replaceCharsRules) = replaceChars replaceCharsRules txt
-      f txt (TextRule "onlyascii" _) = onlyAscii txt
-      f txt (TextRule "sourcepng" _) = sourcePng txt
-      f txt (TextRule "textpng" _) = textPng txt
-      f txt (TextRule "nobreakpl" _) = noBreakPl txt
-      f txt (TextRule "newlineasspace" _) = newLineAsSpace txt
-      f txt (TextRule "styledtext" _) = styledText txt
-      f txt (TextRule "lmchars" _) = lmChars txt
-      f txt (TextRule "references" _) = references txt
-      f txt (TextRule "maxline" n) = divideLongLines (read n :: Int) txt
-      f txt (TextRule "hide" _) = ""
+      f txt (Rule "onlyascii" _) = onlyAscii txt
+      f txt (Rule "nobreakpl" _) = noBreakPl txt
+      f txt (Rule "newlineasspace" _) = newLineAsSpace txt
+      f txt (Rule "styledtext" _) = styledText txt
+      f txt (Rule "references" _) = references txt
+      f txt (Rule "maxline" n) = divideLongLines (read n :: Int) txt
+      f txt (Rule "boldprefixed" lst) = boldPrefixed (read lst :: [String]) txt
+      f txt (Rule "hide" _) = ""
       f txt _ = txt
   in foldl f txt rules
 
