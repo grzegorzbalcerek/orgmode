@@ -15,16 +15,16 @@ import Data.Maybe (fromMaybe,maybe)
 
 renderElement :: Element -> String
 renderElement (Text props rules txt) =
-  let f txt (ReplaceChars replaceCharsRules) = replaceChars replaceCharsRules txt
-      f txt (Rule "onlyascii" _) = onlyAscii txt
-      f txt (Rule "nobreakpl" _) = noBreakPl txt
-      f txt (Rule "newlineasspace" _) = newLineAsSpace txt
-      f txt (Rule "styledtext" _) = styledText txt
-      f txt (Rule "references" _) = references txt
-      f txt (Rule "maxline" n) = divideLongLines (read n :: Int) txt
-      f txt (Rule "boldprefixed" lst) = boldPrefixed (read lst :: [String]) txt
-      f txt (Rule "onlyprefixed" lst) = onlyPrefixed (read lst :: [String]) txt
-      f txt (Rule "hide" _) = ""
+  let f txt (CharReplaceTextRule replaceCharsRules) = replaceChars replaceCharsRules txt
+      f txt (BuiltInTextRule "onlyascii" _) = onlyAscii txt
+      f txt (BuiltInTextRule "nobreakpl" _) = noBreakPl txt
+      f txt (BuiltInTextRule "newlineasspace" _) = newLineAsSpace txt
+      f txt (BuiltInTextRule "styledtext" _) = styledText txt
+      f txt (BuiltInTextRule "references" _) = references txt
+      f txt (BuiltInTextRule "maxline" n) = divideLongLines (read n :: Int) txt
+      f txt (BuiltInTextRule "boldprefixed" lst) = boldPrefixed (read lst :: [String]) txt
+      f txt (BuiltInTextRule "onlyprefixed" lst) = onlyPrefixed (read lst :: [String]) txt
+      f txt (BuiltInTextRule "hide" _) = ""
       f txt _ = txt
   in foldl f txt rules
 

@@ -38,7 +38,7 @@ singleElement n =
   try (levelTag n "ASTEXT" >> AsText <$> takeWord <*> properties) <|>
   try (levelTag n "GROUP" >> restOfLine >> Group <$> nextLevelElements n) <|>
   try (levelTag n "DEF" >> Def <$> takeWordIgnoreUntilEol <*> nextLevelElements n) <|>
-  try (levelTag n "RULE" >> Rule <$> takeWord <*> restOfLine) <|>
+  try (levelTag n "BUILT-IN TEXT RULE" >> BuiltInTextRule <$> takeWord <*> restOfLine) <|>
   try (replacechars n) <|>
   try (text n) <|>
   try (table n) <|>
@@ -57,9 +57,9 @@ replacechars n =
         r <- restOfLine
         return (c,r)
   in do
-      levelTag n "REPLACE CHARS" >> restOfLine
+      levelTag n "CHAR REPLACE TEXT RULE" >> restOfLine
       rules <- many (try replaceCharRule)
-      return $ ReplaceChars (Map.fromList rules)
+      return $ CharReplaceTextRule (Map.fromList rules)
 
 implicitText = do
   content <- many1 emptyOrRegularLineWithEol

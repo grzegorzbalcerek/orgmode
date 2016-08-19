@@ -67,7 +67,7 @@ evaluate env props ((Element name eprops subelements):es) =
 evaluate env props ((Text eprops rules txt):es) = do
   evaluatedTail <- evaluate env props es
   let newProps = evalProps $ Map.union eprops props
-  let newRules = maybe rules id $ Map.lookup (stringProp "rules" newProps) env
+  let newRules = maybe rules id $ Map.lookup (stringProp "textrules" newProps) env
   evalulatedNewRules <- evaluate env props newRules
   return $ (Text newProps evalulatedNewRules txt) : evaluatedTail
 
