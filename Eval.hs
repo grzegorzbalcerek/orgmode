@@ -40,10 +40,6 @@ evaluate env props ((Import path):es) = do
   hClose hinput
   return result
 
--- jeśli napotkano Group
-evaluate env props ((Group subelements):es) =
-  evaluate env props (subelements ++ es)
-
 -- jeśli napotkano element to mamy 2 przypadki:
 evaluate env props ((Element name eprops subelements):es) =
   case (Map.lookup name env) of

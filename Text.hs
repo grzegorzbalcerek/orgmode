@@ -6,6 +6,24 @@ import Data.List
 import Model
 import qualified Data.Map as Map
 
+replaceChars :: Map.Map Char String -> String -> String
+replaceChars rules =
+  let f :: Char -> String -> String
+      f c acc = case (Map.lookup c rules) of
+                  Just s -> s ++ acc
+                  Nothing -> c : acc
+  in foldr f ""
+
+replaceCharPair :: Map.Map Char (String,String) -> String -> String
+replaceCharPair _ "" = ""
+replaceCharPair rules (c:acc) =
+  case (c, break (c ==) acc) of
+    (_,(wrappedtext,_:acc')) ->
+      case (Map.lookup c rules) of
+        Just (b,e) -> b ++ wrappedtext ++ e ++ replaceCharPair rules acc'
+        Nothing -> c : replaceCharPair rules acc
+    _ -> c : replaceCharPair rules acc
+
 onlyAscii = filter (\c -> ord c < 128)
 onlyLowUnicode = filter (\c -> ord c < 9216)
 
@@ -27,14 +45,6 @@ noBreakPl =
             (' ',("U",' ':acc')) -> " U{\\nobreak} " ++ acc'
             (' ',("O",' ':acc')) -> " O{\\nobreak} " ++ acc'
             _ -> c:acc
-  in foldr f ""
-
-replaceChars :: Map.Map Char String -> String -> String
-replaceChars rules =
-  let f :: Char -> String -> String
-      f c acc = case (Map.lookup c rules) of
-                  Just s -> s ++ acc
-                  Nothing -> c : acc
   in foldr f ""
 
 references :: String -> String

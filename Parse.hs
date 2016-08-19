@@ -36,7 +36,6 @@ singleElement n =
   try (levelTag n "IFEQ" >> IfEq <$> takeWord <*> (takeWord <* restOfLine) <*> nextLevelElements n) <|>
   try (levelTag n "ARGS" >> Args <$> properties) <|>
   try (levelTag n "ASTEXT" >> AsText <$> takeWord <*> properties) <|>
-  try (levelTag n "GROUP" >> restOfLine >> Group <$> nextLevelElements n) <|>
   try (levelTag n "DEF" >> Def <$> takeWordIgnoreUntilEol <*> nextLevelElements n) <|>
   try (levelTag n "BUILT-IN TEXT RULE" >> BuiltInTextRule <$> takeWord <*> restOfLine) <|>
   try (replacechars n) <|>

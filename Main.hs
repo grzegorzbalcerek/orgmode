@@ -20,7 +20,6 @@ import Data.List
 import qualified Data.Map as Map
 import System.Directory
 
-
 main = do
   args <- System.Environment.getArgs
   mainWithArgs args

@@ -7,7 +7,6 @@ import qualified Data.Map as Map
 
 data Element =
     Def String [Element]
-  | Group [Element]
   | Element String (Map.Map String String) [Element]
   | Args (Map.Map String String)
   | AsText String (Map.Map String String)
