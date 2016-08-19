@@ -23,6 +23,7 @@ renderElement (Text props rules txt) =
       f txt (Rule "references" _) = references txt
       f txt (Rule "maxline" n) = divideLongLines (read n :: Int) txt
       f txt (Rule "boldprefixed" lst) = boldPrefixed (read lst :: [String]) txt
+      f txt (Rule "onlyprefixed" lst) = onlyPrefixed (read lst :: [String]) txt
       f txt (Rule "hide" _) = ""
       f txt _ = txt
   in foldl f txt rules
