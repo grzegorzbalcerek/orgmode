@@ -17,7 +17,10 @@ copyProps elements =
             next = case c of
                      Element _ cp _ -> Map.mapKeys ("next"++) cp
                      _ -> Map.empty
-            newProps = Map.union (Map.union p prev) next
+            firstchild = case e of
+                           (Element _ fcp _):_ -> Map.mapKeys ("firstchild"++) fcp
+                           _ -> Map.empty
+            newProps = Map.union (Map.union (Map.union p prev) next) firstchild
         in Element n newProps (copyProps e)
       f a b c = b
   in zipWith3 f (emptyElement : elements) elements (tail elements ++ [emptyElement])

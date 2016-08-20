@@ -28,14 +28,18 @@ main = do
 
 mainWithArgs ["parse",path] =           parseCommand 0 path
 mainWithArgs ["parse",n,path] =         parseCommand (read n :: Int) path
-mainWithArgs ["copyprops",path] =       copypropsCommand 0 path
-mainWithArgs ["copyprops",n,path] =     copypropsCommand (read n :: Int) path
+mainWithArgs ["props",path] =           propsCommand 0 path
+mainWithArgs ["props",n,path] =         propsCommand (read n :: Int) path
 mainWithArgs ["eval",path] =            evalCommand 0 Map.empty path
 mainWithArgs ["eval",n,path] =          evalCommand (read n :: Int) Map.empty path
 mainWithArgs [path] =                   renderCommand Map.empty path Map.empty
-mainWithArgs [path,level1id] =          renderCommand Map.empty path (Map.fromList [("level1id",level1id)])
-mainWithArgs [path,level1id,level2id] = renderCommand Map.empty path (Map.fromList [("level1id",level1id),("level2id",level2id)])
+mainWithArgs [path,cond1] =             renderCommand Map.empty path (Map.fromList [condToPair cond1])
+mainWithArgs [path,cond1,cond2] =       renderCommand Map.empty path (Map.fromList [condToPair cond1,condToPair cond2])
 mainWithArgs _ =                        putStrLn "Input arguments not recognized. Nothing to do."
+
+condToPair cond =
+  let (a,b) = break (=='=') cond
+  in (a,tail b)
 
 showText n es =
   let showedContent = showElements 0 es
@@ -47,7 +51,7 @@ parseCommand n path = processFile path $ \input -> do
   let parsed = parseInput input
   putStrLn $ showText n parsed
 
-copypropsCommand n path = processFile path $ \input -> do
+propsCommand n path = processFile path $ \input -> do
   let parsed = parseInput input
   let copied = copyProps parsed
   putStrLn $ showText n copied
