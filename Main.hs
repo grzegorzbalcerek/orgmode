@@ -12,6 +12,8 @@ import Filter
 import Render
 import Eval
 import Docs
+import Show
+import CopyProps
 import System.IO
 import GHC.IO.Encoding
 import Control.Monad.Trans.State
@@ -24,23 +26,40 @@ main = do
   args <- System.Environment.getArgs
   mainWithArgs args
 
-mainWithArgs ["parse",path] =           parseCommand path
-mainWithArgs ["eval",path] =            evalCommand Map.empty path
+mainWithArgs ["parse",path] =           parseCommand 0 path
+mainWithArgs ["parse",n,path] =         parseCommand (read n :: Int) path
+mainWithArgs ["copyprops",path] =       copypropsCommand 0 path
+mainWithArgs ["copyprops",n,path] =     copypropsCommand (read n :: Int) path
+mainWithArgs ["eval",path] =            evalCommand 0 Map.empty path
+mainWithArgs ["eval",n,path] =          evalCommand (read n :: Int) Map.empty path
 mainWithArgs [path] =                   renderCommand Map.empty path Map.empty
 mainWithArgs [path,level1id] =          renderCommand Map.empty path (Map.fromList [("level1id",level1id)])
 mainWithArgs [path,level1id,level2id] = renderCommand Map.empty path (Map.fromList [("level1id",level1id),("level2id",level2id)])
 mainWithArgs _ =                        putStrLn "Input arguments not recognized. Nothing to do."
 
-parseCommand path = processFile path $ \input -> do
-  let content = parseInput input
-  putStrLn (show content)
+showText n es =
+  let showedContent = showElements 0 es
+  in if n == 0
+     then showedContent
+     else unlines.map (take n).lines $ showedContent
 
-evalCommand env path = processFile path $ \input -> do
-  content <- string2elements env Map.empty input
-  putStrLn (show content)
+parseCommand n path = processFile path $ \input -> do
+  let parsed = parseInput input
+  putStrLn $ showText n parsed
+
+copypropsCommand n path = processFile path $ \input -> do
+  let parsed = parseInput input
+  let copied = copyProps parsed
+  putStrLn $ showText n copied
+
+evalCommand n env path = processFile path $ \input -> do
+  evaluated <- string2elements env Map.empty input
+  let content = copyProps evaluated
+  putStrLn (showText n content)
 
 renderCommand env path patternProps = processFile path $ \input -> do
-  content <- string2elements env Map.empty input
+  evaluated <- string2elements env Map.empty input
+  let content = copyProps evaluated
   let filteredContent = filterElements patternProps content
   let rawDocs = makeDocs filteredContent
   let docs = Map.map (\es -> concat (map renderElement es)) rawDocs

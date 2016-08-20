@@ -9,7 +9,7 @@ data Element =
     Def String [Element]
   | Element String (Map.Map String String) [Element]
   | Args (Map.Map String String)
-  | AsText String (Map.Map String String)
+  | EvalText (Map.Map String String) String
   | IfDef String [Element]
   | IfUndef String [Element]
   | IfEq String String [Element]

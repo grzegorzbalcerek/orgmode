@@ -5,6 +5,7 @@ import Data.List (find,groupBy,intersect)
 import Model
 import Parse
 import Render
+import CopyProps
 import Control.Monad.Reader
 import qualified Data.Map as Map
 import Debug.Trace
@@ -17,8 +18,9 @@ string2elements env props inputstr = string2elements' env props inputstr []
 
 string2elements' :: Map.Map String [Element] -> Map.Map String String -> String -> [Element] -> IO [Element]
 string2elements' env props input elements = do
-  let content = parseInput input
-  evaluate env props (content ++ elements)
+  let parsed = parseInput input
+  let copied = copyProps parsed
+  evaluate env props (copied ++ elements)
 
 evaluate :: Map.Map String [Element]  -- środowisko (definicje: String -> [Element])
          -> Map.Map String String     -- akumulowane props z wyższych elementów, propagowane niżej, początkowo puste
@@ -119,11 +121,10 @@ applyArguments props args (IfUndef name elements) =
   then []
   else elements >>= applyArguments props args
 
--- AsText: dodaj jako tekst
-applyArguments props args (AsText name asTextProps) =
-  case (Map.lookup name props) of
-    Just text -> [Text (Map.union props asTextProps) [] text]
-    _ -> []
+-- EvalText: dodaj jako tekst
+applyArguments props args (EvalText etprops text) =
+  let commonProps = (Map.union props etprops)
+  in [Text commonProps [] (evalString commonProps text)]
 
 -- jeśli ciało zawiera Args
 -- skopiuj argumenty ale dodając do nich własności
@@ -139,4 +140,4 @@ mergeProps props e = e
 ----------------------------------------------------
 
 evalProps :: Map.Map String String -> Map.Map String String
-evalProps props = Map.map (parseOneProp props) props
+evalProps props = Map.map (evalString props) props

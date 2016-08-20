@@ -35,13 +35,13 @@ singleElement n =
   try (levelTag n "IFUNDEF" >> IfUndef <$> (takeWord <* restOfLine) <*> nextLevelElements n) <|>
   try (levelTag n "IFEQ" >> IfEq <$> takeWord <*> (takeWord <* restOfLine) <*> nextLevelElements n) <|>
   try (levelTag n "ARGS" >> Args <$> properties) <|>
-  try (levelTag n "ASTEXT" >> AsText <$> takeWord <*> properties) <|>
   try (levelTag n "DEF" >> Def <$> takeWordIgnoreUntilEol <*> nextLevelElements n) <|>
   try (levelTag n "BUILT-IN TEXT RULE" >> BuiltInTextRule <$> takeWord <*> restOfLine) <|>
   try (charReplaceTextRule n) <|>
   try (stringReplaceTextRule n) <|>
   try (charPairTextRule n) <|>
   try (text n) <|>
+  try (evaltext n) <|>
   try (table n) <|>
   try (levelTag n "NEWLINE" >> NewLine <$> properties) <|>
   try (levelTag n "SPACE" >> Space1 <$> properties) <|>
@@ -103,6 +103,13 @@ text n = do
   content <- many emptyOrRegularLineWithEol
   return $ Text props [] (trim txt ++ trim (concat content))
 
+evaltext n = do
+  levelTag n "EVALTEXT"
+  txt <- takeUntilColon
+  props <- properties
+  content <- many emptyOrRegularLineWithEol
+  return $ EvalText props (trim txt ++ trim (concat content))
+
 table n = do
   levelTag n "TABLE" 
   props <- properties
@@ -137,8 +144,8 @@ tableCell = do
 
 ----------------------------------------------
 
-parseOneProp :: Map.Map String String -> String -> String
-parseOneProp env p =
+evalString :: Map.Map String String -> String -> String
+evalString env p =
     case (parse (oneprop env) "error" p) of
       Right result -> result
       Left err -> p
