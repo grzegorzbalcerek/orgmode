@@ -2,7 +2,7 @@
 module Main where
 
 {-
-ghc Main.hs -o orgdoc && copy /y orgdoc.exe L:\bin
+ghc Main.hs -o orgdoc && copy /y orgdoc.exe C:\MySoftware\bin
 -}
 
 import System.Environment

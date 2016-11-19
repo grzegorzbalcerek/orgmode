@@ -32,6 +32,17 @@ evaluate :: Map.Map String [Element]  -- środowisko (definicje: String -> [Elem
 evaluate env props ((Def name elements):es) =
   evaluate (Map.insert name elements env) props es
 
+-- jeśli napotkano instrukcję include to wczytaj plik i potraktuj jak tekst
+evaluate env props ((Include path):es) = do
+  let thepath = evalString props path
+  hinput <- openFile thepath ReadMode
+  hSetEncoding hinput utf8
+  input <- hGetContents hinput
+  putStrLn $ "Including " ++ thepath ++ ": " ++ (show (length input))
+  result <- evaluate env props ((Text Map.empty [] (input `seq` input)) : es)
+  hClose hinput
+  return result
+
 -- jeśli napotkano instrukcję importu
 -- wczytaj i ewaluuj zawartość pliku
 evaluate env props ((Import path):es) = do

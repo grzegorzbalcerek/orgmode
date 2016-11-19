@@ -45,6 +45,7 @@ singleElement n =
   try (table n) <|>
   try (levelTag n "NEWLINE" >> NewLine <$> properties) <|>
   try (levelTag n "SPACE" >> Space1 <$> properties) <|>
+  try (levelTag n "INCLUDE" >> Include <$> takeWordIgnoreUntilEol) <|>
   try (levelTag n "IMPORT" >> Import <$> takeWordIgnoreUntilEol) <|>
   try (beginLevel n >> Element <$> takeWord <*> properties <*> nextLevelElements n) <|>
   try implicitText

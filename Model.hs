@@ -16,6 +16,7 @@ data Element =
   | Text (Map.Map String String) [Element] String
   | NewLine (Map.Map String String)
   | Space1 (Map.Map String String)
+  | Include String
   | Import String
   | Table (Map.Map String String) [TableRow]
   | CharReplaceTextRule (Map.Map Char String)
